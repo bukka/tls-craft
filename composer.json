@@ -1,0 +1,29 @@
+{
+    "name": "php/tls-craft",
+    "description": "A PHP library for testing and controlling TLS protocol behavior",
+    "type": "library",
+    "license": "PHP-3.01",
+    "keywords": ["tls", "ssl", "protocol", "testing", "debugging"],
+    "authors": [
+        {
+            "name": "Jakub Zelenka"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "ext-openssl": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Php\\TlsCraft\\": "src/TlsCraft/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Php\\TlsCraft\\Tests\\": "tests/"
+        }
+    }
+}
