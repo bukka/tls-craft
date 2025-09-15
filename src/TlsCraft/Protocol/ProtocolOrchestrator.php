@@ -17,8 +17,11 @@ use Php\TlsCraft\Messages\{Certificate,
     KeyUpdate,
     MessageFactory,
     ServerHello};
-use Php\TlsCraft\Record\{Builder, Layer, Record};
+use Php\TlsCraft\Record\{Builder, EncryptedLayer, Layer, Record};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
+use Php\TlsCraft\Generators\MessageGeneratorOrchestrator;
+use Php\TlsCraft\Processors\ClientHelloProcessor;
+use Php\TlsCraft\Processors\ServerHelloProcessor;
 
 /**
  * Updated ProtocolOrchestrator with clean typing and proper integration
@@ -29,8 +32,14 @@ class ProtocolOrchestrator
     private ProtocolValidator $validator;
     private Context $context;
     private MessageFactory $messageFactory;
-    private Layer $recordLayer;
+    private EncryptedLayer $recordLayer; // Enhanced with encryption
     private ?FlowController $flowController;
+
+    // Message processors for cleaner handling
+    private array $messageProcessors = [];
+
+    // Message generator orchestrator
+    private MessageGeneratorOrchestrator $messageGenerator;
 
     public function __construct(
         StateTracker $stateTracker,
@@ -47,11 +56,13 @@ class ProtocolOrchestrator
         $this->messageFactory = new MessageFactory($config);
         $this->flowController = $flowController;
 
-        // Set up record layer with flow controller as interceptor
-        $this->recordLayer = new Layer(
-            $connection->getResource(),
-            $flowController
-        );
+        // Set up encrypted record layer
+        $baseLayer = new Layer($connection->getResource(), $flowController);
+        $this->recordLayer = new EncryptedLayer($baseLayer, $context);
+
+        // Initialize message processors and generator
+        $this->initializeMessageProcessors($config);
+        $this->messageGenerator = new MessageGeneratorOrchestrator($context, $config);
 
         // Set up flow controller event listeners
         if ($flowController) {
@@ -67,6 +78,15 @@ class ProtocolOrchestrator
     public function getContext(): Context
     {
         return $this->context;
+    }
+
+    // === Initialize Message Processors ===
+
+    private function initializeMessageProcessors(Config $config): void
+    {
+        $this->messageProcessors[] = new ClientHelloProcessor($this->context, $config);
+        $this->messageProcessors[] = new ServerHelloProcessor($this->context, $config);
+        // Add more processors as needed
     }
 
     // === Flow Controller Event Setup ===
@@ -98,9 +118,6 @@ class ProtocolOrchestrator
     public function performClientHandshake(): void
     {
         $this->stateTracker->startHandshake();
-
-        // Generate key pair
-        $this->context->generateKeyPair();
 
         // Send ClientHello
         $clientHello = $this->messageFactory->createClientHello($this->context);
@@ -303,7 +320,7 @@ class ProtocolOrchestrator
         }
     }
 
-    // === Clean Message Processing with Proper Types ===
+    // === Enhanced Message Processing with Processors ===
 
     private function processHandshakeRecord(Record $record): void
     {
@@ -321,17 +338,17 @@ class ProtocolOrchestrator
                 );
             }
 
-            // Parse to specific type and handle with correct typing
+            // Parse to specific type and handle with processors or direct handlers
             switch ($handshakeType) {
                 case HandshakeType::CLIENT_HELLO:
                     $clientHello = ClientHello::fromWire($record->payload);
-                    $this->context->addHandshakeMessage($clientHello);
+                    $this->processWithProcessor($clientHello);
                     $this->handleClientHello($clientHello);
                     break;
 
                 case HandshakeType::SERVER_HELLO:
                     $serverHello = ServerHello::fromWire($record->payload);
-                    $this->context->addHandshakeMessage($serverHello);
+                    $this->processWithProcessor($serverHello);
                     $this->handleServerHello($serverHello);
                     break;
 
@@ -374,17 +391,29 @@ class ProtocolOrchestrator
         }
     }
 
-    // === Type-Safe Message Handlers ===
+    /**
+     * Process message with appropriate processor if available
+     */
+    private function processWithProcessor(HandshakeMessage $message): void
+    {
+        foreach ($this->messageProcessors as $processor) {
+            if ($processor->canProcess($message)) {
+                $processor->process($message);
+                return;
+            }
+        }
+        // If no processor found, continue with direct handling
+    }
+
+    // === Type-Safe Message Handlers (keeping existing logic) ===
 
     private function handleClientHello(ClientHello $clientHello): void
     {
-        $this->context->processClientHello($clientHello);
         $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FLIGHT2);
     }
 
     private function handleServerHello(ServerHello $serverHello): void
     {
-        $this->context->processServerHello($serverHello);
         $this->context->deriveHandshakeSecrets();
         $this->stateTracker->transitionHandshake(HandshakeState::WAIT_ENCRYPTED_EXTENSIONS);
     }

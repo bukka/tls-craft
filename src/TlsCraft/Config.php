@@ -3,10 +3,14 @@
 namespace Php\TlsCraft;
 
 use Closure;
+use Php\TlsCraft\Crypto\CipherSuite;
+use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Extensions\ClientHelloExtensionProviders;
 use Php\TlsCraft\Extensions\EncryptedExtensionsProviders;
 use Php\TlsCraft\Extensions\Providers\SupportedVersionsProvider;
 use Php\TlsCraft\Extensions\ServerHelloExtensionProviders;
+use Php\TlsCraft\Protocol\Version;
+use Php\TlsCraft\State\ProtocolValidator;
 
 class Config
 {
@@ -23,7 +27,7 @@ class Config
     public ?Closure $onAlert = null;
 
     public bool $allowProtocolViolations = false;
-    public ?State\ProtocolValidator $customValidator = null;
+    public ?ProtocolValidator $customValidator = null;
 
     // Connection options
     public array $connectionOptions = [];
@@ -32,9 +36,9 @@ class Config
     {
         // Default cipher suites
         $this->cipherSuites = [
-            Crypto\CipherSuite::TLS_AES_128_GCM_SHA256->value,
-            Crypto\CipherSuite::TLS_AES_256_GCM_SHA384->value,
-            Crypto\CipherSuite::TLS_CHACHA20_POLY1305_SHA256->value,
+            CipherSuite::TLS_AES_128_GCM_SHA256->value,
+            CipherSuite::TLS_AES_256_GCM_SHA384->value,
+            CipherSuite::TLS_CHACHA20_POLY1305_SHA256->value,
         ];
 
         // Default supported groups
@@ -42,9 +46,9 @@ class Config
 
         // Default signature algorithms
         $this->signatureAlgorithms = [
-            Crypto\SignatureScheme::RSA_PKCS1_SHA256->value,
-            Crypto\SignatureScheme::RSA_PKCS1_SHA384->value,
-            Crypto\SignatureScheme::ECDSA_SECP256R1_SHA256->value,
+            SignatureScheme::RSA_PKCS1_SHA256->value,
+            SignatureScheme::RSA_PKCS1_SHA384->value,
+            SignatureScheme::ECDSA_SECP256R1_SHA256->value,
         ];
 
         // Initialize extension providers
@@ -60,7 +64,7 @@ class Config
     {
         // Add supported_versions extension by default
         $this->clientHelloExtensions->add(
-            new SupportedVersionsProvider([Protocol\Version::TLS_1_3])
+            new SupportedVersionsProvider([Version::TLS_1_3])
         );
     }
 }
