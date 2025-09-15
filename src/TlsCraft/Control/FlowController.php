@@ -8,14 +8,12 @@ use Php\TlsCraft\Protocol\AlertLevel;
 use Php\TlsCraft\Protocol\ContentType;
 use Php\TlsCraft\Record\Record;
 use Php\TlsCraft\State\ConnectionState;
-use Php\TlsCraft\State\Manager;
+use Php\TlsCraft\State\StateTracker;
 
 class FlowController
 {
-    private Manager $stateManager;
+    private StateTracker $stateTracker;
     private Timing $timing;
-
-    /** @var ScheduledAction[] */
     private array $scheduledActions = [];
     private float $startTime;
     private array $recordInterceptions = [];
@@ -23,64 +21,99 @@ class FlowController
     private int $maxFragmentSize = 1024;
     private array $corruptionRules = [];
     private array $dropRules = [];
+    private array $eventListeners = [];
 
-    public function __construct(Manager $stateManager)
+    public function __construct(StateTracker $stateTracker)
     {
-        $this->stateManager = $stateManager;
+        $this->stateTracker = $stateTracker;
         $this->timing = new Timing();
         $this->startTime = microtime(true);
 
         // Listen for state changes to execute scheduled actions
-        $this->stateManager->onStateChange([$this, 'onStateChange']);
+        $this->stateTracker->onStateChange([$this, 'handleStateChange']);
     }
 
-    public function getStateManager(): Manager
+    public function getStateTracker(): StateTracker
     {
-        return $this->stateManager;
+        return $this->stateTracker;
+    }
+
+    // === Event System ===
+
+    public function addEventListener(string $eventType, callable $listener): void
+    {
+        $this->eventListeners[$eventType][] = $listener;
+    }
+
+    public function removeEventListener(string $eventType, callable $listener): void
+    {
+        if (isset($this->eventListeners[$eventType])) {
+            $this->eventListeners[$eventType] = array_filter(
+                $this->eventListeners[$eventType],
+                fn($l) => $l !== $listener
+            );
+        }
+    }
+
+    private function triggerEvent(string $eventType, array $data = []): void
+    {
+        $event = new ControlEvent($eventType, $data);
+
+        if (isset($this->eventListeners[$eventType])) {
+            foreach ($this->eventListeners[$eventType] as $listener) {
+                $listener($event);
+            }
+        }
     }
 
     // === Scheduling Actions ===
 
     public function scheduleKeyUpdate(float $afterSeconds, bool $requestUpdate = false): self
     {
-        $this->scheduleAction($afterSeconds, function() use ($requestUpdate) {
-            $this->triggerKeyUpdate($requestUpdate);
-        }, "key_update");
+        $this->scheduleAction(
+            $afterSeconds,
+            'key_update',
+            ['request_update' => $requestUpdate],
+            "key_update"
+        );
 
         return $this;
     }
 
     public function scheduleAbruptClose(float $afterSeconds): self
     {
-        $this->scheduleAction($afterSeconds, function() {
-            $this->triggerAbruptClose();
-        }, "abrupt_close");
+        $this->scheduleAction(
+            $afterSeconds,
+            'abrupt_close',
+            [],
+            "abrupt_close"
+        );
 
         return $this;
     }
 
     public function scheduleAlert(float $afterSeconds, AlertLevel $level, AlertDescription $description): self
     {
-        $this->scheduleAction($afterSeconds, function() use ($level, $description) {
-            $this->triggerAlert($level, $description);
-        }, "alert_{$description->name}");
+        $this->scheduleAction(
+            $afterSeconds,
+            'send_alert',
+            ['level' => $level, 'description' => $description],
+            "alert_{$description->name}"
+        );
 
         return $this;
     }
 
-    public function scheduleStateTransition(float $afterSeconds, ConnectionState $newState): self
+    public function scheduleCustomEvent(float $afterSeconds, string $eventType, array $data = []): self
     {
-        $this->scheduleAction($afterSeconds, function() use ($newState) {
-            $this->stateManager->transition($newState, 'scheduled_transition');
-        }, "state_transition_{$newState->value}");
-
+        $this->scheduleAction($afterSeconds, $eventType, $data, $eventType);
         return $this;
     }
 
-    public function scheduleAction(float $afterSeconds, callable $action, string $description): void
+    private function scheduleAction(float $afterSeconds, string $eventType, array $eventData, string $description): void
     {
         $executeAt = $this->startTime + $afterSeconds;
-        $this->scheduledActions[] = new ScheduledAction($executeAt, $action, $description);
+        $this->scheduledActions[] = new ScheduledAction($executeAt, $eventType, $eventData, $description);
     }
 
     // === Timing Control ===
@@ -145,12 +178,6 @@ class FlowController
     }
 
     // === Callback Registration ===
-
-    public function onStateChange(callable $callback): self
-    {
-        $this->stateManager->onStateChange($callback);
-        return $this;
-    }
 
     public function onRecordSent(callable $callback): self
     {
@@ -234,7 +261,8 @@ class FlowController
         foreach ($this->scheduledActions as $key => $action) {
             if ($action->shouldExecute($currentTime)) {
                 try {
-                    $action->execute();
+                    $event = $action->createEvent();
+                    $this->triggerEvent($event->type, $event->data);
                 } catch (\Throwable $e) {
                     // Log error but continue
                     error_log("Scheduled action failed: " . $e->getMessage());
@@ -252,27 +280,14 @@ class FlowController
             $this->timing->applyDelay($delay);
         }
 
+        // Execute any scheduled actions
         $this->executeScheduledActions();
-    }
 
-    private function triggerKeyUpdate(bool $requestUpdate): void
-    {
-        if ($this->stateManager->isConnected()) {
-            $this->stateManager->getTrafficState()->scheduleKeyUpdate();
-            // In a real implementation, this would send a KeyUpdate message
-        }
-    }
-
-    private function triggerAbruptClose(): void
-    {
-        $this->stateManager->close(true);
-    }
-
-    private function triggerAlert(AlertLevel $level, AlertDescription $description): void
-    {
-        if ($description->isFatal()) {
-            $this->stateManager->error("alert_{$description->name}");
-        }
-        // In a real implementation, this would send an Alert message
+        // Trigger state change event
+        $this->triggerEvent('state_change', [
+            'old_state' => $oldState,
+            'new_state' => $newState,
+            'reason' => $reason
+        ]);
     }
 }

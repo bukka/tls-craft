@@ -5,6 +5,7 @@ namespace Php\TlsCraft\Record;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Protocol\ContentType;
+use Php\TlsCraft\Protocol\HandshakeType;
 use Php\TlsCraft\Protocol\Version;
 
 class Record
@@ -108,5 +109,45 @@ class Record
         $corruptedPayload[$bytePosition] = chr($newValue);
 
         return new self($this->contentType, $this->version, $corruptedPayload);
+    }
+
+    /**
+     * Get handshake message type from payload
+     */
+    public function getHandshakeType(): HandshakeType
+    {
+        if ($this->contentType !== ContentType::HANDSHAKE) {
+            throw new CraftException("Not a handshake record");
+        }
+
+        if (strlen($this->payload) < 1) {
+            throw new CraftException("Invalid handshake record: empty payload");
+        }
+
+        return HandshakeType::fromByte($this->payload[0]);
+    }
+
+    /**
+     * Check if this is a handshake record
+     */
+    public function isHandshake(): bool
+    {
+        return $this->contentType === ContentType::HANDSHAKE;
+    }
+
+    /**
+     * Check if this is an alert record
+     */
+    public function isAlert(): bool
+    {
+        return $this->contentType === ContentType::ALERT;
+    }
+
+    /**
+     * Check if this is application data
+     */
+    public function isApplicationData(): bool
+    {
+        return $this->contentType === ContentType::APPLICATION_DATA;
     }
 }

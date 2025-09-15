@@ -2,35 +2,34 @@
 
 namespace Php\TlsCraft\Control;
 
+use Php\TlsCraft\Protocol\AlertDescription;
+use Php\TlsCraft\Protocol\AlertLevel;
 use Php\TlsCraft\Protocol\ContentType;
-use Php\TlsCraft\Record\Record;
 use Php\TlsCraft\State\ConnectionState;
-use Php\TlsCraft\State\Manager;
+use Php\TlsCraft\State\StateTracker;
 
 class BehaviorEmulator
 {
-    public static function brokenClient(Manager $stateManager): FlowController
+    public static function brokenClient(StateTracker $stateTracker): FlowController
     {
-        $controller = new FlowController($stateManager);
+        $controller = new FlowController($stateTracker);
 
         // Randomly drop handshake messages
         $controller->dropRecords(ContentType::HANDSHAKE, 1);
 
-        // Send application data before handshake completes
-        $controller->onStateChange(function($old, $new) use ($controller) {
-            if ($new === ConnectionState::HANDSHAKING) {
-                $controller->scheduleAction(0.1, function() {
-                    // This would send application data during handshake
-                }, "premature_app_data");
+        // Send alert when handshaking starts
+        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+            if ($event->data['new_state'] === ConnectionState::HANDSHAKING) {
+                $controller->scheduleAlert(0.1, AlertLevel::FATAL, AlertDescription::INTERNAL_ERROR);
             }
         });
 
         return $controller;
     }
 
-    public static function slowClient(Manager $stateManager, int $bytesPerSecond): FlowController
+    public static function slowClient(StateTracker $stateTracker, int $bytesPerSecond): FlowController
     {
-        $controller = new FlowController($stateManager);
+        $controller = new FlowController($stateTracker);
 
         // Calculate delay per record based on throughput
         $delayPerKB = 1024.0 / $bytesPerSecond;
@@ -41,13 +40,13 @@ class BehaviorEmulator
         return $controller;
     }
 
-    public static function aggressiveKeyUpdater(Manager $stateManager): FlowController
+    public static function aggressiveKeyUpdater(StateTracker $stateTracker): FlowController
     {
-        $controller = new FlowController($stateManager);
+        $controller = new FlowController($stateTracker);
 
-        // Schedule multiple key updates in rapid succession
-        $controller->onStateChange(function($old, $new) use ($controller) {
-            if ($new === ConnectionState::CONNECTED) {
+        // Schedule multiple key updates when connected
+        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+            if ($event->data['new_state'] === ConnectionState::CONNECTED) {
                 for ($i = 1; $i <= 5; $i++) {
                     $controller->scheduleKeyUpdate($i * 0.5, true);
                 }
@@ -57,13 +56,13 @@ class BehaviorEmulator
         return $controller;
     }
 
-    public static function abruptCloser(Manager $stateManager): FlowController
+    public static function abruptCloser(StateTracker $stateTracker): FlowController
     {
-        $controller = new FlowController($stateManager);
+        $controller = new FlowController($stateTracker);
 
-        // Close connection abruptly after sending some data
-        $controller->onStateChange(function($old, $new) use ($controller) {
-            if ($new === ConnectionState::CONNECTED) {
+        // Close connection abruptly after connecting
+        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+            if ($event->data['new_state'] === ConnectionState::CONNECTED) {
                 $controller->scheduleAbruptClose(2.0);
             }
         });
@@ -71,9 +70,9 @@ class BehaviorEmulator
         return $controller;
     }
 
-    public static function fragmentingClient(Manager $stateManager, int $fragmentSize = 100): FlowController
+    public static function fragmentingClient(StateTracker $stateTracker, int $fragmentSize = 100): FlowController
     {
-        $controller = new FlowController($stateManager);
+        $controller = new FlowController($stateTracker);
 
         // Fragment all records to very small sizes
         $controller->enableRecordFragmentation($fragmentSize);
@@ -84,46 +83,44 @@ class BehaviorEmulator
         return $controller;
     }
 
-    public static function stateViolator(Manager $stateManager): FlowController
+    public static function stateViolator(StateTracker $stateTracker): FlowController
     {
-        $controller = new FlowController($stateManager);
+        $controller = new FlowController($stateTracker);
 
-        // Attempt invalid state transitions
-        $controller->onStateChange(function($old, $new) use ($controller, $stateManager) {
-            if ($new === ConnectionState::HANDSHAKING) {
-                // Try to force immediate connection without completing handshake
-                $controller->scheduleStateTransition(0.1, ConnectionState::CONNECTED);
+        // Trigger events that attempt protocol violations
+        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+            if ($event->data['new_state'] === ConnectionState::HANDSHAKING) {
+                // Try to send application data during handshake
+                $controller->scheduleCustomEvent(0.1, 'send_app_data_early', ['data' => 'early data']);
             }
         });
 
         return $controller;
     }
 
-    public static function maliciousClient(Manager $stateManager): FlowController
+    public static function maliciousClient(StateTracker $stateTracker): FlowController
     {
-        $controller = new FlowController($stateManager);
+        $controller = new FlowController($stateTracker);
 
         // Corrupt handshake messages
         $controller->corruptRecord(ContentType::HANDSHAKE, 0, 0xFF);
 
-        // Send oversized records
-        $controller->onRecordSent(function(Record $record) {
-            if ($record->contentType === ContentType::APPLICATION_DATA) {
-                // This would create an oversized record in practice
-                return $record;
-            }
-            return $record;
-        });
-
         // Random delays to cause timeouts
         $controller->enableJitter(2.0);
+
+        // Send malformed alerts
+        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+            if ($event->data['new_state'] === ConnectionState::CONNECTED) {
+                $controller->scheduleAlert(1.0, AlertLevel::FATAL, AlertDescription::DECODE_ERROR);
+            }
+        });
 
         return $controller;
     }
 
-    public static function custom(): FlowController
+    public static function custom(StateTracker $stateTracker): FlowController
     {
         // Returns a basic controller for custom configuration
-        return new FlowController(new Manager());
+        return new FlowController($stateTracker);
     }
 }

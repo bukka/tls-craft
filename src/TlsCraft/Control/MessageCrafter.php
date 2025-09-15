@@ -10,11 +10,6 @@ class MessageCrafter
 {
     public static function createKeyUpdate(bool $requestUpdate = false): string
     {
-        // KeyUpdate message format:
-        // - HandshakeType (1 byte): KEY_UPDATE (24)
-        // - Length (3 bytes): 1
-        // - request_update (1 byte): 0x00 or 0x01
-
         $requestByte = $requestUpdate ? "\x01" : "\x00";
         $length = "\x00\x00\x01"; // 1 byte payload
 
@@ -28,7 +23,6 @@ class MessageCrafter
 
     public static function createMalformedClientHello(): string
     {
-        // Create a deliberately malformed ClientHello for testing
         $handshakeType = HandshakeType::CLIENT_HELLO->toByte();
         $length = "\x00\x00\xFF"; // Invalid length
         $malformedData = str_repeat("\x00", 10); // Insufficient data

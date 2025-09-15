@@ -1,6 +1,6 @@
 <?php
 
-namespace Php\TlsCraft\Handshake;
+namespace Php\TlsCraft\Messages;
 
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;

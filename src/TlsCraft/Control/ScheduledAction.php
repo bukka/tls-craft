@@ -6,7 +6,8 @@ class ScheduledAction
 {
     public function __construct(
         public readonly float $executeAt,
-        public readonly \Closure $action,
+        public readonly string $eventType,
+        public readonly array $eventData,
         public readonly string $description
     ) {}
 
@@ -15,8 +16,8 @@ class ScheduledAction
         return $currentTime >= $this->executeAt;
     }
 
-    public function execute(): void
+    public function createEvent(): ControlEvent
     {
-        ($this->action)();
+        return new ControlEvent($this->eventType, $this->eventData);
     }
 }

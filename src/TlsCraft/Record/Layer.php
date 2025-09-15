@@ -2,20 +2,19 @@
 
 namespace Php\TlsCraft\Record;
 
-use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Connection\Connection;
 
 class Layer
 {
-    private ?RecordInterceptor $interceptor = null;
     private array $sendQueue = [];
     private bool $fragmentationEnabled = false;
     private int $maxFragmentSize = Record::MAX_PAYLOAD_LENGTH;
 
     public function __construct(
-        private $socket,
-        ?RecordInterceptor $interceptor = null
-    ) {
-        $this->interceptor = $interceptor;
+        private Connection         $connection,
+        private ?RecordInterceptor $interceptor = null
+    )
+    {
     }
 
     public function setInterceptor(?RecordInterceptor $interceptor): void
@@ -106,10 +105,7 @@ class Layer
         $length = strlen($data);
 
         while ($written < $length) {
-            $result = fwrite($this->socket, substr($data, $written));
-            if ($result === false) {
-                throw new CraftException("Failed to write to socket");
-            }
+            $result = $this->connection->write(substr($data, $written));
             $written += $result;
         }
     }
@@ -120,7 +116,7 @@ class Layer
         $remaining = $length;
 
         while ($remaining > 0) {
-            $chunk = fread($this->socket, $remaining);
+            $chunk = $this->connection->read($remaining);
             if ($chunk === false || $chunk === '') {
                 return null;
             }

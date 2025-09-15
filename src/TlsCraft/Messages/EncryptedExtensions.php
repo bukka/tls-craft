@@ -1,7 +1,8 @@
 <?php
 
-namespace Php\TlsCraft\Handshake;
+namespace Php\TlsCraft\Messages;
 
+use Php\TlsCraft\Extensions\Extension;
 use Php\TlsCraft\Protocol\HandshakeType;
 
 class EncryptedExtensions extends HandshakeMessage

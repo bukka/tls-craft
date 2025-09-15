@@ -1,15 +1,16 @@
 <?php
 
-namespace Php\TlsCraft\Handshake;
+namespace Php\TlsCraft;
 
-use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Crypto\ECDHKeyExchange;
-use Php\TlsCraft\Crypto\KeySchedule;
-use Php\TlsCraft\Crypto\SignatureScheme;
-use Php\TlsCraft\Exceptions\CraftException;
-use Php\TlsCraft\Exceptions\ProtocolViolationException;
+use Php\TlsCraft\Crypto\{CipherSuite, KeySchedule, SignatureScheme, ECDHKeyExchange};
+use Php\TlsCraft\Messages\{HandshakeMessage, ClientHello, ServerHello};
+use Php\TlsCraft\Extensions\Extension;
 use Php\TlsCraft\Protocol\Version;
+use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
 
+/**
+ * Updated Context with missing methods
+ */
 class Context
 {
     private Version $negotiatedVersion;
@@ -28,7 +29,7 @@ class Context
     private ?string $clientRandom = null;
     private ?string $serverRandom = null;
 
-    // Certificate chain
+    // Certificate chain and private key
     private array $certificateChain = [];
     private $privateKey = null;
 
@@ -82,6 +83,16 @@ class Context
     public function getSharedSecret(): ?string
     {
         return $this->sharedSecret;
+    }
+
+    public function getCertificateChain(): array
+    {
+        return $this->certificateChain;
+    }
+
+    public function getPrivateKey()
+    {
+        return $this->privateKey;
     }
 
     // === Setters ===
@@ -271,6 +282,29 @@ class Context
 
         $finishedKey = $this->keySchedule->getFinishedKey($trafficSecret);
         return $this->keySchedule->calculateFinishedData($finishedKey);
+    }
+
+    // === Traffic Key Updates ===
+
+    public function updateTrafficKeys(): void
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException("Key schedule not initialized");
+        }
+
+        // Update both client and server traffic secrets
+        $clientSecret = $this->keySchedule->getClientApplicationTrafficSecret();
+        $serverSecret = $this->keySchedule->getServerApplicationTrafficSecret();
+
+        $newClientSecret = $this->keySchedule->updateTrafficSecret($clientSecret);
+        $newServerSecret = $this->keySchedule->updateTrafficSecret($serverSecret);
+
+        // Derive new keys from updated secrets
+        $clientKeys = $this->keySchedule->deriveApplicationKeys($newClientSecret);
+        $serverKeys = $this->keySchedule->deriveApplicationKeys($newServerSecret);
+
+        // Store updated secrets (in a real implementation, these would update the key schedule)
+        // For now, this is a placeholder for the key update process
     }
 
     // === Validation ===
