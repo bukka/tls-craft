@@ -108,10 +108,10 @@ class Manager: string
         // Add to transcript
         $this->handshakeContext->addHandshakeMessage($message);
 
-        // Process based on current state and message type
+        // Process based on the current state and message type
         $this->validateHandshakeMessage($message);
 
-        // Update state based on message
+        // Update state based on the message
         $this->updateHandshakeState($message);
     }
 
@@ -129,27 +129,19 @@ class Manager: string
     private function getExpectedMessageTypes(): array
     {
         return match ($this->handshakeState) {
-            HandshakeState::START => $this->isClient ?
-                [HandshakeType::SERVER_HELLO] :
-                [HandshakeType::CLIENT_HELLO],
-            HandshakeState::WAIT_CLIENT_HELLO =>
-            [HandshakeType::CLIENT_HELLO],
-            HandshakeState::WAIT_SERVER_HELLO =>
-            [HandshakeType::SERVER_HELLO],
-            HandshakeState::WAIT_ENCRYPTED_EXTENSIONS =>
-            [HandshakeType::ENCRYPTED_EXTENSIONS],
-            HandshakeState::WAIT_CERTIFICATE =>
-            [HandshakeType::CERTIFICATE],
-            HandshakeState::WAIT_CERTIFICATE_VERIFY =>
-            [HandshakeType::CERTIFICATE_VERIFY],
-            HandshakeState::WAIT_FINISHED =>
-            [HandshakeType::FINISHED],
-            HandshakeState::WAIT_FLIGHT2 =>
-            [HandshakeType::CERTIFICATE,
+            HandshakeState::START => $this->isClient ? [HandshakeType::SERVER_HELLO] : [HandshakeType::CLIENT_HELLO],
+            HandshakeState::WAIT_CLIENT_HELLO => [HandshakeType::CLIENT_HELLO],
+            HandshakeState::WAIT_SERVER_HELLO => [HandshakeType::SERVER_HELLO],
+            HandshakeState::WAIT_ENCRYPTED_EXTENSIONS => [HandshakeType::ENCRYPTED_EXTENSIONS],
+            HandshakeState::WAIT_CERTIFICATE => [HandshakeType::CERTIFICATE],
+            HandshakeState::WAIT_CERTIFICATE_VERIFY => [HandshakeType::CERTIFICATE_VERIFY],
+            HandshakeState::WAIT_FINISHED => [HandshakeType::FINISHED],
+            HandshakeState::WAIT_FLIGHT2 => [
+                HandshakeType::CERTIFICATE,
                 HandshakeType::CERTIFICATE_VERIFY,
-                HandshakeType::FINISHED],
-            HandshakeState::CONNECTED =>
-            [HandshakeType::KEY_UPDATE],
+                HandshakeType::FINISHED
+            ],
+            HandshakeState::CONNECTED => [HandshakeType::KEY_UPDATE],
         };
     }
 

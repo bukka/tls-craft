@@ -22,20 +22,4 @@ class ConnectionFactory
     ): Server {
         return new Server($certPath, $keyPath, $controller);
     }
-
-    public static function createMockConnection(
-        ?FlowController $controller = null,
-        bool $isClient = true
-    ): ControlledConnection {
-        // Create a mock socket for testing
-        $mockSocket = new Socket(
-            fopen('php://memory', 'r+'),
-            '127.0.0.1',
-            12345,
-            !$isClient
-        );
-
-        $stateManager = new Manager($isClient);
-        return new ControlledConnection($mockSocket, $stateManager, $controller);
-    }
 }

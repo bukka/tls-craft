@@ -7,6 +7,7 @@ use Php\TlsCraft\Control\MessageCrafter;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Exceptions\StateException;
 use Php\TlsCraft\Handshake\HandshakeMessage;
+use Php\TlsCraft\Handshake\KeyUpdate;
 use Php\TlsCraft\Protocol\AlertDescription;
 use Php\TlsCraft\Protocol\AlertLevel;
 use Php\TlsCraft\Protocol\ContentType;

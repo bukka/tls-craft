@@ -14,6 +14,8 @@ class FlowController
 {
     private Manager $stateManager;
     private Timing $timing;
+
+    /** @var ScheduledAction[] */
     private array $scheduledActions = [];
     private float $startTime;
     private array $recordInterceptions = [];

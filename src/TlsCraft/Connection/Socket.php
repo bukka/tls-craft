@@ -2,6 +2,8 @@
 
 namespace Php\TlsCraft\Connection;
 
+use Php\TlsCraft\Exceptions\CraftException;
+
 class Socket
 {
     private $resource;
