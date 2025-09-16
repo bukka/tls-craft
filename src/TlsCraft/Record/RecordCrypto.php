@@ -3,14 +3,15 @@
 namespace Php\TlsCraft\Record;
 
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Crypto\AEAD;
+use Php\TlsCraft\Crypto\Aead;
+use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Protocol\ContentType;
 
 class RecordCrypto
 {
     private Context $context;
-    private ?AEAD $readCipher = null;
-    private ?AEAD $writeCipher = null;
+    private ?Aead $readCipher = null;
+    private ?Aead $writeCipher = null;
     private int $readSequence = 0;
     private int $writeSequence = 0;
 
@@ -24,8 +25,12 @@ class RecordCrypto
      */
     public function encryptRecord(Record $record): Record
     {
+        if (!$record->isEncrypted()) {
+            return $record;
+        }
+
         if (!$this->context->getKeySchedule() || !$this->shouldEncrypt()) {
-            return $record; // Return unencrypted during handshake
+            return throw new CraftException("Cannot encrypt record: handshake not complete");
         }
 
         if (!$this->writeCipher) {
@@ -54,6 +59,11 @@ class RecordCrypto
      */
     public function decryptRecord(Record $record): Record
     {
+        if ($record->contentType === ContentType::HANDSHAKE) {
+            // This is a handshake record, do not decrypt
+            return $record;
+        }
+
         if (!$this->context->getKeySchedule() || !$this->shouldEncrypt()) {
             return $record; // Return as-is during handshake
         }
@@ -93,13 +103,13 @@ class RecordCrypto
     private function initializeWriteCipher(): void
     {
         $keys = $this->context->getHandshakeKeys($this->context->isClient());
-        $this->writeCipher = new AEAD($keys['key'], $keys['iv']);
+        $this->writeCipher = new Aead($keys['key'], $keys['iv']);
     }
 
     private function initializeReadCipher(): void
     {
         $keys = $this->context->getHandshakeKeys(!$this->context->isClient());
-        $this->readCipher = new AEAD($keys['key'], $keys['iv']);
+        $this->readCipher = new Aead($keys['key'], $keys['iv']);
     }
 
     private function createAAD(ContentType $contentType, int $length): string

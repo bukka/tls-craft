@@ -16,7 +16,8 @@ class Record
     public function __construct(
         public readonly ContentType $contentType,
         public readonly Version     $version,
-        public readonly string      $payload
+        public readonly string      $payload,
+        private readonly bool $encrypted = true
     )
     {
         if (strlen($payload) > self::MAX_PAYLOAD_LENGTH) {
@@ -133,6 +134,14 @@ class Record
     public function isHandshake(): bool
     {
         return $this->contentType === ContentType::HANDSHAKE;
+    }
+
+    /**
+     * Check if this is an encrypted record
+     */
+    public function isEncrypted(): bool
+    {
+        return $this->encrypted;
     }
 
     /**

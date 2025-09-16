@@ -2,11 +2,11 @@
 
 namespace Php\TlsCraft;
 
-use Php\TlsCraft\Crypto\{CipherSuite, KeySchedule, SignatureScheme, ECDHKeyExchange};
-use Php\TlsCraft\Messages\{HandshakeMessage, ClientHello, ServerHello};
-use Php\TlsCraft\Extensions\Extension;
-use Php\TlsCraft\Protocol\Version;
+use Php\TlsCraft\Crypto\{CipherSuite, ECDHKeyExchange, KeySchedule, KeyShare, RandomGenerator, SignatureScheme};
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
+use Php\TlsCraft\Extensions\Extension;
+use Php\TlsCraft\Messages\{ClientHello, Message, ServerHello};
+use Php\TlsCraft\Protocol\Version;
 
 /**
  * Updated Context with missing methods
@@ -35,19 +35,48 @@ class Context
 
     // Handshake transcript
     private array $handshakeMessages = [];
+    private KeyShare $keyShare;
+    private string $requestedServerName;
+    private array $clientOfferedProtocols;
+    private string $selectedProtocol;
+    private mixed $serverKeyShare;
+    private bool $serverNameAcknowledged;
+    private array $serverSupportedGroups;
+    private \OpenSSLAsymmetricKey $peerPublicKey;
+    private string $certificateRequestContext;
+    private bool $certificateVerified;
+    private bool $handshakeComplete;
+
+    private array $currentDecryptionKeys = [];
+    private array $currentEncryptionKeys = [];
+    private int $readSequenceNumber = 0;
+    private int $writeSequenceNumber = 0;
+
 
     public function __construct(
-        private bool $isClient,
-        Version $version = Version::TLS_1_3
-    ) {
+        private bool   $isClient,
+        private Config $config,
+        Version        $version = Version::TLS_1_3
+    )
+    {
         $this->negotiatedVersion = $version;
     }
 
     // === Getters ===
 
+    public function getConfig(): Config
+    {
+        return $this->config;
+    }
+
     public function isClient(): bool
     {
         return $this->isClient;
+    }
+
+    public function setNegotiatedVersion(Version $version): void
+    {
+        $this->negotiatedVersion = $version;
     }
 
     public function getNegotiatedVersion(): Version
@@ -72,6 +101,9 @@ class Context
 
     public function getClientRandom(): ?string
     {
+        if ($this->clientRandom === null) {
+            $this->clientRandom = RandomGenerator::generateClientRandom();
+        }
         return $this->clientRandom;
     }
 
@@ -209,7 +241,7 @@ class Context
 
     // === Handshake Transcript ===
 
-    public function addHandshakeMessage(HandshakeMessage $message): void
+    public function addHandshakeMessage(Message $message): void
     {
         $wireFormat = $message->toWire();
         $this->handshakeMessages[] = $wireFormat;
@@ -379,5 +411,207 @@ class Context
             // In a real implementation, we'd parse the server's public key
             // For now, simulate receiving the server's key share
         }
+    }
+
+    public function setClientKeyShare(KeyShare $keyShare)
+    {
+        $this->keyShare = $keyShare;
+    }
+
+    public function getClientKeyShare(): KeyShare
+    {
+        return $this->keyShare;
+    }
+
+    public function setRequestedServerName(string $serverName)
+    {
+        $this->requestedServerName = $serverName;
+    }
+
+    public function getRequestedServerName(): string
+    {
+        return $this->requestedServerName;
+    }
+
+    public function setClientOfferedProtocols(array $protocols)
+    {
+        $this->clientOfferedProtocols = $protocols;
+    }
+
+    public function getClientOfferedProtocols(): array
+    {
+        return $this->clientOfferedProtocols;
+    }
+
+    public function setSelectedProtocol(string $alpnProtocol)
+    {
+        $this->selectedProtocol = $alpnProtocol;
+    }
+
+    public function getSelectedProtocol(): string
+    {
+        return $this->selectedProtocol;
+    }
+
+    public function setServerKeyShare(mixed $serverKeyShare)
+    {
+        $this->serverKeyShare = $serverKeyShare;
+    }
+
+    public function getServerKeyShare(): mixed
+    {
+        return $this->serverKeyShare;
+    }
+
+    public function setSharedSecret(string $sharedSecret)
+    {
+        $this->sharedSecret = $sharedSecret;
+    }
+
+    public function setServerNameAcknowledged(bool $value)
+    {
+        $this->serverNameAcknowledged = $value;
+    }
+
+    public function isServerNameAcknowledged(): bool
+    {
+        return $this->serverNameAcknowledged;
+    }
+
+    public function setServerSupportedGroups(array $serverSupportedGroups)
+    {
+        $this->serverSupportedGroups = $serverSupportedGroups;
+    }
+
+    public function getServerSupportedGroups(): array
+    {
+        return $this->serverSupportedGroups;
+    }
+
+    public function setPeerPublicKey(\OpenSSLAsymmetricKey $publicKey)
+    {
+        $this->peerPublicKey = $publicKey;
+    }
+
+    public function getPeerPublicKey(): \OpenSSLAsymmetricKey
+    {
+        return $this->peerPublicKey;
+    }
+
+    public function addIntermediateCertificate(array $parsedCert)
+    {
+        $this->certificateChain[] = $parsedCert;
+    }
+
+    public function setCertificateRequestContext(string $context)
+    {
+        $this->certificateRequestContext = $context;
+    }
+
+    public function getCertificateRequestContext()
+    {
+        return $this->certificateRequestContext;
+    }
+
+    public function setCertificateVerified(bool $value)
+    {
+        $this->certificateVerified = $value;
+    }
+
+    public function isCertificateVerified(): bool
+    {
+        return $this->certificateVerified;
+    }
+
+    public function getTranscriptHash(): string
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException("Key schedule not initialized");
+        }
+
+        $transcriptData = $this->getHandshakeTranscript();
+        $hashAlgorithm = $this->negotiatedCipherSuite?->getHashAlgorithm() ?? 'sha256';
+
+        return hash($hashAlgorithm, $transcriptData, true);
+    }
+
+    public function hasApplicationSecrets(): bool
+    {
+        return $this->keySchedule && $this->keySchedule->hasApplicationSecrets();
+    }
+
+    public function isHandshakeComplete(): bool
+    {
+        return $this->handshakeComplete;
+    }
+
+
+// === Application Traffic Secret Management ===
+
+    public function getServerApplicationTrafficSecret(): string
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException("Key schedule not initialized");
+        }
+        return $this->keySchedule->getServerApplicationTrafficSecret();
+    }
+
+    public function getClientApplicationTrafficSecret(): string
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException("Key schedule not initialized");
+        }
+        return $this->keySchedule->getClientApplicationTrafficSecret();
+    }
+
+    public function setServerApplicationTrafficSecret(string $secret): void
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException("Key schedule not initialized");
+        }
+        $this->keySchedule->setServerApplicationTrafficSecret($secret);
+    }
+
+    public function setClientApplicationTrafficSecret(string $secret): void
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException("Key schedule not initialized");
+        }
+        $this->keySchedule->setClientApplicationTrafficSecret($secret);
+    }
+
+    // === Key Management ===
+
+    public function updateDecryptionKeys(string $key, string $iv): void
+    {
+        $this->currentDecryptionKeys = ['key' => $key, 'iv' => $iv];
+    }
+
+    public function updateEncryptionKeys(string $key, string $iv): void
+    {
+        $this->currentEncryptionKeys = ['key' => $key, 'iv' => $iv];
+    }
+
+    public function resetReadSequenceNumber(): void
+    {
+        $this->readSequenceNumber = 0;
+    }
+
+    public function resetWriteSequenceNumber(): void
+    {
+        $this->writeSequenceNumber = 0;
+    }
+
+    // === KeyUpdate Response Flag ===
+    private bool $keyUpdateResponseRequired = false;
+
+    public function setKeyUpdateResponseRequired(bool $required): void
+    {
+        $this->keyUpdateResponseRequired = $required;
+    }
+
+    public function isKeyUpdateResponseRequired(): bool
+    {
+        return $this->keyUpdateResponseRequired;
     }
 }

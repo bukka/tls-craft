@@ -49,8 +49,7 @@ class Session
 
     public function isConnected(): bool
     {
-        return $this->orchestrator->getStateTracker()->isConnected() &&
-            $this->connection->isConnected();
+        return $this->orchestrator->isConnected();
     }
 
     public function getState(): \Php\TlsCraft\State\ConnectionState

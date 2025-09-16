@@ -12,6 +12,8 @@ class Builder
     private Version $version = Version::TLS_1_3;
     private string $payload = '';
 
+    private bool $encrypted = true;
+
     public function contentType(ContentType $type): self
     {
         $this->contentType = $type;
@@ -27,6 +29,13 @@ class Builder
     public function payload(string $payload): self
     {
         $this->payload = $payload;
+        return $this;
+    }
+
+
+    private function encrypted(bool $encrypted): self
+    {
+        $this->encrypted = $encrypted;
         return $this;
     }
 
@@ -54,12 +63,13 @@ class Builder
             ->build();
     }
 
-    public static function handshake(string $handshakeData, Version $version = Version::TLS_1_3): Record
+    public static function handshake(string $handshakeData, bool $encrypted = true, Version $version = Version::TLS_1_3): Record
     {
         return (new self())
             ->contentType(ContentType::HANDSHAKE)
             ->version($version)
             ->payload($handshakeData)
+            ->encrypted($encrypted)
             ->build();
     }
 

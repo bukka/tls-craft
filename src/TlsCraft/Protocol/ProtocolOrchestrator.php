@@ -2,10 +2,9 @@
 
 namespace Php\TlsCraft\Protocol;
 
-use Php\TlsCraft\Config;
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Control\{ControlEvent, FlowController};
+use Php\TlsCraft\Control\{FlowController};
 use Php\TlsCraft\Crypto\CertificateUtils;
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
 use Php\TlsCraft\Messages\{Certificate,
@@ -13,15 +12,13 @@ use Php\TlsCraft\Messages\{Certificate,
     ClientHello,
     EncryptedExtensions,
     Finished,
-    HandshakeMessage,
     KeyUpdate,
+    Message,
     MessageFactory,
+    ProcessorManager,
     ServerHello};
-use Php\TlsCraft\Record\{Builder, EncryptedLayer, Layer, Record};
+use Php\TlsCraft\Record\{Builder, EncryptedLayer, LayerFactory, Record};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
-use Php\TlsCraft\Generators\MessageGeneratorOrchestrator;
-use Php\TlsCraft\Processors\ClientHelloProcessor;
-use Php\TlsCraft\Processors\ServerHelloProcessor;
 
 /**
  * Updated ProtocolOrchestrator with clean typing and proper integration
@@ -31,86 +28,41 @@ class ProtocolOrchestrator
     private StateTracker $stateTracker;
     private ProtocolValidator $validator;
     private Context $context;
+    private ProcessorManager $processorManager;
     private MessageFactory $messageFactory;
-    private EncryptedLayer $recordLayer; // Enhanced with encryption
+    private EncryptedLayer $recordLayer;
     private ?FlowController $flowController;
-
-    // Message processors for cleaner handling
-    private array $messageProcessors = [];
-
-    // Message generator orchestrator
-    private MessageGeneratorOrchestrator $messageGenerator;
+    private Connection $connection;
 
     public function __construct(
-        StateTracker $stateTracker,
+        StateTracker      $stateTracker,
         ProtocolValidator $validator,
-        Context $context,
-        Config $config,
-        Connection $connection,
-        ?FlowController $flowController = null
+        Context           $context,
+        ProcessorManager  $processorManager,
+        LayerFactory      $layerFactory,
+        MessageFactory    $messageFactory,
+        Connection        $connection,
+        ?FlowController   $flowController,
     )
     {
         $this->stateTracker = $stateTracker;
         $this->validator = $validator;
         $this->context = $context;
-        $this->messageFactory = new MessageFactory($config);
+        $this->processorManager = $processorManager;
+        $this->messageFactory = $messageFactory;
+        $this->connection = $connection;
         $this->flowController = $flowController;
+        $this->recordLayer = $layerFactory->createEncryptedLayer($connection, $context, $this->flowController);
+    }
 
-        // Set up encrypted record layer
-        $baseLayer = new Layer($connection->getResource(), $flowController);
-        $this->recordLayer = new EncryptedLayer($baseLayer, $context);
-
-        // Initialize message processors and generator
-        $this->initializeMessageProcessors($config);
-        $this->messageGenerator = new MessageGeneratorOrchestrator($context, $config);
-
-        // Set up flow controller event listeners
-        if ($flowController) {
-            $this->setupFlowControllerEvents($flowController);
-        }
+    public function isConnected(): bool
+    {
+        return $this->stateTracker->isConnected() && $this->connection->isConnected();
     }
 
     public function getStateTracker(): StateTracker
     {
         return $this->stateTracker;
-    }
-
-    public function getContext(): Context
-    {
-        return $this->context;
-    }
-
-    // === Initialize Message Processors ===
-
-    private function initializeMessageProcessors(Config $config): void
-    {
-        $this->messageProcessors[] = new ClientHelloProcessor($this->context, $config);
-        $this->messageProcessors[] = new ServerHelloProcessor($this->context, $config);
-        // Add more processors as needed
-    }
-
-    // === Flow Controller Event Setup ===
-
-    private function setupFlowControllerEvents(FlowController $controller): void
-    {
-        $controller->addEventListener('key_update', function (ControlEvent $event) {
-            $this->sendKeyUpdate($event->data['request_update'] ?? false);
-        });
-
-        $controller->addEventListener('abrupt_close', function (ControlEvent $event) {
-            $this->abruptClose();
-        });
-
-        $controller->addEventListener('send_alert', function (ControlEvent $event) {
-            $this->sendAlert($event->data['level'], $event->data['description']);
-        });
-
-        $controller->addEventListener('send_app_data_early', function (ControlEvent $event) {
-            // For testing protocol violations
-            if ($this->validator->validateExtensionCombination([])) { // Check if violations allowed
-                $this->sendApplicationData($event->data['data']);
-            }
-        });
     }
 
     // === Handshake Operations ===
@@ -221,11 +173,8 @@ class ProtocolOrchestrator
 
     // === Internal Handshake Methods ===
 
-    private function sendHandshakeMessage(HandshakeMessage $message): void
+    private function sendHandshakeMessage(Message $message, bool $encrypted = true): void
     {
-        // Add to context transcript
-        $this->context->addHandshakeMessage($message);
-
         // Validate if enabled
         if (!$this->validator->validateHandshakeMessage(
             $message->type,
@@ -237,8 +186,11 @@ class ProtocolOrchestrator
             );
         }
 
+        // Add to context transcript
+        $this->context->addHandshakeMessage($message);
+
         // Send record
-        $record = Builder::handshake($message->toWire());
+        $record = Builder::handshake($message->toWire(), $encrypted);
         $this->recordLayer->sendRecord($record);
     }
 
@@ -338,47 +290,48 @@ class ProtocolOrchestrator
                 );
             }
 
-            // Parse to specific type and handle with processors or direct handlers
+            // Parse to specific type and handle with processors
             switch ($handshakeType) {
                 case HandshakeType::CLIENT_HELLO:
                     $clientHello = ClientHello::fromWire($record->payload);
-                    $this->processWithProcessor($clientHello);
-                    $this->handleClientHello($clientHello);
+                    $this->processorManager->processClientHello($clientHello);
+                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FLIGHT2);
                     break;
 
                 case HandshakeType::SERVER_HELLO:
                     $serverHello = ServerHello::fromWire($record->payload);
-                    $this->processWithProcessor($serverHello);
-                    $this->handleServerHello($serverHello);
+                    $this->processorManager->processServerHello($serverHello);
+                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_ENCRYPTED_EXTENSIONS);
                     break;
 
                 case HandshakeType::ENCRYPTED_EXTENSIONS:
                     $encryptedExtensions = EncryptedExtensions::fromWire($record->payload);
-                    $this->context->addHandshakeMessage($encryptedExtensions);
-                    $this->handleEncryptedExtensions($encryptedExtensions);
+                    $this->processorManager->processEncryptedExtensions($encryptedExtensions);
+                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE);
                     break;
 
                 case HandshakeType::CERTIFICATE:
                     $certificate = Certificate::fromWire($record->payload);
-                    $this->context->addHandshakeMessage($certificate);
-                    $this->handleCertificate($certificate);
+                    $this->processorManager->processCertificate($certificate);
+                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE_VERIFY);
                     break;
 
                 case HandshakeType::CERTIFICATE_VERIFY:
                     $certificateVerify = CertificateVerify::fromWire($record->payload);
-                    $this->context->addHandshakeMessage($certificateVerify);
-                    $this->handleCertificateVerify($certificateVerify);
+                    $this->processorManager->processCertificateVerify($certificateVerify);
+                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FINISHED);
                     break;
 
                 case HandshakeType::FINISHED:
                     $finished = Finished::fromWire($record->payload);
-                    $this->context->addHandshakeMessage($finished);
-                    $this->handleFinished($finished);
+                    $this->processorManager->processFinished($finished);
+                    $this->stateTracker->completeHandshake();
                     break;
 
                 case HandshakeType::KEY_UPDATE:
                     $keyUpdate = KeyUpdate::fromWire($record->payload);
-                    $this->handleKeyUpdate($keyUpdate);
+                    $this->processorManager->processKeyUpdate($keyUpdate);
+                    // KeyUpdate doesn't change handshake state (post-handshake message)
                     break;
 
                 default:
@@ -389,62 +342,6 @@ class ProtocolOrchestrator
             $this->stateTracker->error("handshake_parse_error: " . $e->getMessage());
             throw $e;
         }
-    }
-
-    /**
-     * Process message with appropriate processor if available
-     */
-    private function processWithProcessor(HandshakeMessage $message): void
-    {
-        foreach ($this->messageProcessors as $processor) {
-            if ($processor->canProcess($message)) {
-                $processor->process($message);
-                return;
-            }
-        }
-        // If no processor found, continue with direct handling
-    }
-
-    // === Type-Safe Message Handlers (keeping existing logic) ===
-
-    private function handleClientHello(ClientHello $clientHello): void
-    {
-        $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FLIGHT2);
-    }
-
-    private function handleServerHello(ServerHello $serverHello): void
-    {
-        $this->context->deriveHandshakeSecrets();
-        $this->stateTracker->transitionHandshake(HandshakeState::WAIT_ENCRYPTED_EXTENSIONS);
-    }
-
-    private function handleEncryptedExtensions(EncryptedExtensions $encryptedExtensions): void
-    {
-        $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE);
-    }
-
-    private function handleCertificate(Certificate $certificate): void
-    {
-        $this->context->setCertificateChain($certificate->certificateList);
-        $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE_VERIFY);
-    }
-
-    private function handleCertificateVerify(CertificateVerify $certificateVerify): void
-    {
-        // Verify signature here in real implementation
-        $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FINISHED);
-    }
-
-    private function handleFinished(Finished $finished): void
-    {
-        // Verify finished data
-        $expectedFinished = $this->context->getFinishedData(!$this->stateTracker->isClient());
-
-        if (!hash_equals($expectedFinished, $finished->verifyData)) {
-            throw new ProtocolViolationException("Invalid Finished message");
-        }
-
-        $this->stateTracker->completeHandshake();
     }
 
     private function handleKeyUpdate(KeyUpdate $keyUpdate): void

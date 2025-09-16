@@ -7,8 +7,8 @@ use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Extensions\ClientHelloExtensionProviders;
 use Php\TlsCraft\Extensions\EncryptedExtensionsProviders;
-use Php\TlsCraft\Extensions\Providers\SupportedVersionsProvider;
 use Php\TlsCraft\Extensions\ServerHelloExtensionProviders;
+use Php\TlsCraft\Messages\Providers\SupportedVersionsProvider;
 use Php\TlsCraft\Protocol\Version;
 use Php\TlsCraft\State\ProtocolValidator;
 
@@ -17,6 +17,8 @@ class Config
     public array $cipherSuites;
     public array $supportedGroups;
     public array $signatureAlgorithms;
+
+    public array $supportedProtocols = [];
 
     public ClientHelloExtensionProviders $clientHelloExtensions;
     public ServerHelloExtensionProviders $serverHelloExtensions;
@@ -31,6 +33,8 @@ class Config
 
     // Connection options
     public array $connectionOptions = [];
+    public $requireTrustedCertificates = false;
+    public $allowSelfSignedCertificates = true;
 
     public function __construct()
     {

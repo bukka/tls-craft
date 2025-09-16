@@ -14,6 +14,9 @@ class KeySchedule
 
     private string $handshakeMessages = '';
 
+    private ?string $currentClientApplicationTrafficSecret = null;
+    private ?string $currentServerApplicationTrafficSecret = null;
+
     public function __construct(CipherSuite $cipherSuite)
     {
         $this->cipherSuite = $cipherSuite;
@@ -89,22 +92,50 @@ class KeySchedule
 
     public function getClientApplicationTrafficSecret(): string
     {
-        return KeyDerivation::deriveSecret(
+        // Return stored secret if available (after key update), otherwise derive fresh
+        if ($this->currentClientApplicationTrafficSecret !== null) {
+            return $this->currentClientApplicationTrafficSecret;
+        }
+
+        $secret = KeyDerivation::deriveSecret(
             $this->masterSecret,
             'c ap traffic',
             $this->handshakeMessages,
             $this->cipherSuite
         );
+
+        // Store for future updates
+        $this->currentClientApplicationTrafficSecret = $secret;
+        return $secret;
     }
 
     public function getServerApplicationTrafficSecret(): string
     {
-        return KeyDerivation::deriveSecret(
+        // Return stored secret if available (after key update), otherwise derive fresh
+        if ($this->currentServerApplicationTrafficSecret !== null) {
+            return $this->currentServerApplicationTrafficSecret;
+        }
+
+        $secret = KeyDerivation::deriveSecret(
             $this->masterSecret,
             's ap traffic',
             $this->handshakeMessages,
             $this->cipherSuite
         );
+
+        // Store for future updates
+        $this->currentServerApplicationTrafficSecret = $secret;
+        return $secret;
+    }
+
+    public function setClientApplicationTrafficSecret(string $secret): void
+    {
+        $this->currentClientApplicationTrafficSecret = $secret;
+    }
+
+    public function setServerApplicationTrafficSecret(string $secret): void
+    {
+        $this->currentServerApplicationTrafficSecret = $secret;
     }
 
     public function getFinishedKey(string $trafficSecret): string
@@ -154,5 +185,11 @@ class KeySchedule
             $this->hashLength,
             $this->cipherSuite
         );
+    }
+
+    // Add this method to KeySchedule class
+    public function hasApplicationSecrets(): bool
+    {
+        return isset($this->masterSecret);
     }
 }

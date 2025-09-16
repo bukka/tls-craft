@@ -4,7 +4,14 @@ namespace Php\TlsCraft;
 
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Control\FlowController;
+use Php\TlsCraft\Messages\MessageFactory;
+use Php\TlsCraft\Messages\ProcessorFactory;
+use Php\TlsCraft\Messages\ProcessorManager;
+use Php\TlsCraft\Messages\Providers\KeyShareExtensionProvider;
+use Php\TlsCraft\Messages\Providers\SignatureAlgorithmsProvider;
+use Php\TlsCraft\Messages\Providers\SniExtensionProvider;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
+use Php\TlsCraft\Record\LayerFactory;
 use Php\TlsCraft\State\ProtocolValidator;
 use Php\TlsCraft\State\StateTracker;
 
@@ -26,11 +33,6 @@ class Client
         $this->addDefaultClientExtensions();
     }
 
-    public function getConfig(): Config
-    {
-        return $this->config;
-    }
-
     public function connect(float $timeout = 30.0, ?FlowController $flowController = null): Session
     {
         // Establish TCP connection
@@ -42,7 +44,10 @@ class Client
             new ProtocolValidator($this->config->allowProtocolViolations);
 
         // Create handshake context
-        $context = new Context(true);
+        $context = new Context(true, $this->config);
+        $layerFactory = new LayerFactory();
+        $messageFactory = new MessageFactory($context);
+        $processorManager = new ProcessorManager(new ProcessorFactory($context));
 
         // Set up flow controller if provided
         if ($flowController === null && $this->config->onStateChange) {
@@ -55,7 +60,9 @@ class Client
             $stateTracker,
             $validator,
             $context,
-            $this->config,
+            $processorManager,
+            $layerFactory,
+            $messageFactory,
             $connection,
             $flowController
         );
