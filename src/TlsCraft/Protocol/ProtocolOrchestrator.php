@@ -79,7 +79,7 @@ class ProtocolOrchestrator
         $this->processServerHandshakeMessages();
 
         // Send client Finished
-        $finished = $this->messageFactory->createFinished($this->context, true);
+        $finished = $this->messageFactory->createFinished(true);
         $this->sendHandshakeMessage($finished);
     }
 
@@ -89,9 +89,6 @@ class ProtocolOrchestrator
 
         // Wait for ClientHello
         $this->waitForClientHello();
-
-        // Generate key pair
-        $this->context->generateKeyPair();
 
         // Send server handshake flight
         $this->sendServerHandshakeFlight();
@@ -245,16 +242,16 @@ class ProtocolOrchestrator
 
         // 3. Certificate
         $certificateChain = $this->context->getCertificateChain();
-        $certificate = $this->messageFactory->createCertificate($this->context, $certificateChain);
+        $certificate = $this->messageFactory->createCertificate($certificateChain);
         $this->sendHandshakeMessage($certificate);
 
         // 4. CertificateVerify
         $signature = $this->createCertificateVerifySignature();
-        $certificateVerify = $this->messageFactory->createCertificateVerify($this->context, $signature);
+        $certificateVerify = $this->messageFactory->createCertificateVerify($signature);
         $this->sendHandshakeMessage($certificateVerify);
 
         // 5. Finished
-        $finished = $this->messageFactory->createFinished($this->context, false);
+        $finished = $this->messageFactory->createFinished(false);
         $this->sendHandshakeMessage($finished);
     }
 
