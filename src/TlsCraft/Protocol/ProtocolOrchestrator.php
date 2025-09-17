@@ -72,7 +72,7 @@ class ProtocolOrchestrator
         $this->stateTracker->startHandshake();
 
         // Send ClientHello
-        $clientHello = $this->messageFactory->createClientHello($this->context);
+        $clientHello = $this->messageFactory->createClientHello();
         $this->sendHandshakeMessage($clientHello);
 
         // Process server handshake messages

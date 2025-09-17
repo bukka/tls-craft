@@ -4,6 +4,7 @@ namespace Php\TlsCraft;
 
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Control\FlowController;
+use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Messages\MessageFactory;
 use Php\TlsCraft\Messages\ProcessorFactory;
 use Php\TlsCraft\Messages\ProcessorManager;
@@ -38,18 +39,21 @@ class Client
         // Establish TCP connection
         $connection = Connection::connect($this->hostname, $this->port, $timeout);
 
-        // Create state tracker and validator
+        // Create a state tracker and validator
         $stateTracker = new StateTracker(true); // isClient = true
         $validator = $this->config->customValidator ??
             new ProtocolValidator($this->config->allowProtocolViolations);
 
-        // Create handshake context
-        $context = new Context(true, $this->config);
+        // Create a crypto factory
+        $cryptoFactory = new CryptoFactory();
+
+        // Create a handshake context
+        $context = new Context(true, $this->config, $cryptoFactory);
         $layerFactory = new LayerFactory();
         $messageFactory = new MessageFactory($context);
         $processorManager = new ProcessorManager(new ProcessorFactory($context));
 
-        // Set up flow controller if provided
+        // Set up a flow controller if provided
         if ($flowController === null && $this->config->onStateChange) {
             $flowController = new FlowController($stateTracker);
             $stateTracker->onStateChange($this->config->onStateChange);

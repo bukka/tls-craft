@@ -20,4 +20,11 @@ class CustomExtensionProvider implements ExtensionProvider
     {
         return new CustomExtension(ExtensionType::from($this->extensionType), $this->extensionData);
     }
+
+
+
+    public function getExtensionType(): ExtensionType
+    {
+        return ExtensionType::from($this->extensionType);
+    }
 }

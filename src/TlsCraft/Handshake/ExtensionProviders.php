@@ -7,8 +7,10 @@ use Php\TlsCraft\Messages\Providers\ExtensionProvider;
 
 abstract class ExtensionProviders
 {
+    /** @var ExtensionProvider[] */
     protected array $providers = [];
 
+    /** @param ExtensionProvider[] $providers */
     public function set(array $providers): void
     {
         $this->providers = [];
@@ -20,6 +22,13 @@ abstract class ExtensionProviders
     public function add(ExtensionProvider $provider): void
     {
         $this->providers[] = $provider;
+    }
+
+    public function addMany(array $providers): void
+    {
+        foreach ($providers as $provider) {
+            $this->add($provider);
+        }
     }
 
     public function insert(int $position, ExtensionProvider $provider): void

@@ -20,6 +20,7 @@ class KeyShareExtension extends Extension
         parent::__construct(ExtensionType::KEY_SHARE);
     }
 
+    /** @return KeyShare[] */
     public function getKeyShares(): array
     {
         return $this->keyShares;

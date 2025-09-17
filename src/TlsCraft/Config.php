@@ -8,6 +8,10 @@ use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Extensions\ClientHelloExtensionProviders;
 use Php\TlsCraft\Extensions\EncryptedExtensionsProviders;
 use Php\TlsCraft\Extensions\ServerHelloExtensionProviders;
+use Php\TlsCraft\Messages\Providers\AlpnExtensionProvider;
+use Php\TlsCraft\Messages\Providers\KeyShareExtensionProvider;
+use Php\TlsCraft\Messages\Providers\ServerNameExtensionProvider;
+use Php\TlsCraft\Messages\Providers\SignatureAlgorithmsProvider;
 use Php\TlsCraft\Messages\Providers\SupportedVersionsProvider;
 use Php\TlsCraft\Protocol\Version;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -17,6 +21,8 @@ class Config
     public array $cipherSuites;
     public array $supportedGroups;
     public array $signatureAlgorithms;
+
+    public ?string $serverName = null;
 
     public array $supportedProtocols = [];
 
@@ -66,9 +72,39 @@ class Config
 
     private function addDefaultExtensions(): void
     {
-        // Add supported_versions extension by default
+        $this->addRequiredClientExtensions();
+    }
+
+    private function addRequiredClientExtensions(): void
+    {
+        // MANDATORY TLS 1.3 extensions
+        $this->clientHelloExtensions->addMany([
+            new SupportedVersionsProvider([Version::TLS_1_3]),
+            new KeyShareExtensionProvider($this->supportedGroups),
+            new SignatureAlgorithmsProvider($this->signatureAlgorithms),
+        ]);
+        if (!is_null($this->serverName)) {
+            $this->addServerName($this->serverName);
+        }
+        if (!empty($this->supportedProtocols)) {
+            $this->addAlpn($this->supportedProtocols);
+        }
+    }
+
+    public function addServerName(string $serverName): void
+    {
         $this->clientHelloExtensions->add(
-            new SupportedVersionsProvider([Version::TLS_1_3])
+            new ServerNameExtensionProvider($serverName)
+        );
+    }
+
+    public function addAlpn(?array $protocols = null): void
+    {
+        if (!is_null($protocols)) {
+            $this->supportedProtocols = $protocols;
+        }
+        $this->clientHelloExtensions->add(
+            new AlpnExtensionProvider($this->supportedProtocols)
         );
     }
 }

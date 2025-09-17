@@ -2,7 +2,7 @@
 
 namespace Php\TlsCraft\Messages\Processors;
 
-use Php\TlsCraft\Crypto\ECDHKeyExchange;
+use Php\TlsCraft\Crypto\EcdhKeyExchange;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Extensions\{KeyShareExtension, SupportedVersionsExtension};
 use Php\TlsCraft\Messages\ExtensionType;
@@ -141,14 +141,14 @@ class ServerHelloProcessor extends MessageProcessor
         if ($this->context->isClient()) {
             // Client computes using client private key + server public key
             $clientPrivateKey = $this->context->getPrivateKey();
-            return ECDHKeyExchange::computeSharedSecret(
+            return EcdhKeyExchange::computeSharedSecret(
                 $clientPrivateKey,
                 $serverKeyShare->getKeyExchange()
             );
         } else {
             // Server computes using server private key + client public key
             $serverPrivateKey = $this->context->getPrivateKey();
-            return ECDHKeyExchange::computeSharedSecret(
+            return EcdhKeyExchange::computeSharedSecret(
                 $serverPrivateKey,
                 $clientKeyShare->getKeyExchange()
             );

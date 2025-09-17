@@ -2,7 +2,15 @@
 
 namespace Php\TlsCraft;
 
-use Php\TlsCraft\Crypto\{CipherSuite, ECDHKeyExchange, KeySchedule, KeyShare, RandomGenerator, SignatureScheme};
+use Php\TlsCraft\Crypto\{CipherSuite,
+    CryptoFactory,
+    EcdhKeyExchange,
+    KeyPair,
+    KeySchedule,
+    KeyShare,
+    NamedGroup,
+    RandomGenerator,
+    SignatureScheme};
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
 use Php\TlsCraft\Extensions\Extension;
 use Php\TlsCraft\Messages\{ClientHello, Message, ServerHello};
@@ -52,14 +60,16 @@ class Context
     private int $readSequenceNumber = 0;
     private int $writeSequenceNumber = 0;
 
+    /** @var KeyPair[] */
+    private array $keyPairs = [];
+
 
     public function __construct(
         private bool   $isClient,
         private Config $config,
-        Version        $version = Version::TLS_1_3
+        private CryptoFactory $cryptoFactory
     )
     {
-        $this->negotiatedVersion = $version;
     }
 
     // === Getters ===
@@ -67,6 +77,11 @@ class Context
     public function getConfig(): Config
     {
         return $this->config;
+    }
+
+    public function getCryptoFactory(): CryptoFactory
+    {
+        return $this->cryptoFactory;
     }
 
     public function isClient(): bool
@@ -109,6 +124,10 @@ class Context
 
     public function getServerRandom(): ?string
     {
+        if ($this->serverRandom === null) {
+            $this->serverRandom = RandomGenerator::generateServerRandom();
+        }
+
         return $this->serverRandom;
     }
 
@@ -170,7 +189,7 @@ class Context
 
     public function generateKeyPair(): void
     {
-        $keyPair = ECDHKeyExchange::generateKeyPair();
+        $keyPair = EcdhKeyExchange::generateKeyPair();
 
         if ($this->isClient) {
             $this->clientKeyPair = $keyPair;
@@ -182,12 +201,12 @@ class Context
     public function setPeerKeyShare(string $publicKeyPoint): void
     {
         if ($this->isClient && $this->clientKeyPair) {
-            $this->sharedSecret = ECDHKeyExchange::computeSharedSecret(
+            $this->sharedSecret = EcdhKeyExchange::computeSharedSecret(
                 $this->clientKeyPair['private_key'],
                 $publicKeyPoint
             );
         } elseif (!$this->isClient && $this->serverKeyPair) {
-            $this->sharedSecret = ECDHKeyExchange::computeSharedSecret(
+            $this->sharedSecret = EcdhKeyExchange::computeSharedSecret(
                 $this->serverKeyPair['private_key'],
                 $publicKeyPoint
             );
@@ -613,5 +632,15 @@ class Context
     public function isKeyUpdateResponseRequired(): bool
     {
         return $this->keyUpdateResponseRequired;
+    }
+
+    public function setKeyPairForGroup(NamedGroup $group, KeyPair $keyPair): void
+    {
+        $this->keyPairs[$group->getName()] = $keyPair;
+    }
+
+    public function getKeyPairForGroup(NamedGroup $group): ?KeyPair
+    {
+        return $this->keyPairs[$group->getName()] ?? null;
     }
 }

@@ -4,6 +4,7 @@ namespace Php\TlsCraft;
 
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Control\FlowController;
+use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Messages\MessageFactory;
 use Php\TlsCraft\Messages\ProcessorFactory;
@@ -56,15 +57,18 @@ class Server
         // Accept TCP connection
         $clientConnection = $this->serverConnection->accept($timeout);
 
-        // Create state tracker for this connection
+        // Create a state tracker for this connection
         $stateTracker = new StateTracker(false); // isClient = false
 
         // Create protocol validator
         $validator = $this->config->customValidator ??
             new ProtocolValidator($this->config->allowProtocolViolations);
 
+        // Create a crypto factory
+        $cryptoFactory = new CryptoFactory();
+
         // Create handshake context
-        $context = new Context(false, $this->config); // isClient = false
+        $context = new Context(false, $this->config, $cryptoFactory); // isClient = false
         $context->setCertificateChain($this->loadCertificateChain());
         $context->setPrivateKey($this->loadPrivateKey());
 
