@@ -98,17 +98,11 @@ class ServerHelloProcessor extends MessageProcessor
 
         $serverKeyShare = $keyShares[0];
 
-        // Verify server selected a group we offered
-        $clientKeyShare = $this->context->getClientKeyShare();
-        if (!$clientKeyShare) {
+        // Verify server selected a group we support
+        $clientKeyPair = $this->context->getKeyPairForGroup($serverKeyShare->getGroup());
+        if (!$clientKeyPair) {
             throw new ProtocolViolationException(
-                "No client key share found in context"
-            );
-        }
-
-        if ($serverKeyShare->getGroup() !== $clientKeyShare->getGroup()) {
-            throw new ProtocolViolationException(
-                "Server selected different group than client offered: " .
+                "Server selected group we don't have a key pair for: " .
                 $serverKeyShare->getGroup()->getName()
             );
         }
@@ -119,39 +113,26 @@ class ServerHelloProcessor extends MessageProcessor
 
     private function deriveHandshakeSecrets(): void
     {
-        $clientKeyShare = $this->context->getClientKeyShare();
         $serverKeyShare = $this->context->getServerKeyShare();
-
-        if (!$clientKeyShare || !$serverKeyShare) {
+        if (!$serverKeyShare) {
             throw new ProtocolViolationException(
-                "Cannot derive handshake secrets: missing key shares"
+                "Cannot derive handshake secrets: missing server key share"
             );
         }
 
-        // Compute shared secret using ECDH
-        $sharedSecret = $this->computeSharedSecret($clientKeyShare, $serverKeyShare);
+        // Get our key pair for the selected group
+        $clientKeyPair = $this->context->getKeyPairForGroup($serverKeyShare->getGroup());
+        if (!$clientKeyPair) {
+            throw new ProtocolViolationException(
+                "No client key pair found for selected group"
+            );
+        }
+
+        // Compute shared secret using our key pair
+        $sharedSecret = $clientKeyPair->computeSharedSecret($serverKeyShare->getKeyExchange());
         $this->context->setSharedSecret($sharedSecret);
 
         // Derive handshake traffic secrets
         $this->context->deriveHandshakeSecrets();
-    }
-
-    private function computeSharedSecret($clientKeyShare, $serverKeyShare): string
-    {
-        if ($this->context->isClient()) {
-            // Client computes using client private key + server public key
-            $clientPrivateKey = $this->context->getPrivateKey();
-            return EcdhKeyExchange::computeSharedSecret(
-                $clientPrivateKey,
-                $serverKeyShare->getKeyExchange()
-            );
-        } else {
-            // Server computes using server private key + client public key
-            $serverPrivateKey = $this->context->getPrivateKey();
-            return EcdhKeyExchange::computeSharedSecret(
-                $serverPrivateKey,
-                $clientKeyShare->getKeyExchange()
-            );
-        }
     }
 }
