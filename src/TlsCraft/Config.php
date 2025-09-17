@@ -73,6 +73,7 @@ class Config
     private function addDefaultExtensions(): void
     {
         $this->addRequiredClientExtensions();
+        $this->addServerExtensions();
     }
 
     private function addRequiredClientExtensions(): void
@@ -106,5 +107,50 @@ class Config
         $this->clientHelloExtensions->add(
             new AlpnExtensionProvider($this->supportedProtocols)
         );
+    }
+
+    public function addServerExtensions(): void
+    {
+        $this->addRequiredServerExtensions();
+    }
+
+    private function addRequiredServerExtensions(): void
+    {
+        // Server HelloExtensions - typically echo client's selections
+        $this->serverHelloExtensions->addMany([
+            new SupportedVersionsProvider([Version::TLS_1_3]), // Echo selected version
+            new KeyShareExtensionProvider([$this->getSelectedGroup()]), // Echo selected group
+        ]);
+    }
+
+    public function addServerEncryptedExtensions(): void
+    {
+        // EncryptedExtensions - server-specific extensions
+        if (!is_null($this->serverName)) {
+            $this->encryptedExtensions->add(
+                new ServerNameExtensionProvider($this->serverName) // ACK the SNI
+            );
+        }
+
+        if (!empty($this->supportedProtocols)) {
+            $this->encryptedExtensions->add(
+                new AlpnExtensionProvider([$this->getSelectedProtocol()]) // Selected protocol
+            );
+        }
+    }
+
+    // Helper methods for server selections
+    private function getSelectedGroup(): string
+    {
+        // This would be set during ClientHello processing
+        // Return first supported group as default
+        return $this->supportedGroups[0];
+    }
+
+    private function getSelectedProtocol(): string
+    {
+        // This would be set during ALPN negotiation
+        // Return first protocol as default
+        return $this->supportedProtocols[0] ?? 'http/1.1';
     }
 }
