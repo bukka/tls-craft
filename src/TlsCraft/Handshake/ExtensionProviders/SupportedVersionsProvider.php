@@ -4,6 +4,8 @@ namespace Php\TlsCraft\Messages\Providers;
 
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Extensions\Extension;
+use Php\TlsCraft\Extensions\SupportedVersionsExtension;
+use Php\TlsCraft\Protocol\Version;
 
 class SupportedVersionsProvider implements ExtensionProvider
 {
@@ -13,25 +15,10 @@ class SupportedVersionsProvider implements ExtensionProvider
     {
     }
 
-    public function create(Context $context): ?Extension
+    public function create(Context $context): Extension
     {
-        if ($context->isClient()) {
-            // ClientHello: supported_versions_list
-            $data = chr(count($this->supportedVersions) * 2); // length
-            foreach ($this->supportedVersions as $version) {
-                $data .= $version->toBytes();
-            }
-        } else {
-            // ServerHello: selected_version
-            $negotiatedVersion = $context->getNegotiatedVersion();
-            $data = $negotiatedVersion->toBytes();
-        }
-
-        return new Extension($this->getExtensionType(), $data); // supported_versions = 43
-    }
-
-    public function getExtensionType(): int
-    {
-        return 43;
+        return new SupportedVersionsExtension(array_map(
+            fn($version) => Version::fromName($version), $this->supportedVersions
+        ));
     }
 }

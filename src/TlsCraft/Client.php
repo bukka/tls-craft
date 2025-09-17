@@ -9,7 +9,7 @@ use Php\TlsCraft\Messages\ProcessorFactory;
 use Php\TlsCraft\Messages\ProcessorManager;
 use Php\TlsCraft\Messages\Providers\KeyShareExtensionProvider;
 use Php\TlsCraft\Messages\Providers\SignatureAlgorithmsProvider;
-use Php\TlsCraft\Messages\Providers\SniExtensionProvider;
+use Php\TlsCraft\Messages\Providers\ServerNameExtensionProvider;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
 use Php\TlsCraft\Record\LayerFactory;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -83,7 +83,7 @@ class Client
         // Add SNI extension for hostname
         if ($this->hostname && !$this->hasExtension(0)) {
             $this->config->clientHelloExtensions->add(
-                new SNIExtensionProvider($this->hostname)
+                new ServerNameExtensionProvider($this->hostname)
             );
         }
 

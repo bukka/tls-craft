@@ -25,6 +25,23 @@ enum NamedGroup: int
     case PRIVATE_USE_START = 65280;
     case PRIVATE_USE_END = 65535;
 
+    public static function fromName(string $name): self
+    {
+        return match($name) {
+            'P-256' => self::SECP256R1,
+            'P-384' => self::SECP384R1,
+            'P-521' => self::SECP521R1,
+            'X25519' => self::X25519,
+            'X448' => self::X448,
+            'ffdhe2048' => self::FFDHE2048,
+            'ffdhe3072' => self::FFDHE3072,
+            'ffdhe4096' => self::FFDHE4096,
+            'ffdhe6144' => self::FFDHE6144,
+            'ffdhe8192' => self::FFDHE8192,
+            default => throw new \InvalidArgumentException("Unknown named group: {$name}")
+        };
+    }
+
     public function getName(): string
     {
         return match($this) {

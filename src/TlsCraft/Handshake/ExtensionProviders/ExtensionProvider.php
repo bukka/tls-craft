@@ -7,7 +7,5 @@ use Php\TlsCraft\Extensions\Extension;
 
 interface ExtensionProvider
 {
-    public function create(Context $context): ?Extension;
-
-    public function getExtensionType(): int;
+    public function create(Context $context): Extension;
 }

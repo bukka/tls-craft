@@ -3,22 +3,21 @@
 namespace Php\TlsCraft\Messages\Providers;
 
 use Php\TlsCraft\Context;
+use Php\TlsCraft\Extensions\CustomExtension;
 use Php\TlsCraft\Extensions\Extension;
+use Php\TlsCraft\Messages\ExtensionType;
 
 class CustomExtensionProvider implements ExtensionProvider
 {
     public function __construct(
-        private int $extensionType,
-        private string $extensionData
-    ) {}
-
-    public function create(Context $context): ?Extension
+        private readonly int    $extensionType,
+        private readonly string $extensionData
+    )
     {
-        return new Extension($this->extensionType, $this->extensionData);
     }
 
-    public function getExtensionType(): int
+    public function create(Context $context): Extension
     {
-        return $this->extensionType;
+        return new CustomExtension(ExtensionType::from($this->extensionType), $this->extensionData);
     }
 }

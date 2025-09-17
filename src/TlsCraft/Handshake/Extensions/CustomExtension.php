@@ -5,9 +5,9 @@ namespace Php\TlsCraft\Extensions;
 use Php\TlsCraft\Messages\ExtensionType;
 
 /**
- * Unknown/Unsupported Extension - fallback
+ * Custom (currently not implemented) Extension - fallback
  */
-class UnknownExtension extends Extension
+class CustomExtension extends Extension
 {
     public function __construct(
         ExtensionType $type,

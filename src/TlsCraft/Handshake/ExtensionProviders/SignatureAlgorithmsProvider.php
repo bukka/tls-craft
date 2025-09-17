@@ -3,31 +3,22 @@
 namespace Php\TlsCraft\Messages\Providers;
 
 use Php\TlsCraft\Context;
+use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Extensions\Extension;
+use Php\TlsCraft\Extensions\SignatureAlgorithmsExtension;
 
 class SignatureAlgorithmsProvider implements ExtensionProvider
 {
     public function __construct(
         private array $signatureAlgorithms
-    ) {}
-
-    public function create(Context $context): ?Extension
+    )
     {
-        // Only include in ClientHello and CertificateRequest
-        if (!$context->isClient()) {
-            return null;
-        }
-
-        $data = pack('n', count($this->signatureAlgorithms) * 2); // length
-        foreach ($this->signatureAlgorithms as $algorithm) {
-            $data .= pack('n', $algorithm);
-        }
-
-        return new Extension(13, $data); // signature_algorithms = 13
     }
 
-    public function getExtensionType(): int
+    public function create(Context $context): Extension
     {
-        return 13;
+        return new SignatureAlgorithmsExtension(array_map(
+            fn($sigAlg) => SignatureScheme::fromName($sigAlg), $this->signatureAlgorithms
+        ));
     }
 }

@@ -56,7 +56,7 @@ abstract class Extension
             ExtensionType::SIGNATURE_ALGORITHMS => SignatureAlgorithmsExtension::decode($data),
             ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION => ALPNExtension::decode($data),
             ExtensionType::SUPPORTED_GROUPS => SupportedGroupsExtension::decode($data),
-            default => UnknownExtension::decode($data, $type)
+            default => CustomExtension::decode($data, $type)
         };
     }
 

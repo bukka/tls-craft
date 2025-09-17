@@ -27,6 +27,27 @@ enum Version: int
 
     public function isSupported(): bool
     {
-        return $this === self::TLS_1_3 || $this === self::TLS_1_2;
+        return $this === self::TLS_1_3;
+    }
+
+    public function getName(): string
+    {
+        return match($this) {
+            self::TLS_1_0 => 'TLS 1.0',
+            self::TLS_1_1 => 'TLS 1.1',
+            self::TLS_1_2 => 'TLS 1.2',
+            self::TLS_1_3 => 'TLS 1.3',
+        };
+    }
+
+    public static function fromName(string $name): self
+    {
+        return match($name) {
+            'TLS 1.0', 'tls_1_0', '1.0' => self::TLS_1_0,
+            'TLS 1.1', 'tls_1_1', '1.1' => self::TLS_1_1,
+            'TLS 1.2', 'tls_1_2', '1.2' => self::TLS_1_2,
+            'TLS 1.3', 'tls_1_3', '1.3' => self::TLS_1_3,
+            default => throw new \InvalidArgumentException("Unknown TLS version: {$name}")
+        };
     }
 }

@@ -3,6 +3,7 @@
 namespace Php\TlsCraft\Extensions;
 
 use Php\TlsCraft\Crypto\KeyShare;
+use Php\TlsCraft\Crypto\NamedGroup;
 use Php\TlsCraft\Messages\ExtensionType;
 
 /**
@@ -10,10 +11,12 @@ use Php\TlsCraft\Messages\ExtensionType;
  */
 class KeyShareExtension extends Extension
 {
-    public function __construct(
-        private array $keyShares // Array of KeyShare objects
-    )
+    /** @var KeyShare[] */
+    private array $keyShares;
+
+    public function __construct(array $keyShares)
     {
+        $this->keyShares = $keyShares;
         parent::__construct(ExtensionType::KEY_SHARE);
     }
 
@@ -22,7 +25,7 @@ class KeyShareExtension extends Extension
         return $this->keyShares;
     }
 
-    public function getKeyShareForGroup(string $group): ?KeyShare
+    public function getKeyShareForGroup(NamedGroup $group): ?KeyShare
     {
         foreach ($this->keyShares as $keyShare) {
             if ($keyShare->getGroup() === $group) {

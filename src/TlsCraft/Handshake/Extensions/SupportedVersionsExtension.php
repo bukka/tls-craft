@@ -10,9 +10,10 @@ use Php\TlsCraft\Protocol\Version;
  */
 class SupportedVersionsExtension extends Extension
 {
-    public function __construct(
-        private array $versions // Array of Version enums
-    )
+    /**
+     * @param Version[] $versions
+     */
+    public function __construct(private readonly array $versions)
     {
         parent::__construct(ExtensionType::SUPPORTED_VERSIONS);
     }
