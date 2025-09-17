@@ -16,15 +16,15 @@ class Certificate extends Message
 
     public function encode(): string
     {
-        $encoded = Certificate . phpchr(strlen($this->certificateRequestContext)) . $this->certificateRequestContext;
+        $encoded = chr(strlen($this->certificateRequestContext)) . $this->certificateRequestContext;
 
         $certListData = '';
         foreach ($this->certificateList as $cert) {
-            $certListData .= Certificate . phpsubstr(pack('N', strlen($cert)), 1) . $cert; // 3-byte length + cert
+            $certListData .= substr(pack('N', strlen($cert)), 1) . $cert; // 3-byte length + cert
             $certListData .= "\x00\x00"; // Empty extensions
         }
 
-        $encoded .= Certificate . phpsubstr(pack('N', strlen($certListData)), 1) . $certListData;
+        $encoded .= substr(pack('N', strlen($certListData)), 1) . $certListData;
 
         return $encoded;
     }
