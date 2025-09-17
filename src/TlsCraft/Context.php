@@ -4,7 +4,6 @@ namespace Php\TlsCraft;
 
 use Php\TlsCraft\Crypto\{CipherSuite,
     CryptoFactory,
-    EcdhKeyExchange,
     KeyPair,
     KeySchedule,
     KeyShare,
@@ -12,8 +11,7 @@ use Php\TlsCraft\Crypto\{CipherSuite,
     RandomGenerator,
     SignatureScheme};
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
-use Php\TlsCraft\Extensions\Extension;
-use Php\TlsCraft\Messages\{ClientHello, Message, ServerHello};
+use Php\TlsCraft\Messages\Message;
 use Php\TlsCraft\Protocol\Version;
 
 /**
@@ -24,13 +22,9 @@ class Context
     private Version $negotiatedVersion;
     private ?CipherSuite $negotiatedCipherSuite = null;
     private ?SignatureScheme $negotiatedSignatureScheme = null;
-    private array $clientExtensions = [];
-    private array $serverExtensions = [];
 
     // Crypto state
     private ?KeySchedule $keySchedule = null;
-    private ?array $clientKeyPair = null;
-    private ?array $serverKeyPair = null;
     private ?string $sharedSecret = null;
 
     // Random values
@@ -185,79 +179,6 @@ class Context
         $this->privateKey = $privateKey;
     }
 
-    // === Key Exchange ===
-
-    public function generateKeyPair(): void
-    {
-        $keyPair = EcdhKeyExchange::generateKeyPair();
-
-        if ($this->isClient) {
-            $this->clientKeyPair = $keyPair;
-        } else {
-            $this->serverKeyPair = $keyPair;
-        }
-    }
-
-    public function setPeerKeyShare(string $publicKeyPoint): void
-    {
-        if ($this->isClient && $this->clientKeyPair) {
-            $this->sharedSecret = EcdhKeyExchange::computeSharedSecret(
-                $this->clientKeyPair['private_key'],
-                $publicKeyPoint
-            );
-        } elseif (!$this->isClient && $this->serverKeyPair) {
-            $this->sharedSecret = EcdhKeyExchange::computeSharedSecret(
-                $this->serverKeyPair['private_key'],
-                $publicKeyPoint
-            );
-        }
-    }
-
-    public function getOwnPublicKeyPoint(): ?string
-    {
-        if ($this->isClient && $this->clientKeyPair) {
-            return $this->clientKeyPair['public_key_point'];
-        } elseif (!$this->isClient && $this->serverKeyPair) {
-            return $this->serverKeyPair['public_key_point'];
-        }
-        return null;
-    }
-
-    // === Extensions ===
-
-    public function addClientExtension(Extension $extension): void
-    {
-        $this->clientExtensions[] = $extension;
-    }
-
-    public function addServerExtension(Extension $extension): void
-    {
-        $this->serverExtensions[] = $extension;
-    }
-
-    public function getClientExtensions(): array
-    {
-        return $this->clientExtensions;
-    }
-
-    public function getServerExtensions(): array
-    {
-        return $this->serverExtensions;
-    }
-
-    public function findExtension(int $type, bool $fromServer = false): ?Extension
-    {
-        $extensions = $fromServer ? $this->serverExtensions : $this->clientExtensions;
-
-        foreach ($extensions as $extension) {
-            if ($extension->type === $type) {
-                return $extension;
-            }
-        }
-
-        return null;
-    }
-
     // === Handshake Transcript ===
 
     public function addHandshakeMessage(Message $message): void
@@ -356,80 +277,6 @@ class Context
 
         // Store updated secrets (in a real implementation, these would update the key schedule)
         // For now, this is a placeholder for the key update process
-    }
-
-    // === Validation ===
-
-    public function validateNegotiation(): void
-    {
-        if ($this->negotiatedCipherSuite === null) {
-            throw new ProtocolViolationException("No cipher suite negotiated");
-        }
-
-        if ($this->clientRandom === null || $this->serverRandom === null) {
-            throw new ProtocolViolationException("Missing client or server random");
-        }
-
-        if ($this->sharedSecret === null) {
-            throw new ProtocolViolationException("No shared secret established");
-        }
-    }
-
-    // === Cipher Suite Negotiation ===
-
-    public function selectCipherSuite(array $clientSuites, array $serverSuites): ?CipherSuite
-    {
-        foreach ($serverSuites as $serverSuite) {
-            if (in_array($serverSuite->value, $clientSuites)) {
-                $this->setNegotiatedCipherSuite($serverSuite);
-                return $serverSuite;
-            }
-        }
-
-        return null;
-    }
-
-    // === Extension Processing ===
-
-    public function processClientHello(ClientHello $clientHello): void
-    {
-        $this->setClientRandom($clientHello->random);
-
-        foreach ($clientHello->extensions as $extension) {
-            $this->addClientExtension($extension);
-        }
-
-        // Process supported versions extension
-        $supportedVersions = $this->findExtension(43); // supported_versions
-        if ($supportedVersions) {
-            // In a real implementation, we'd parse the extension data
-            $this->negotiatedVersion = Version::TLS_1_3;
-        }
-
-        // Process key share extension
-        $keyShare = $this->findExtension(51); // key_share
-        if ($keyShare) {
-            // In a real implementation, we'd parse the key share data
-            // For now, just generate our own key pair
-            $this->generateKeyPair();
-        }
-    }
-
-    public function processServerHello(ServerHello $serverHello): void
-    {
-        $this->setServerRandom($serverHello->random);
-        $this->setNegotiatedCipherSuite(CipherSuite::from($serverHello->cipherSuite));
-
-        foreach ($serverHello->extensions as $extension) {
-            $this->addServerExtension($extension);
-        }
-
-        // Process key share extension
-        $keyShare = $this->findExtension(51, true); // key_share from server
-        if ($keyShare) {
-            // In a real implementation, we'd parse the server's public key
-            // For now, simulate receiving the server's key share
-        }
     }
 
     public function setClientKeyShare(KeyShare $keyShare)
