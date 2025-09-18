@@ -22,7 +22,7 @@ TLS Craft provides fine-grained control over TLS 1.3 protocol behavior for testi
 
 ## Requirements
 
-- PHP 8.5+
+- PHP 8.4+
 - OpenSSL extension
 
 ## Installation
