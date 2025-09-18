@@ -1,6 +1,6 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Factories;
+namespace Php\TlsCraft\Handshake\MessageFactories;
 
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Context;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Processors;
+namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Context;

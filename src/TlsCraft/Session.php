@@ -66,4 +66,9 @@ class Session
     {
         return $this->orchestrator;
     }
+
+    public function getContext()
+    {
+        return $this->orchestrator->getContext();
+    }
 }

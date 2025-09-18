@@ -1,8 +1,8 @@
 <?php
 
-namespace Php\TlsCraft\Extensions;
+namespace Php\TlsCraft\Handshake\Extensions;
 
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\ExtensionType;
 
 /**
  * Custom (currently not implemented) Extension - fallback

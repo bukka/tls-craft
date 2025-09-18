@@ -30,8 +30,6 @@ class CertificateUtils
                $publicKey,
         SignatureScheme $scheme
     ): bool {
-        $hashAlg = $scheme->getHashAlgorithm();
-
         if ($scheme->isRSA()) {
             $algorithm = match($scheme) {
                 SignatureScheme::RSA_PKCS1_SHA256 => OPENSSL_ALGO_SHA256,

@@ -1,8 +1,8 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Factories;
+namespace Php\TlsCraft\Handshake\MessageFactories;
 
-use Php\TlsCraft\Messages\Finished;
+use Php\TlsCraft\Handshake\Messages\Finished;
 
 class FinishedFactory extends AbstractMessageFactory
 {

@@ -1,10 +1,10 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Processors;
+namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Messages\Certificate;
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\Messages\Certificate;
+use Php\TlsCraft\Handshake\ExtensionType;
 
 class CertificateProcessor extends MessageProcessor
 {
@@ -338,7 +338,7 @@ class CertificateProcessor extends MessageProcessor
         // For testing purposes, we might accept self-signed certificates
         // or certificates in a test trust store
 
-        if (!$this->config->allowSelfSignedCertificates) {
+        if (!$this->config->isAllowSelfSignedCertificates()) {
             // In production, verify against trusted root CA store
             $this->verifyAgainstTrustStore($certificate);
         }
@@ -385,7 +385,7 @@ class CertificateProcessor extends MessageProcessor
         // This would verify the certificate against a trusted CA store
         // For testing framework, we might skip this or use a test CA store
 
-        if ($this->config->requireTrustedCertificates) {
+        if ($this->config->isRequireTrustedCertificates()) {
             // Implement trust store verification
             throw new ProtocolViolationException(
                 "Certificate trust store verification not implemented"

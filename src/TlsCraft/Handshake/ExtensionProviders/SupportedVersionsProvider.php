@@ -1,11 +1,11 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Providers;
+namespace Php\TlsCraft\Handshake\ExtensionProviders;
 
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Extensions\Extension;
-use Php\TlsCraft\Extensions\SupportedVersionsExtension;
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\Extensions\Extension;
+use Php\TlsCraft\Handshake\Extensions\SupportedVersionsExtension;
+use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Protocol\Version;
 
 class SupportedVersionsProvider implements ExtensionProvider

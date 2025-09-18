@@ -5,12 +5,12 @@ namespace Php\TlsCraft;
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Control\FlowController;
 use Php\TlsCraft\Crypto\CryptoFactory;
-use Php\TlsCraft\Messages\MessageFactory;
-use Php\TlsCraft\Messages\ProcessorFactory;
-use Php\TlsCraft\Messages\ProcessorManager;
-use Php\TlsCraft\Messages\Providers\KeyShareExtensionProvider;
-use Php\TlsCraft\Messages\Providers\SignatureAlgorithmsProvider;
-use Php\TlsCraft\Messages\Providers\ServerNameExtensionProvider;
+use Php\TlsCraft\Handshake\MessageFactory;
+use Php\TlsCraft\Handshake\ProcessorFactory;
+use Php\TlsCraft\Handshake\ProcessorManager;
+use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\SignatureAlgorithmsProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\ServerNameExtensionProvider;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
 use Php\TlsCraft\Record\LayerFactory;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -29,9 +29,7 @@ class Client
     ) {
         $this->hostname = $hostname;
         $this->port = $port;
-        $this->config = $config ?? $this->createDefaultConfig();
-
-        $this->addDefaultClientExtensions();
+        $this->config = $config ?? new Config();
     }
 
     public function connect(float $timeout = 30.0, ?FlowController $flowController = null): Session
@@ -41,8 +39,8 @@ class Client
 
         // Create a state tracker and validator
         $stateTracker = new StateTracker(true); // isClient = true
-        $validator = $this->config->customValidator ??
-            new ProtocolValidator($this->config->allowProtocolViolations);
+        $validator = $this->config->hasCustomValidator() ??
+            new ProtocolValidator($this->config->isAllowProtocolViolations());
 
         // Create a crypto factory
         $cryptoFactory = new CryptoFactory();
@@ -52,12 +50,6 @@ class Client
         $layerFactory = new LayerFactory();
         $messageFactory = new MessageFactory($context);
         $processorManager = new ProcessorManager(new ProcessorFactory($context));
-
-        // Set up a flow controller if provided
-        if ($flowController === null && $this->config->onStateChange) {
-            $flowController = new FlowController($stateTracker);
-            $stateTracker->onStateChange($this->config->onStateChange);
-        }
 
         // Create protocol orchestrator
         $orchestrator = new ProtocolOrchestrator(
@@ -75,44 +67,5 @@ class Client
         $orchestrator->performClientHandshake();
 
         return new Session($connection, $orchestrator);
-    }
-
-    private function createDefaultConfig(): Config
-    {
-        return new Config();
-    }
-
-    private function addDefaultClientExtensions(): void
-    {
-        // Add SNI extension for hostname
-        if ($this->hostname && !$this->hasExtension(0)) {
-            $this->config->clientHelloExtensions->add(
-                new ServerNameExtensionProvider($this->hostname)
-            );
-        }
-
-        // Add key share extension
-        if (!$this->hasExtension(51)) {
-            $this->config->clientHelloExtensions->add(
-                new KeyShareExtensionProvider($this->config->supportedGroups)
-            );
-        }
-
-        // Add signature algorithms extension
-        if (!$this->hasExtension(13)) {
-            $this->config->clientHelloExtensions->add(
-                new SignatureAlgorithmsProvider($this->config->signatureAlgorithms)
-            );
-        }
-    }
-
-    private function hasExtension(int $type): bool
-    {
-        foreach ($this->config->clientHelloExtensions->getProviders() as $provider) {
-            if ($provider->getExtensionType() === $type) {
-                return true;
-            }
-        }
-        return false;
     }
 }

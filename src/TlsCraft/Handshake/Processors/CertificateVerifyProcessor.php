@@ -1,9 +1,9 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Processors;
+namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\{ProtocolViolationException, CryptoException};
-use Php\TlsCraft\Messages\CertificateVerify;
+use Php\TlsCraft\Handshake\Messages\CertificateVerify;
 use Php\TlsCraft\Crypto\SignatureScheme;
 
 class CertificateVerifyProcessor extends MessageProcessor
@@ -26,7 +26,7 @@ class CertificateVerifyProcessor extends MessageProcessor
     private function validateSignatureAlgorithm(SignatureScheme $algorithm): void
     {
         // Check if the algorithm was offered by us in signature_algorithms extension
-        $supportedAlgorithms = $this->config->signatureAlgorithms;
+        $supportedAlgorithms = $this->config->getSignatureAlgorithms();
 
         if (!in_array($algorithm, $supportedAlgorithms)) {
             throw new ProtocolViolationException(

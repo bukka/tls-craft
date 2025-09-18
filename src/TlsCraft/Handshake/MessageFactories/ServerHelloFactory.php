@@ -1,8 +1,8 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Factories;
+namespace Php\TlsCraft\Handshake\MessageFactories;
 
-use Php\TlsCraft\Messages\ServerHello;
+use Php\TlsCraft\Handshake\Messages\ServerHello;
 use Php\TlsCraft\Protocol\Version;
 use Php\TlsCraft\Exceptions\CraftException;
 
@@ -10,7 +10,7 @@ class ServerHelloFactory extends AbstractMessageFactory
 {
     public function create(): ServerHello
     {
-        $extensions = $this->config->serverHelloExtensions->createExtensions($this->context);
+        $extensions = $this->config->getServerHelloExtensions()->createExtensions($this->context);
 
         $negotiatedCipher = $this->context->getNegotiatedCipherSuite();
         if ($negotiatedCipher === null) {

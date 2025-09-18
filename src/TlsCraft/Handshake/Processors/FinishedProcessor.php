@@ -1,9 +1,9 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Processors;
+namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Messages\Finished;
+use Php\TlsCraft\Handshake\Messages\Finished;
 
 class FinishedProcessor extends MessageProcessor
 {

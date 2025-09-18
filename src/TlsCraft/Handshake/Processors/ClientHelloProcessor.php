@@ -1,15 +1,15 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Processors;
+namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Extensions\AlpnExtension;
-use Php\TlsCraft\Extensions\KeyShareExtension;
-use Php\TlsCraft\Extensions\ServerNameExtension;
-use Php\TlsCraft\Extensions\SignatureAlgorithmsExtension;
-use Php\TlsCraft\Extensions\SupportedVersionsExtension;
-use Php\TlsCraft\Messages\ClientHello;
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\Extensions\AlpnExtension;
+use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
+use Php\TlsCraft\Handshake\Extensions\ServerNameExtension;
+use Php\TlsCraft\Handshake\Extensions\SignatureAlgorithmsExtension;
+use Php\TlsCraft\Handshake\Extensions\SupportedVersionsExtension;
+use Php\TlsCraft\Handshake\Messages\ClientHello;
+use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Protocol\Version;
 
 class ClientHelloProcessor extends MessageProcessor
@@ -39,7 +39,7 @@ class ClientHelloProcessor extends MessageProcessor
 
         // Select a cipher suite
         foreach ($message->cipherSuites as $cipher) {
-            if (in_array($cipher, $this->context->getConfig()->cipherSuites)) {
+            if (in_array($cipher, $this->context->getConfig()->getCipherSuites())) {
                 $this->context->setNegotiatedCipherSuite($cipher);
                 break;
             }
@@ -78,7 +78,7 @@ class ClientHelloProcessor extends MessageProcessor
         $clientKeyShares = $ext->getKeyShares();
         $selectedGroup = null;
         foreach ($clientKeyShares as $keyShare) {
-            if (in_array($keyShare->getGroup(), $this->context->getConfig()->supportedGroups)) {
+            if (in_array($keyShare->getGroup(), $this->context->getConfig()->getSupportedGroups())) {
                 $selectedGroup = $keyShare->getGroup();
                 $this->context->setClientKeyShare($keyShare);
                 break;
@@ -101,7 +101,7 @@ class ClientHelloProcessor extends MessageProcessor
         $clientSigAlgs = $ext->getSignatureAlgorithms();
         $selectedSigAlg = null;
         foreach ($clientSigAlgs as $sigAlg) {
-            if (in_array($sigAlg, $this->context->getConfig()->signatureAlgorithms)) {
+            if (in_array($sigAlg, $this->context->getConfig()->getSignatureAlgorithms())) {
                 $selectedSigAlg = $sigAlg;
                 break;
             }
@@ -139,13 +139,13 @@ class ClientHelloProcessor extends MessageProcessor
     private function selectALPNProtocol(array $clientProtocols): ?string
     {
         // If server has no configured protocols, don't select anything
-        if (empty($this->config->supportedProtocols)) {
+        if (empty($this->config->getSupportedProtocols())) {
             return null;
         }
 
         // Standard first-match selection
         foreach ($clientProtocols as $clientProtocol) {
-            if (in_array($clientProtocol, $this->config->supportedProtocols)) {
+            if (in_array($clientProtocol, $this->config->getSupportedProtocols())) {
                 return $clientProtocol;
             }
         }

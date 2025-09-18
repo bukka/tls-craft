@@ -1,10 +1,10 @@
 <?php
 
-namespace Php\TlsCraft\Extensions;
+namespace Php\TlsCraft\Handshake\Extensions;
 
 use Php\TlsCraft\Crypto\KeyShare;
 use Php\TlsCraft\Crypto\NamedGroup;
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\ExtensionType;
 
 /**
  * Key Share Extension

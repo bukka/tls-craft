@@ -11,7 +11,7 @@ use Php\TlsCraft\Crypto\{CipherSuite,
     RandomGenerator,
     SignatureScheme};
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
-use Php\TlsCraft\Messages\Message;
+use Php\TlsCraft\Handshake\Messages\Message;
 use Php\TlsCraft\Protocol\Version;
 
 /**

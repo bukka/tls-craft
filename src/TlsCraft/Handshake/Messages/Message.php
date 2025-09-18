@@ -1,10 +1,18 @@
 <?php
 
-namespace Php\TlsCraft\Messages;
+namespace Php\TlsCraft\Handshake\Messages;
 
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Extensions\Extension;
+use Php\TlsCraft\Handshake\Certificate;
+use Php\TlsCraft\Handshake\CertificateVerify;
+use Php\TlsCraft\Handshake\ClientHello;
+use Php\TlsCraft\Handshake\EncryptedExtensions;
+use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Handshake\Finished;
+use Php\TlsCraft\Handshake\KeyUpdate;
+use Php\TlsCraft\Handshake\ServerHello;
 use Php\TlsCraft\Protocol\HandshakeType;
 
 abstract class Message

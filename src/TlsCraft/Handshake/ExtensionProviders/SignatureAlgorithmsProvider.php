@@ -1,12 +1,12 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Providers;
+namespace Php\TlsCraft\Handshake\ExtensionProviders;
 
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Crypto\SignatureScheme;
-use Php\TlsCraft\Extensions\Extension;
-use Php\TlsCraft\Extensions\SignatureAlgorithmsExtension;
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\Extensions\Extension;
+use Php\TlsCraft\Handshake\Extensions\SignatureAlgorithmsExtension;
+use Php\TlsCraft\Handshake\ExtensionType;
 
 class SignatureAlgorithmsProvider implements ExtensionProvider
 {

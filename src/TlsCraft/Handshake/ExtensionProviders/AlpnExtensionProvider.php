@@ -1,11 +1,11 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Providers;
+namespace Php\TlsCraft\Handshake\ExtensionProviders;
 
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Extensions\AlpnExtension;
-use Php\TlsCraft\Extensions\Extension;
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\Extensions\AlpnExtension;
+use Php\TlsCraft\Handshake\Extensions\Extension;
+use Php\TlsCraft\Handshake\ExtensionType;
 
 class AlpnExtensionProvider implements ExtensionProvider
 {

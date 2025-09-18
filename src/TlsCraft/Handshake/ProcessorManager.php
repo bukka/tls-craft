@@ -1,14 +1,22 @@
 <?php
 
-namespace Php\TlsCraft\Messages;
+namespace Php\TlsCraft\Handshake;
 
-use Php\TlsCraft\Messages\Processors\{CertificateProcessor,
+use Php\TlsCraft\Handshake\Messages\Certificate;
+use Php\TlsCraft\Handshake\Messages\CertificateVerify;
+use Php\TlsCraft\Handshake\Messages\ClientHello;
+use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
+use Php\TlsCraft\Handshake\Messages\Finished;
+use Php\TlsCraft\Handshake\Messages\KeyUpdate;
+use Php\TlsCraft\Handshake\Messages\Message;
+use Php\TlsCraft\Handshake\Processors\{CertificateProcessor,
     CertificateVerifyProcessor,
     ClientHelloProcessor,
     EncryptedExtensionsProcessor,
     FinishedProcessor,
     KeyUpdateProcessor,
     ServerHelloProcessor};
+use Php\TlsCraft\Handshake\Messages\ServerHello;
 
 class ProcessorManager
 {

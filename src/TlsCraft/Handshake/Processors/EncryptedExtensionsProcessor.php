@@ -1,15 +1,15 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Processors;
+namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Extensions\{
+use Php\TlsCraft\Handshake\Extensions\{
     ALPNExtension,
     ServerNameExtension,
     SupportedGroupsExtension
 };
-use Php\TlsCraft\Messages\EncryptedExtensions;
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
+use Php\TlsCraft\Handshake\ExtensionType;
 
 class EncryptedExtensionsProcessor extends MessageProcessor
 {

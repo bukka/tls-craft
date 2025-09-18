@@ -1,10 +1,11 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Providers;
+namespace Php\TlsCraft\Handshake\ExtensionProviders;
 
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Extensions\{Extension, ServerNameExtension};
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\Extensions\Extension;
+use Php\TlsCraft\Handshake\Extensions\ServerNameExtension;
+use Php\TlsCraft\Handshake\ExtensionType;
 
 class ServerNameExtensionProvider implements ExtensionProvider
 {

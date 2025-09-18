@@ -1,16 +1,16 @@
 <?php
 
-namespace Php\TlsCraft\Messages;
+namespace Php\TlsCraft\Handshake;
 
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Messages\Processors\CertificateProcessor;
-use Php\TlsCraft\Messages\Processors\CertificateVerifyProcessor;
-use Php\TlsCraft\Messages\Processors\ClientHelloProcessor;
-use Php\TlsCraft\Messages\Processors\EncryptedExtensionsProcessor;
-use Php\TlsCraft\Messages\Processors\FinishedProcessor;
-use Php\TlsCraft\Messages\Processors\KeyUpdateProcessor;
-use Php\TlsCraft\Messages\Processors\ServerHelloProcessor;
+use Php\TlsCraft\Handshake\Processors\CertificateProcessor;
+use Php\TlsCraft\Handshake\Processors\CertificateVerifyProcessor;
+use Php\TlsCraft\Handshake\Processors\ClientHelloProcessor;
+use Php\TlsCraft\Handshake\Processors\EncryptedExtensionsProcessor;
+use Php\TlsCraft\Handshake\Processors\FinishedProcessor;
+use Php\TlsCraft\Handshake\Processors\KeyUpdateProcessor;
+use Php\TlsCraft\Handshake\Processors\ServerHelloProcessor;
 
 class ProcessorFactory
 {

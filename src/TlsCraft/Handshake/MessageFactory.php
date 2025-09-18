@@ -1,10 +1,10 @@
 <?php
 
-namespace Php\TlsCraft\Messages;
+namespace Php\TlsCraft\Handshake;
 
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Messages\Factories\{
+use Php\TlsCraft\Handshake\MessageFactories\{
     ClientHelloFactory,
     ServerHelloFactory,
     EncryptedExtensionsFactory,
@@ -14,6 +14,13 @@ use Php\TlsCraft\Messages\Factories\{
     KeyUpdateFactory
 };
 use Php\TlsCraft\Protocol\{AlertDescription, AlertLevel};
+use Php\TlsCraft\Handshake\Messages\Certificate;
+use Php\TlsCraft\Handshake\Messages\CertificateVerify;
+use Php\TlsCraft\Handshake\Messages\ClientHello;
+use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
+use Php\TlsCraft\Handshake\Messages\Finished;
+use Php\TlsCraft\Handshake\Messages\KeyUpdate;
+use Php\TlsCraft\Handshake\Messages\ServerHello;
 
 class MessageFactory
 {

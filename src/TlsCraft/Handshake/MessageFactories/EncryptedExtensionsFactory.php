@@ -1,14 +1,14 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Factories;
+namespace Php\TlsCraft\Handshake\MessageFactories;
 
-use Php\TlsCraft\Messages\EncryptedExtensions;
+use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
 
 class EncryptedExtensionsFactory extends AbstractMessageFactory
 {
     public function create(): EncryptedExtensions
     {
-        $extensions = $this->config->encryptedExtensions->createExtensions($this->context);
+        $extensions = $this->config->getEncryptedExtensions()->createExtensions($this->context);
         return new EncryptedExtensions($extensions);
     }
 }

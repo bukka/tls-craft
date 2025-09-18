@@ -1,6 +1,6 @@
 <?php
 
-namespace Php\TlsCraft\Messages;
+namespace Php\TlsCraft\Handshake;
 
 /**
  * TLS Extension Types Registry

@@ -1,9 +1,9 @@
 <?php
 
-namespace Php\TlsCraft\Extensions;
+namespace Php\TlsCraft\Handshake\Extensions;
 
 use Php\TlsCraft\Crypto\SignatureScheme;
-use Php\TlsCraft\Messages\ExtensionType;
+use Php\TlsCraft\Handshake\ExtensionType;
 
 /**
  * Signature Algorithms Extension

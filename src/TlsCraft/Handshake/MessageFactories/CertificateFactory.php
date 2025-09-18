@@ -1,8 +1,8 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Factories;
+namespace Php\TlsCraft\Handshake\MessageFactories;
 
-use Php\TlsCraft\Messages\Certificate;
+use Php\TlsCraft\Handshake\Messages\Certificate;
 
 class CertificateFactory extends AbstractMessageFactory
 {

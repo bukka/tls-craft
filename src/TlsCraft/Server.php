@@ -6,10 +6,10 @@ use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Control\FlowController;
 use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Exceptions\CraftException;
-use Php\TlsCraft\Messages\MessageFactory;
-use Php\TlsCraft\Messages\ProcessorFactory;
-use Php\TlsCraft\Messages\ProcessorManager;
-use Php\TlsCraft\Messages\Providers\KeyShareExtensionProvider;
+use Php\TlsCraft\Handshake\MessageFactory;
+use Php\TlsCraft\Handshake\ProcessorFactory;
+use Php\TlsCraft\Handshake\ProcessorManager;
+use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
 use Php\TlsCraft\Record\LayerFactory;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -29,9 +29,7 @@ class Server
     ) {
         $this->certificatePath = $certificatePath;
         $this->privateKeyPath = $privateKeyPath;
-        $this->config = $config ?? $this->createDefaultConfig();
-
-        $this->addDefaultServerExtensions();
+        $this->config = $config ?? new Config();
     }
 
     public function getConfig(): Config
@@ -44,7 +42,7 @@ class Server
         $this->serverConnection = Connection::server(
             $address,
             $port,
-            $this->config->connectionOptions
+            $this->config->getConnectionOptions()
         );
     }
 
@@ -61,8 +59,8 @@ class Server
         $stateTracker = new StateTracker(false); // isClient = false
 
         // Create protocol validator
-        $validator = $this->config->customValidator ??
-            new ProtocolValidator($this->config->allowProtocolViolations);
+        $validator = $this->config->hasCustomValidator() ??
+            new ProtocolValidator($this->config->isAllowProtocolViolations());
 
         // Create a crypto factory
         $cryptoFactory = new CryptoFactory();
@@ -75,12 +73,6 @@ class Server
         $layerFactory = new LayerFactory();
         $messageFactory = new MessageFactory($context);
         $processorManager = new ProcessorManager(new ProcessorFactory($context));
-
-        // Set up flow controller if provided
-        if ($flowController === null && $this->config->onStateChange) {
-            $flowController = new FlowController($stateTracker);
-            $stateTracker->onStateChange($this->config->onStateChange);
-        }
 
         // Create protocol orchestrator
         $orchestrator = new ProtocolOrchestrator(
@@ -108,31 +100,6 @@ class Server
     public function close(): void
     {
         $this->serverConnection?->close();
-    }
-
-    private function createDefaultConfig(): Config
-    {
-        return new Config();
-    }
-
-    private function addDefaultServerExtensions(): void
-    {
-        // Add key share extension for server
-        if (!$this->hasExtension(51)) {
-            $this->config->serverHelloExtensions->add(
-                new KeyShareExtensionProvider($this->config->supportedGroups)
-            );
-        }
-    }
-
-    private function hasExtension(int $type): bool
-    {
-        foreach ($this->config->serverHelloExtensions->getProviders() as $provider) {
-            if ($provider->getExtensionType() === $type) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private function loadCertificateChain(): array

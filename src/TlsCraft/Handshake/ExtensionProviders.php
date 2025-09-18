@@ -1,9 +1,9 @@
 <?php
 
-namespace Php\TlsCraft\Extensions;
+namespace Php\TlsCraft\Handshake;
 
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Messages\Providers\ExtensionProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\ExtensionProvider;
 
 abstract class ExtensionProviders
 {

@@ -44,7 +44,7 @@ class EncryptedLayer
      */
     public function updateKeys(): void
     {
-        $this->crypto->updateTrafficKeys();
+        $this->crypto->updateApplicationKeys();
     }
 
     /**

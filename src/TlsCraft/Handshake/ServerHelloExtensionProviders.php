@@ -1,6 +1,6 @@
 <?php
 
-namespace Php\TlsCraft\Extensions;
+namespace Php\TlsCraft\Handshake;
 
 class ServerHelloExtensionProviders extends ExtensionProviders
 {

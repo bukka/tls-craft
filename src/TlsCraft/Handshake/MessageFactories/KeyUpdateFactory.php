@@ -1,8 +1,8 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Factories;
+namespace Php\TlsCraft\Handshake\MessageFactories;
 
-use Php\TlsCraft\Messages\KeyUpdate;
+use Php\TlsCraft\Handshake\Messages\KeyUpdate;
 
 class KeyUpdateFactory extends AbstractMessageFactory
 {

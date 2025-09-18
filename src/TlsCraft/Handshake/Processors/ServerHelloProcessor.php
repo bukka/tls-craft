@@ -1,12 +1,11 @@
 <?php
 
-namespace Php\TlsCraft\Messages\Processors;
+namespace Php\TlsCraft\Handshake\Processors;
 
-use Php\TlsCraft\Crypto\EcdhKeyExchange;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Extensions\{KeyShareExtension, SupportedVersionsExtension};
-use Php\TlsCraft\Messages\ExtensionType;
-use Php\TlsCraft\Messages\ServerHello;
+use Php\TlsCraft\Handshake\Extensions\{KeyShareExtension, SupportedVersionsExtension};
+use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Handshake\Messages\ServerHello;
 use Php\TlsCraft\Protocol\Version;
 
 /**
@@ -24,7 +23,7 @@ class ServerHelloProcessor extends MessageProcessor
         }
 
         // Validate cipher suite selection
-        if (!in_array($message->cipherSuite->value, $this->config->cipherSuites)) {
+        if (!in_array($message->cipherSuite->value, $this->config->getCipherSuites())) {
             throw new ProtocolViolationException(
                 "Server selected unsupported cipher suite: " . $message->cipherSuite->value
             );

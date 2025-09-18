@@ -7,18 +7,18 @@ use Php\TlsCraft\Context;
 use Php\TlsCraft\Control\{FlowController};
 use Php\TlsCraft\Crypto\CertificateUtils;
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
-use Php\TlsCraft\Messages\{Certificate,
+use Php\TlsCraft\Handshake\Messages\{Certificate,
     CertificateVerify,
     ClientHello,
     EncryptedExtensions,
     Finished,
     KeyUpdate,
     Message,
-    MessageFactory,
-    ProcessorManager,
     ServerHello};
 use Php\TlsCraft\Record\{Builder, EncryptedLayer, LayerFactory, Record};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
+use Php\TlsCraft\Handshake\MessageFactory;
+use Php\TlsCraft\Handshake\ProcessorManager;
 
 /**
  * Updated ProtocolOrchestrator with clean typing and proper integration
@@ -63,6 +63,11 @@ class ProtocolOrchestrator
     public function getStateTracker(): StateTracker
     {
         return $this->stateTracker;
+    }
+
+    public function getContext(): Context
+    {
+        return $this->context;
     }
 
     // === Handshake Operations ===
