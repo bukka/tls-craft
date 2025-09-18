@@ -44,7 +44,7 @@ class KeyShareExtensionProvider implements ExtensionProvider
         // Get the selected group from the stored client key share
         $clientKeyShare = $context->getClientKeyShare();
         if (!$clientKeyShare) {
-            throw new CraftException("Client key share not available for server");
+            throw new CraftException('Client key share not available for server');
         }
 
         $selectedGroup = $clientKeyShare->getGroup();
@@ -59,7 +59,7 @@ class KeyShareExtensionProvider implements ExtensionProvider
 
         // Server sends only one key share (for the selected group)
         return new KeyShareExtension([
-            new KeyShare($selectedGroup, $serverKeyPair->getPublicKey())
+            new KeyShare($selectedGroup, $serverKeyPair->getPublicKey()),
         ]);
     }
 

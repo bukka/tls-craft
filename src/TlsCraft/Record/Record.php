@@ -15,15 +15,12 @@ class Record
 
     public function __construct(
         public readonly ContentType $contentType,
-        public readonly Version     $version,
-        public readonly string      $payload,
-        private readonly bool $encrypted = true
-    )
-    {
+        public readonly Version $version,
+        public readonly string $payload,
+        private readonly bool $encrypted = true,
+    ) {
         if (strlen($payload) > self::MAX_PAYLOAD_LENGTH) {
-            throw new ProtocolViolationException(
-                "Record payload too large: " . strlen($payload) . " bytes"
-            );
+            throw new ProtocolViolationException('Record payload too large: '.strlen($payload).' bytes');
         }
     }
 
@@ -31,16 +28,16 @@ class Record
     {
         $length = strlen($this->payload);
 
-        return $this->contentType->toByte() .
-            $this->version->toBytes() .
-            pack('n', $length) .
+        return $this->contentType->toByte().
+            $this->version->toBytes().
+            pack('n', $length).
             $this->payload;
     }
 
     public static function parse(string $data, int &$offset = 0): self
     {
         if (strlen($data) - $offset < self::HEADER_LENGTH) {
-            throw new CraftException("Insufficient data for TLS record header");
+            throw new CraftException('Insufficient data for TLS record header');
         }
 
         $contentType = ContentType::fromByte($data[$offset]);
@@ -50,7 +47,7 @@ class Record
         $offset += self::HEADER_LENGTH;
 
         if (strlen($data) - $offset < $length) {
-            throw new CraftException("Insufficient data for TLS record payload");
+            throw new CraftException('Insufficient data for TLS record payload');
         }
 
         $payload = substr($data, $offset, $length);
@@ -86,7 +83,7 @@ class Record
             $fragments[] = new self(
                 $this->contentType,
                 $this->version,
-                $fragmentPayload
+                $fragmentPayload,
             );
 
             $offset += $fragmentSize;
@@ -103,7 +100,7 @@ class Record
     public function withCorruption(int $bytePosition, int $newValue): self
     {
         if ($bytePosition >= strlen($this->payload)) {
-            throw new CraftException("Corruption position beyond payload length");
+            throw new CraftException('Corruption position beyond payload length');
         }
 
         $corruptedPayload = $this->payload;
@@ -118,11 +115,11 @@ class Record
     public function getHandshakeType(): HandshakeType
     {
         if ($this->contentType !== ContentType::HANDSHAKE) {
-            throw new CraftException("Not a handshake record");
+            throw new CraftException('Not a handshake record');
         }
 
-        if (strlen($this->payload) < 1) {
-            throw new CraftException("Invalid handshake record: empty payload");
+        if ($this->payload === '') {
+            throw new CraftException('Invalid handshake record: empty payload');
         }
 
         return HandshakeType::fromByte($this->payload[0]);

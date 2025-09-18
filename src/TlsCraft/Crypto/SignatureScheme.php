@@ -2,6 +2,8 @@
 
 namespace Php\TlsCraft\Crypto;
 
+use InvalidArgumentException;
+
 enum SignatureScheme: int
 {
     case RSA_PKCS1_SHA1 = 0x0201;
@@ -18,8 +20,8 @@ enum SignatureScheme: int
     case ED25519 = 0x0807;
     case ED448 = 0x0808;
     case RSA_PSS_PSS_SHA256 = 0x0809;
-    case RSA_PSS_PSS_SHA384 = 0x080a;
-    case RSA_PSS_PSS_SHA512 = 0x080b;
+    case RSA_PSS_PSS_SHA384 = 0x080A;
+    case RSA_PSS_PSS_SHA512 = 0x080B;
 
     public function getName(): string
     {
@@ -38,7 +40,7 @@ enum SignatureScheme: int
             self::RSA_PSS_PSS_SHA256 => 'rsa_pss_pss_sha256',
             self::RSA_PSS_PSS_SHA384 => 'rsa_pss_pss_sha384',
             self::RSA_PSS_PSS_SHA512 => 'rsa_pss_pss_sha512',
-            default => 'unknown_' . $this->value
+            default => 'unknown_'.$this->value,
         };
     }
 
@@ -59,7 +61,7 @@ enum SignatureScheme: int
             'rsa_pss_pss_sha256' => self::RSA_PSS_PSS_SHA256,
             'rsa_pss_pss_sha384' => self::RSA_PSS_PSS_SHA384,
             'rsa_pss_pss_sha512' => self::RSA_PSS_PSS_SHA512,
-            default => throw new \InvalidArgumentException("Unknown signature scheme: {$name}")
+            default => throw new InvalidArgumentException("Unknown signature scheme: {$name}"),
         };
     }
 
@@ -91,7 +93,7 @@ enum SignatureScheme: int
             self::ECDSA_SECP256R1_SHA256,
             self::ECDSA_SECP384R1_SHA384,
             self::ECDSA_SECP521R1_SHA512 => true,
-            default => false
+            default => false,
         };
     }
 
@@ -107,7 +109,7 @@ enum SignatureScheme: int
             self::RSA_PSS_PSS_SHA256,
             self::RSA_PSS_PSS_SHA384,
             self::RSA_PSS_PSS_SHA512 => true,
-            default => false
+            default => false,
         };
     }
 
@@ -115,7 +117,7 @@ enum SignatureScheme: int
     {
         return match ($this) {
             self::ED25519, self::ED448 => true,
-            default => false
+            default => false,
         };
     }
 }

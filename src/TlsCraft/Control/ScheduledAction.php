@@ -8,8 +8,9 @@ class ScheduledAction
         public readonly float $executeAt,
         public readonly string $eventType,
         public readonly array $eventData,
-        public readonly string $description
-    ) {}
+        public readonly string $description,
+    ) {
+    }
 
     public function shouldExecute(float $currentTime): bool
     {

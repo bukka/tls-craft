@@ -11,10 +11,9 @@ class Layer
     private int $maxFragmentSize = Record::MAX_PAYLOAD_LENGTH;
 
     public function __construct(
-        private Connection         $connection,
-        private ?RecordInterceptor $interceptor = null
-    )
-    {
+        private Connection $connection,
+        private ?RecordInterceptor $interceptor = null,
+    ) {
     }
 
     public function setInterceptor(?RecordInterceptor $interceptor): void
@@ -44,7 +43,7 @@ class Layer
 
             $delay = $this->interceptor->getDelay($record);
             if ($delay > 0) {
-                usleep((int)($delay * 1_000_000));
+                usleep((int) ($delay * 1_000_000));
             }
 
             $record = $this->interceptor->beforeSend($record);
@@ -52,6 +51,7 @@ class Layer
             $fragmentSize = $this->interceptor->shouldFragment($record);
             if ($fragmentSize !== null) {
                 $this->sendFragmented($record, $fragmentSize);
+
                 return;
             }
         }
@@ -59,6 +59,7 @@ class Layer
         // Apply global fragmentation
         if ($this->fragmentationEnabled && $record->getLength() > $this->maxFragmentSize) {
             $this->sendFragmented($record, $this->maxFragmentSize);
+
             return;
         }
 
@@ -79,7 +80,7 @@ class Layer
             return null;
         }
 
-        $recordData = $header . $payload;
+        $recordData = $header.$payload;
         $offset = 0;
         $record = Record::parse($recordData, $offset);
 

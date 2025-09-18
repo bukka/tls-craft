@@ -18,7 +18,7 @@ class BehaviorEmulator
         $controller->dropRecords(ContentType::HANDSHAKE, 1);
 
         // Send alert when handshaking starts
-        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+        $controller->addEventListener('state_change', function (ControlEvent $event) use ($controller) {
             if ($event->data['new_state'] === ConnectionState::HANDSHAKING) {
                 $controller->scheduleAlert(0.1, AlertLevel::FATAL, AlertDescription::INTERNAL_ERROR);
             }
@@ -45,9 +45,9 @@ class BehaviorEmulator
         $controller = new FlowController($stateTracker);
 
         // Schedule multiple key updates when connected
-        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+        $controller->addEventListener('state_change', function (ControlEvent $event) use ($controller) {
             if ($event->data['new_state'] === ConnectionState::CONNECTED) {
-                for ($i = 1; $i <= 5; $i++) {
+                for ($i = 1; $i <= 5; ++$i) {
                     $controller->scheduleKeyUpdate($i * 0.5, true);
                 }
             }
@@ -61,7 +61,7 @@ class BehaviorEmulator
         $controller = new FlowController($stateTracker);
 
         // Close connection abruptly after connecting
-        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+        $controller->addEventListener('state_change', function (ControlEvent $event) use ($controller) {
             if ($event->data['new_state'] === ConnectionState::CONNECTED) {
                 $controller->scheduleAbruptClose(2.0);
             }
@@ -88,7 +88,7 @@ class BehaviorEmulator
         $controller = new FlowController($stateTracker);
 
         // Trigger events that attempt protocol violations
-        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+        $controller->addEventListener('state_change', function (ControlEvent $event) use ($controller) {
             if ($event->data['new_state'] === ConnectionState::HANDSHAKING) {
                 // Try to send application data during handshake
                 $controller->scheduleCustomEvent(0.1, 'send_app_data_early', ['data' => 'early data']);
@@ -109,7 +109,7 @@ class BehaviorEmulator
         $controller->enableJitter(2.0);
 
         // Send malformed alerts
-        $controller->addEventListener('state_change', function(ControlEvent $event) use ($controller) {
+        $controller->addEventListener('state_change', function (ControlEvent $event) use ($controller) {
             if ($event->data['new_state'] === ConnectionState::CONNECTED) {
                 $controller->scheduleAlert(1.0, AlertLevel::FATAL, AlertDescription::DECODE_ERROR);
             }

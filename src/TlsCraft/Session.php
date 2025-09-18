@@ -11,8 +11,9 @@ class Session
 {
     public function __construct(
         private Connection $connection,
-        private ProtocolOrchestrator $orchestrator
-    ) {}
+        private ProtocolOrchestrator $orchestrator,
+    ) {
+    }
 
     public function send(string $data): void
     {
@@ -22,6 +23,7 @@ class Session
     public function receive(int $maxLength = 8192): ?string
     {
         $data = $this->orchestrator->receiveApplicationData();
+
         return $data ? substr($data, 0, $maxLength) : null;
     }
 
@@ -52,7 +54,7 @@ class Session
         return $this->orchestrator->isConnected();
     }
 
-    public function getState(): \Php\TlsCraft\State\ConnectionState
+    public function getState(): State\ConnectionState
     {
         return $this->orchestrator->getStateTracker()->getConnectionState();
     }

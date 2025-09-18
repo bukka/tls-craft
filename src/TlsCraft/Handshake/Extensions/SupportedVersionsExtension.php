@@ -34,7 +34,8 @@ class SupportedVersionsExtension extends Extension
         foreach ($this->versions as $version) {
             $versionsData .= $version->toBytes();
         }
-        return chr(strlen($versionsData)) . $versionsData;
+
+        return chr(strlen($versionsData)).$versionsData;
     }
 
     public static function decode(string $data): static

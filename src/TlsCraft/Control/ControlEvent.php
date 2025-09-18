@@ -6,8 +6,7 @@ class ControlEvent
 {
     public function __construct(
         public readonly string $type,
-        public readonly array  $data = []
-    )
-    {
+        public readonly array $data = [],
+    ) {
     }
 }

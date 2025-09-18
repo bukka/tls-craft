@@ -11,9 +11,7 @@ class KeyUpdateProcessor extends MessageProcessor
     {
         // Validate that handshake is complete before processing KeyUpdate
         if (!$this->context->isHandshakeComplete()) {
-            throw new ProtocolViolationException(
-                "KeyUpdate received before handshake completion"
-            );
+            throw new ProtocolViolationException('KeyUpdate received before handshake completion');
         }
 
         // KeyUpdate is NOT added to handshake transcript (post-handshake message)
@@ -33,9 +31,7 @@ class KeyUpdateProcessor extends MessageProcessor
     {
         $keySchedule = $this->context->getKeySchedule();
         if (!$keySchedule) {
-            throw new ProtocolViolationException(
-                "Key schedule not available for key update"
-            );
+            throw new ProtocolViolationException('Key schedule not available for key update');
         }
 
         // Get current peer traffic secret and update it

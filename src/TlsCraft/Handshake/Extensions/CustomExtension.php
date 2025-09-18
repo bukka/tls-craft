@@ -11,7 +11,7 @@ class CustomExtension extends Extension
 {
     public function __construct(
         ExtensionType $type,
-        private string $rawData
+        private string $rawData,
     ) {
         parent::__construct($type);
     }

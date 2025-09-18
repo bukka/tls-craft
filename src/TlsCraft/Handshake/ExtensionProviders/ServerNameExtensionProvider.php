@@ -17,6 +17,7 @@ class ServerNameExtensionProvider implements ExtensionProvider
     {
         if ($context->isClient()) {
             $context->setRequestedServerName($this->serverName);
+
             return new ServerNameExtension($this->serverName);
         } else {
             // Check whether the client sent SNI
@@ -26,6 +27,7 @@ class ServerNameExtensionProvider implements ExtensionProvider
             }
 
             $context->setServerNameAcknowledged(true);
+
             return new ServerNameExtension($this->serverName);
         }
     }

@@ -8,8 +8,8 @@ use Php\TlsCraft\Handshake\Extensions\{
     ServerNameExtension,
     SupportedGroupsExtension
 };
-use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
 use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
 
 class EncryptedExtensionsProcessor extends MessageProcessor
 {
@@ -37,9 +37,7 @@ class EncryptedExtensionsProcessor extends MessageProcessor
             $extensionType = ExtensionType::from($extension->type->value);
 
             if (!$extensionType->isAllowedInEncryptedExtensions()) {
-                throw new ProtocolViolationException(
-                    "Extension {$extensionType->getName()} not allowed in EncryptedExtensions"
-                );
+                throw new ProtocolViolationException("Extension {$extensionType->getName()} not allowed in EncryptedExtensions");
             }
         }
     }
@@ -64,9 +62,7 @@ class EncryptedExtensionsProcessor extends MessageProcessor
 
             // Server must select exactly one protocol
             if (count($protocols) !== 1) {
-                throw new ProtocolViolationException(
-                    "Server ALPN response must contain exactly one protocol, got " . count($protocols)
-                );
+                throw new ProtocolViolationException('Server ALPN response must contain exactly one protocol, got '.count($protocols));
             }
 
             $selectedProtocol = $protocols[0];
@@ -74,9 +70,7 @@ class EncryptedExtensionsProcessor extends MessageProcessor
             // Verify server selected from our offered protocols
             $clientOfferedProtocols = $this->context->getClientOfferedProtocols();
             if (!in_array($selectedProtocol, $clientOfferedProtocols)) {
-                throw new ProtocolViolationException(
-                    "Server selected protocol '{$selectedProtocol}' not offered by client"
-                );
+                throw new ProtocolViolationException("Server selected protocol '{$selectedProtocol}' not offered by client");
             }
 
             $this->context->setSelectedProtocol($selectedProtocol);

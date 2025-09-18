@@ -2,6 +2,7 @@
 
 namespace Php\TlsCraft\Handshake;
 
+use InvalidArgumentException;
 use Php\TlsCraft\Handshake\Messages\Certificate;
 use Php\TlsCraft\Handshake\Messages\CertificateVerify;
 use Php\TlsCraft\Handshake\Messages\ClientHello;
@@ -9,6 +10,7 @@ use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
 use Php\TlsCraft\Handshake\Messages\Finished;
 use Php\TlsCraft\Handshake\Messages\KeyUpdate;
 use Php\TlsCraft\Handshake\Messages\Message;
+use Php\TlsCraft\Handshake\Messages\ServerHello;
 use Php\TlsCraft\Handshake\Processors\{CertificateProcessor,
     CertificateVerifyProcessor,
     ClientHelloProcessor,
@@ -16,7 +18,6 @@ use Php\TlsCraft\Handshake\Processors\{CertificateProcessor,
     FinishedProcessor,
     KeyUpdateProcessor,
     ServerHelloProcessor};
-use Php\TlsCraft\Handshake\Messages\ServerHello;
 
 class ProcessorManager
 {
@@ -97,7 +98,7 @@ class ProcessorManager
      */
     public function processMessage(Message $message): void
     {
-        match (get_class($message)) {
+        match ($message::class) {
             ClientHello::class => $this->processClientHello($message),
             ServerHello::class => $this->processServerHello($message),
             EncryptedExtensions::class => $this->processEncryptedExtensions($message),
@@ -105,7 +106,7 @@ class ProcessorManager
             CertificateVerify::class => $this->processCertificateVerify($message),
             Finished::class => $this->processFinished($message),
             KeyUpdate::class => $this->processKeyUpdate($message),
-            default => throw new \InvalidArgumentException("No processor available for message type: " . get_class($message))
+            default => throw new InvalidArgumentException('No processor available for message type: '.$message::class),
         };
     }
 }

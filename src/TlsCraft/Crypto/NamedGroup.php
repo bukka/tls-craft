@@ -2,6 +2,8 @@
 
 namespace Php\TlsCraft\Crypto;
 
+use InvalidArgumentException;
+
 /**
  * Named Groups (Elliptic Curve Groups and Finite Field Groups)
  */
@@ -38,7 +40,7 @@ enum NamedGroup: int
             'ffdhe4096' => self::FFDHE4096,
             'ffdhe6144' => self::FFDHE6144,
             'ffdhe8192' => self::FFDHE8192,
-            default => throw new \InvalidArgumentException("Unknown named group: {$name}")
+            default => throw new InvalidArgumentException("Unknown named group: {$name}"),
         };
     }
 
@@ -55,7 +57,7 @@ enum NamedGroup: int
             self::FFDHE4096 => 'ffdhe4096',
             self::FFDHE6144 => 'ffdhe6144',
             self::FFDHE8192 => 'ffdhe8192',
-            default => 'unknown_' . $this->value
+            default => 'unknown_'.$this->value,
         };
     }
 
@@ -81,7 +83,7 @@ enum NamedGroup: int
             self::FFDHE4096 => 512,
             self::FFDHE6144 => 768,
             self::FFDHE8192 => 1024,
-            default => 0
+            default => 0,
         };
     }
 }

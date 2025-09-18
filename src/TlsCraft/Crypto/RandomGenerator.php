@@ -9,12 +9,12 @@ class RandomGenerator
     public static function generate(int $length): string
     {
         if ($length <= 0) {
-            throw new CryptoException("Invalid random length");
+            throw new CryptoException('Invalid random length');
         }
 
         $random = random_bytes($length);
         if (strlen($random) !== $length) {
-            throw new CryptoException("Failed to generate random bytes");
+            throw new CryptoException('Failed to generate random bytes');
         }
 
         return $random;

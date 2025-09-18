@@ -2,6 +2,8 @@
 
 namespace Php\TlsCraft\Exceptions;
 
-class CraftException extends \Exception
+use Exception;
+
+class CraftException extends Exception
 {
 }

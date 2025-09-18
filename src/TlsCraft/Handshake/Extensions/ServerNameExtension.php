@@ -8,7 +8,7 @@ use Php\TlsCraft\Handshake\ExtensionType;
 class ServerNameExtension extends Extension
 {
     public function __construct(
-        private string $serverName
+        private string $serverName,
     ) {
         parent::__construct(ExtensionType::SERVER_NAME);
     }
@@ -24,8 +24,9 @@ class ServerNameExtension extends Extension
         // Name type (1 byte) - 0 for hostname
         // Name length (2 bytes)
         // Name data
-        $nameData = chr(0) . pack('n', strlen($this->serverName)) . $this->serverName;
-        return pack('n', strlen($nameData)) . $nameData;
+        $nameData = chr(0).pack('n', strlen($this->serverName)).$this->serverName;
+
+        return pack('n', strlen($nameData)).$nameData;
     }
 
     public static function decode(string $data): static
@@ -38,7 +39,7 @@ class ServerNameExtension extends Extension
 
         // Name type (should be 0 for hostname)
         $nameType = ord($data[$offset]);
-        $offset += 1;
+        ++$offset;
 
         if ($nameType !== 0) {
             throw new CraftException("Unsupported name type: {$nameType}");

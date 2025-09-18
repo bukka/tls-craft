@@ -33,6 +33,7 @@ class KeyShareExtension extends Extension
                 return $keyShare;
             }
         }
+
         return null;
     }
 
@@ -42,7 +43,8 @@ class KeyShareExtension extends Extension
         foreach ($this->keyShares as $keyShare) {
             $keySharesData .= $keyShare->encode();
         }
-        return pack('n', strlen($keySharesData)) . $keySharesData;
+
+        return pack('n', strlen($keySharesData)).$keySharesData;
     }
 
     public static function decode(string $data): static

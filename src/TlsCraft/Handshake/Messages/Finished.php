@@ -7,9 +7,8 @@ use Php\TlsCraft\Protocol\HandshakeType;
 class Finished extends Message
 {
     public function __construct(
-        public readonly string $verifyData
-    )
-    {
+        public readonly string $verifyData,
+    ) {
         parent::__construct(HandshakeType::FINISHED);
     }
 

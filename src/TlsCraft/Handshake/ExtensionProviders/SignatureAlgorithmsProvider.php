@@ -11,15 +11,15 @@ use Php\TlsCraft\Handshake\ExtensionType;
 class SignatureAlgorithmsProvider implements ExtensionProvider
 {
     public function __construct(
-        private array $signatureAlgorithms
-    )
-    {
+        private array $signatureAlgorithms,
+    ) {
     }
 
     public function create(Context $context): ?Extension
     {
         return new SignatureAlgorithmsExtension(array_map(
-            fn($sigAlg) => SignatureScheme::fromName($sigAlg), $this->signatureAlgorithms
+            fn ($sigAlg) => SignatureScheme::fromName($sigAlg),
+            $this->signatureAlgorithms,
         ));
     }
 

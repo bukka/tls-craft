@@ -10,18 +10,15 @@ use Php\TlsCraft\Handshake\ExtensionType;
 class CustomExtensionProvider implements ExtensionProvider
 {
     public function __construct(
-        private readonly int    $extensionType,
-        private readonly string $extensionData
-    )
-    {
+        private readonly int $extensionType,
+        private readonly string $extensionData,
+    ) {
     }
 
     public function create(Context $context): ?Extension
     {
         return new CustomExtension(ExtensionType::from($this->extensionType), $this->extensionData);
     }
-
-
 
     public function getExtensionType(): ExtensionType
     {

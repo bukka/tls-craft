@@ -9,7 +9,6 @@ use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\ProcessorFactory;
 use Php\TlsCraft\Handshake\ProcessorManager;
-use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
 use Php\TlsCraft\Record\LayerFactory;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -25,7 +24,7 @@ class Server
     public function __construct(
         string $certificatePath,
         string $privateKeyPath,
-        ?Config $config = null
+        ?Config $config = null,
     ) {
         $this->certificatePath = $certificatePath;
         $this->privateKeyPath = $privateKeyPath;
@@ -42,14 +41,14 @@ class Server
         $this->serverConnection = Connection::server(
             $address,
             $port,
-            $this->config->getConnectionOptions()
+            $this->config->getConnectionOptions(),
         );
     }
 
     public function accept(?float $timeout = null, ?FlowController $flowController = null): Session
     {
         if (!$this->serverConnection) {
-            throw new CraftException("Server not listening");
+            throw new CraftException('Server not listening');
         }
 
         // Accept TCP connection
@@ -59,8 +58,7 @@ class Server
         $stateTracker = new StateTracker(false); // isClient = false
 
         // Create protocol validator
-        $validator = $this->config->hasCustomValidator() ??
-            new ProtocolValidator($this->config->isAllowProtocolViolations());
+        $validator = $this->config->hasCustomValidator() ?? new ProtocolValidator($this->config->isAllowProtocolViolations());
 
         // Create a crypto factory
         $cryptoFactory = new CryptoFactory();
@@ -83,7 +81,7 @@ class Server
             $layerFactory,
             $messageFactory,
             $clientConnection,
-            $flowController
+            $flowController,
         );
 
         // Perform TLS handshake
@@ -110,14 +108,14 @@ class Server
 
         $certData = file_get_contents($this->certificatePath);
         if ($certData === false) {
-            throw new CraftException("Failed to read certificate file");
+            throw new CraftException('Failed to read certificate file');
         }
 
         // Convert PEM to DER if needed
-        if (strpos($certData, '-----BEGIN CERTIFICATE-----') !== false) {
+        if (str_contains($certData, '-----BEGIN CERTIFICATE-----')) {
             $cert = openssl_x509_read($certData);
             if ($cert === false) {
-                throw new CraftException("Invalid certificate format");
+                throw new CraftException('Invalid certificate format');
             }
             openssl_x509_export($cert, $certData, false);
         }
@@ -133,12 +131,12 @@ class Server
 
         $keyData = file_get_contents($this->privateKeyPath);
         if ($keyData === false) {
-            throw new CraftException("Failed to read private key file");
+            throw new CraftException('Failed to read private key file');
         }
 
         $privateKey = openssl_pkey_get_private($keyData);
         if ($privateKey === false) {
-            throw new CraftException("Invalid private key format");
+            throw new CraftException('Invalid private key format');
         }
 
         return $privateKey;

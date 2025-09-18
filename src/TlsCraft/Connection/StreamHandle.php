@@ -6,7 +6,6 @@ use Php\TlsCraft\Exceptions\CraftException;
 
 class StreamHandle implements Handle
 {
-
     private $resource;
     private bool $isServer;
 
@@ -23,13 +22,13 @@ class StreamHandle implements Handle
         }
 
         if (!$this->isConnected()) {
-            throw new CraftException("Cannot read from closed connection");
+            throw new CraftException('Cannot read from closed connection');
         }
 
         $data = fread($this->resource, $length);
 
         if ($data === false) {
-            throw new CraftException("Failed to read from connection");
+            throw new CraftException('Failed to read from connection');
         }
 
         return $data;
@@ -42,13 +41,13 @@ class StreamHandle implements Handle
         }
 
         if (!$this->isConnected()) {
-            throw new CraftException("Cannot write to closed connection");
+            throw new CraftException('Cannot write to closed connection');
         }
 
         $result = fwrite($this->resource, $data);
 
         if ($result === false) {
-            throw new CraftException("Failed to write to connection");
+            throw new CraftException('Failed to write to connection');
         }
 
         return $result;
@@ -57,13 +56,13 @@ class StreamHandle implements Handle
     public function accept(?float $timeout = null): Handle
     {
         if (!$this->isServer) {
-            throw new CraftException("Cannot accept on client connection");
+            throw new CraftException('Cannot accept on client connection');
         }
 
         $clientResource = stream_socket_accept($this->resource, $timeout);
 
         if (!$clientResource) {
-            throw new CraftException("Failed to accept connection");
+            throw new CraftException('Failed to accept connection');
         }
 
         // Set optimal options for client connection
@@ -91,6 +90,7 @@ class StreamHandle implements Handle
         }
 
         $name = stream_socket_get_name($this->resource, false);
+
         return $name !== false ? $name : '';
     }
 
@@ -101,6 +101,7 @@ class StreamHandle implements Handle
         }
 
         $name = stream_socket_get_name($this->resource, true);
+
         return $name !== false ? $name : '';
     }
 
@@ -109,8 +110,8 @@ class StreamHandle implements Handle
         if ($this->isConnected()) {
             stream_set_timeout(
                 $this->resource,
-                (int)$timeout,
-                (int)(($timeout - floor($timeout)) * 1000000)
+                (int) $timeout,
+                (int) (($timeout - floor($timeout)) * 1000000),
             );
         }
     }
@@ -147,12 +148,12 @@ class StreamHandle implements Handle
             $readResources,
             $writeResources,
             $except,
-            (int)$timeout,
-            (int)(($timeout - floor($timeout)) * 1000000)
+            (int) $timeout,
+            (int) (($timeout - floor($timeout)) * 1000000),
         );
 
         if ($result === false) {
-            throw new CraftException("Failed to select on streams");
+            throw new CraftException('Failed to select on streams');
         }
 
         // Map back to handles
@@ -178,7 +179,7 @@ class StreamHandle implements Handle
         return [
             'read' => $readReady,
             'write' => $writeReady,
-            'ready_count' => $result
+            'ready_count' => $result,
         ];
     }
 

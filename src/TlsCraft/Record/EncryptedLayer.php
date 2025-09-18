@@ -11,7 +11,7 @@ class EncryptedLayer
 
     public function __construct(
         Layer $baseLayer,
-        Context $context
+        Context $context,
     ) {
         $this->baseLayer = $baseLayer;
         $this->crypto = new RecordCrypto($context);

@@ -2,15 +2,15 @@
 
 namespace Php\TlsCraft\Tests\Integration;
 
-use Php\TlsCraft\Crypto\SignatureScheme;
-use Php\TlsCraft\Exceptions\CraftException;
-use PHPUnit\Framework\TestCase;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\Test;
 use Php\TlsCraft\Client;
 use Php\TlsCraft\Config;
-use Php\TlsCraft\Protocol\Version;
 use Php\TlsCraft\Crypto\CipherSuite;
+use Php\TlsCraft\Crypto\SignatureScheme;
+use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Protocol\Version;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
 
 /**
  * PHPUnit-based integration tests for TLS Client
@@ -43,40 +43,40 @@ class ClientIntegrationTest extends TestCase
     {
         return [
             'RSA-2048' => [
-                'generator' => fn() => TestCertificateGenerator::forRSA(2048),
-                'config_factory' => fn() => new Config(
+                'generator' => fn () => TestCertificateGenerator::forRSA(2048),
+                'config_factory' => fn () => new Config(
                     supportedVersions: [Version::TLS_1_3],
                     cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
                     supportedGroups: ['P-256'], // RSA can work with any group
-                    signatureAlgorithms: [SignatureScheme::RSA_PKCS1_SHA256->value]
-                )
+                    signatureAlgorithms: [SignatureScheme::RSA_PKCS1_SHA256->value],
+                ),
             ],
             'ECC-P256' => [
-                'generator' => fn() => TestCertificateGenerator::forECC('prime256v1'),
-                'config_factory' => fn() => new Config(
+                'generator' => fn () => TestCertificateGenerator::forECC('prime256v1'),
+                'config_factory' => fn () => new Config(
                     supportedVersions: [Version::TLS_1_3],
                     cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
                     supportedGroups: ['P-256'],
-                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP256R1_SHA256->value]
-                )
+                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP256R1_SHA256->value],
+                ),
             ],
             'ECC-P384' => [
-                'generator' => fn() => TestCertificateGenerator::forECC('secp384r1'),
-                'config_factory' => fn() => new Config(
+                'generator' => fn () => TestCertificateGenerator::forECC('secp384r1'),
+                'config_factory' => fn () => new Config(
                     supportedVersions: [Version::TLS_1_3],
                     cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
                     supportedGroups: ['P-384'],
-                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP384R1_SHA384->value]
-                )
+                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP384R1_SHA384->value],
+                ),
             ],
             'ECC-P521' => [
-                'generator' => fn() => TestCertificateGenerator::forECC('secp521r1'),
-                'config_factory' => fn() => new Config(
+                'generator' => fn () => TestCertificateGenerator::forECC('secp521r1'),
+                'config_factory' => fn () => new Config(
                     supportedVersions: [Version::TLS_1_3],
                     cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
                     supportedGroups: ['P-521'],
-                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP521R1_SHA512->value]
-                )
+                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP521R1_SHA512->value],
+                ),
             ],
         ];
     }
@@ -101,7 +101,7 @@ class ClientIntegrationTest extends TestCase
         $config = $configFactory();
         $config->forTesting(); // Enable self-signed cert acceptance
 
-        $client = new Client($hostname, (int)$port, $config);
+        $client = new Client($hostname, (int) $port, $config);
 
         // Main test code - debuggable with PHPUnit!
         $session = $client->connect(10.0);
@@ -117,7 +117,7 @@ class ClientIntegrationTest extends TestCase
 
         $this->assertTrue(
             $this->runner->waitForCompletion(TestRunner::ROLE_SERVER, 15),
-            'Server should complete successfully'
+            'Server should complete successfully',
         );
     }
 
@@ -150,7 +150,7 @@ class ClientIntegrationTest extends TestCase
 
         $config = new Config();
         $config->forTesting();
-        $client = new Client($hostname, (int)$port, $config);
+        $client = new Client($hostname, (int) $port, $config);
 
         $this->expectException(CraftException::class);
         $client->connect(2.0); // Short timeout
@@ -172,14 +172,14 @@ class ClientIntegrationTest extends TestCase
         // Create config with certificate verification enabled
         $config = new Config(
             supportedVersions: [Version::TLS_1_3],
-            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value]
+            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
         );
 
         // Enable certificate verification (should fail due to hostname mismatch)
         $config->setRequireTrustedCertificates(true)
             ->setAllowSelfSignedCertificates(false);
 
-        $client = new Client($hostname, (int)$port, $config);
+        $client = new Client($hostname, (int) $port, $config);
 
         $this->expectException(CraftException::class);
         $client->connect(5.0);
@@ -203,11 +203,11 @@ class ClientIntegrationTest extends TestCase
             cipherSuites: [
                 CipherSuite::TLS_AES_256_GCM_SHA384->value, // Prefer this
                 CipherSuite::TLS_AES_128_GCM_SHA256->value, // Fallback
-            ]
+            ],
         );
         $config->forTesting();
 
-        $client = new Client($hostname, (int)$port, $config);
+        $client = new Client($hostname, (int) $port, $config);
         $session = $client->connect();
 
         // Verify negotiated cipher suite
@@ -217,7 +217,7 @@ class ClientIntegrationTest extends TestCase
         $this->assertContains(
             $negotiatedCipher,
             [CipherSuite::TLS_AES_256_GCM_SHA384, CipherSuite::TLS_AES_128_GCM_SHA256],
-            'Should negotiate one of the supported cipher suites'
+            'Should negotiate one of the supported cipher suites',
         );
 
         $session->close();
@@ -236,7 +236,7 @@ class ClientIntegrationTest extends TestCase
         $serverCode = '
             $context = stream_context_create([
                 "ssl" => [
-                    "local_cert" => "' . $serverCerts['combined_file'] . '",
+                    "local_cert" => "'.$serverCerts['combined_file'].'",
                     "verify_peer" => false,
                     "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
                     "alpn_protocols" => "http/1.1,h2", // Server supports these
@@ -263,11 +263,11 @@ class ClientIntegrationTest extends TestCase
 
         $config = new Config(
             supportedVersions: [Version::TLS_1_3],
-            supportedProtocols: ['h2', 'http/1.1'] // Client preference order
+            supportedProtocols: ['h2', 'http/1.1'], // Client preference order
         );
         $config->forTesting();
 
-        $client = new Client($hostname, (int)$port, $config);
+        $client = new Client($hostname, (int) $port, $config);
         $session = $client->connect();
 
         // Test that ALPN was negotiated
@@ -287,7 +287,7 @@ class ClientIntegrationTest extends TestCase
         return '
             $context = stream_context_create([
                 "ssl" => [
-                    "local_cert" => "' . $serverCerts['combined_file'] . '",
+                    "local_cert" => "'.$serverCerts['combined_file'].'",
                     "verify_peer" => false,
                     "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
                 ]

@@ -4,6 +4,10 @@ namespace Php\TlsCraft\Tests\Integration;
 
 use Exception;
 
+use const PHP_BINARY;
+use const STDERR;
+use const STDIN;
+
 class TestRunner
 {
     private array $workerProcesses = [];
@@ -29,7 +33,7 @@ class TestRunner
 
         $address = $this->waitForWorkerReady(self::ROLE_SERVER);
         if (!$address) {
-            throw new Exception("Server process failed to start");
+            throw new Exception('Server process failed to start');
         }
 
         return trim($address);
@@ -67,6 +71,7 @@ class TestRunner
 
         // Timeout - terminate process
         proc_terminate($this->workerProcesses[$role]);
+
         return false;
     }
 
@@ -106,7 +111,7 @@ class TestRunner
             getenv('TEST_PHP_EXTRA_ARGS') ?: '',
             __FILE__,
             self::WORKER_MARKER,
-            $role
+            $role,
         );
 
         $pipes = [];
@@ -115,9 +120,9 @@ class TestRunner
             [
                 0 => ['pipe', 'r'], // stdin
                 1 => ['pipe', 'w'], // stdout
-                2 => STDERR         // stderr (inherit for debugging)
+                2 => STDERR,         // stderr (inherit for debugging)
             ],
-            $pipes
+            $pipes,
         );
 
         if (!$this->workerProcesses[$role]) {
@@ -127,7 +132,7 @@ class TestRunner
         $this->workerPipes[$role] = $pipes;
 
         // Send code to worker
-        fwrite($pipes[0], $this->stripPhpTags($code) . "\n---END---\n");
+        fwrite($pipes[0], $this->stripPhpTags($code)."\n---END---\n");
     }
 
     private function waitForWorkerReady(string $role, int $timeoutSeconds = 10): ?string
@@ -146,7 +151,7 @@ class TestRunner
 
             if (stream_select($read, $write, $except, 0, 100000)) {
                 $line = fgets($stdout);
-                if ($line !== false && strpos($line, 'READY:') === 0) {
+                if ($line !== false && str_starts_with($line, 'READY:')) {
                     return substr($line, 6); // Remove 'READY:' prefix
                 }
             }
@@ -175,8 +180,8 @@ class TestRunner
             // Execute worker code
             eval($code);
         } catch (Exception $e) {
-            echo "WORKER_ERROR: " . $e->getMessage() . "\n";
-            echo $e->getTraceAsString() . "\n";
+            echo 'WORKER_ERROR: '.$e->getMessage()."\n";
+            echo $e->getTraceAsString()."\n";
             exit(1);
         }
     }
@@ -187,7 +192,7 @@ class TestRunner
     public function notifyMain(string $message): void
     {
         if ($this->isWorker) {
-            echo $message . "\n";
+            echo $message."\n";
             flush();
         }
     }
@@ -197,7 +202,7 @@ class TestRunner
      */
     public function notifyServerReady(string $address): void
     {
-        $this->notifyMain("READY:" . $address);
+        $this->notifyMain('READY:'.$address);
     }
 
     private function stripPhpTags(string $code): string

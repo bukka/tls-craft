@@ -2,9 +2,9 @@
 
 namespace Php\TlsCraft\Handshake\MessageFactories;
 
+use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\Messages\ServerHello;
 use Php\TlsCraft\Protocol\Version;
-use Php\TlsCraft\Exceptions\CraftException;
 
 class ServerHelloFactory extends AbstractMessageFactory
 {
@@ -14,7 +14,7 @@ class ServerHelloFactory extends AbstractMessageFactory
 
         $negotiatedCipher = $this->context->getNegotiatedCipherSuite();
         if ($negotiatedCipher === null) {
-            throw new CraftException("No cipher suite negotiated");
+            throw new CraftException('No cipher suite negotiated');
         }
 
         return new ServerHello(
@@ -23,7 +23,7 @@ class ServerHelloFactory extends AbstractMessageFactory
             '', // Empty session ID for TLS 1.3
             $negotiatedCipher,
             0, // Null compression
-            $extensions
+            $extensions,
         );
     }
 }

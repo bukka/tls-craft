@@ -9,6 +9,7 @@ class EncryptedExtensionsFactory extends AbstractMessageFactory
     public function create(): EncryptedExtensions
     {
         $extensions = $this->config->getEncryptedExtensions()->createExtensions($this->context);
+
         return new EncryptedExtensions($extensions);
     }
 }

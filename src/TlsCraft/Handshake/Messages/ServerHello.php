@@ -11,18 +11,17 @@ use Php\TlsCraft\Protocol\Version;
 class ServerHello extends Message
 {
     public function __construct(
-        public readonly Version     $version,
-        public readonly string      $random, // 32 bytes
-        public readonly string      $sessionId,
+        public readonly Version $version,
+        public readonly string $random, // 32 bytes
+        public readonly string $sessionId,
         public readonly CipherSuite $cipherSuite,
-        public readonly int         $compressionMethod,
-        array                       $extensions // array of Extension
-    )
-    {
+        public readonly int $compressionMethod,
+        array $extensions, // array of Extension
+    ) {
         parent::__construct(HandshakeType::SERVER_HELLO, $extensions);
 
         if (strlen($random) !== 32) {
-            throw new ProtocolViolationException("ServerHello random must be 32 bytes");
+            throw new ProtocolViolationException('ServerHello random must be 32 bytes');
         }
     }
 
@@ -32,7 +31,7 @@ class ServerHello extends Message
         $encoded .= $this->random;
 
         // Session ID
-        $encoded .= chr(strlen($this->sessionId)) . $this->sessionId;
+        $encoded .= chr(strlen($this->sessionId)).$this->sessionId;
 
         // Cipher suite (2 bytes)
         $encoded .= pack('n', $this->cipherSuite->value);
@@ -60,7 +59,7 @@ class ServerHello extends Message
 
         // Session ID
         $sessionIdLength = ord($data[$offset]);
-        $offset++;
+        ++$offset;
         $sessionId = substr($data, $offset, $sessionIdLength);
         $offset += $sessionIdLength;
 
@@ -70,7 +69,7 @@ class ServerHello extends Message
 
         // Compression method (1 byte)
         $compressionMethod = ord($data[$offset]);
-        $offset++;
+        ++$offset;
 
         // Extensions
         $extensions = Extension::decodeList($data, $offset);

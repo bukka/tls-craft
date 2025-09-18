@@ -59,7 +59,7 @@ enum AlertDescription: int
         return match ($this) {
             self::CLOSE_NOTIFY,
             self::USER_CANCELED => false,
-            default => true
+            default => true,
         };
     }
 }

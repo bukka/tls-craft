@@ -5,15 +5,14 @@ namespace Php\TlsCraft\Handshake;
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Handshake\MessageFactories\{
-    ClientHelloFactory,
-    ServerHelloFactory,
-    EncryptedExtensionsFactory,
     CertificateFactory,
     CertificateVerifyFactory,
+    ClientHelloFactory,
+    EncryptedExtensionsFactory,
     FinishedFactory,
-    KeyUpdateFactory
+    KeyUpdateFactory,
+    ServerHelloFactory
 };
-use Php\TlsCraft\Protocol\{AlertDescription, AlertLevel};
 use Php\TlsCraft\Handshake\Messages\Certificate;
 use Php\TlsCraft\Handshake\Messages\CertificateVerify;
 use Php\TlsCraft\Handshake\Messages\ClientHello;
@@ -21,6 +20,7 @@ use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
 use Php\TlsCraft\Handshake\Messages\Finished;
 use Php\TlsCraft\Handshake\Messages\KeyUpdate;
 use Php\TlsCraft\Handshake\Messages\ServerHello;
+use Php\TlsCraft\Protocol\{AlertDescription, AlertLevel};
 
 class MessageFactory
 {
@@ -45,6 +45,7 @@ class MessageFactory
         if (!$this->clientHelloFactory) {
             $this->clientHelloFactory = new ClientHelloFactory($this->context, $this->config);
         }
+
         return $this->clientHelloFactory->create();
     }
 
@@ -53,6 +54,7 @@ class MessageFactory
         if (!$this->serverHelloFactory) {
             $this->serverHelloFactory = new ServerHelloFactory($this->context, $this->config);
         }
+
         return $this->serverHelloFactory->create();
     }
 
@@ -61,6 +63,7 @@ class MessageFactory
         if (!$this->encryptedExtensionsFactory) {
             $this->encryptedExtensionsFactory = new EncryptedExtensionsFactory($this->context, $this->config);
         }
+
         return $this->encryptedExtensionsFactory->create();
     }
 
@@ -69,6 +72,7 @@ class MessageFactory
         if (!$this->certificateFactory) {
             $this->certificateFactory = new CertificateFactory($this->context, $this->config);
         }
+
         return $this->certificateFactory->create($certificateChain);
     }
 
@@ -77,6 +81,7 @@ class MessageFactory
         if (!$this->certificateVerifyFactory) {
             $this->certificateVerifyFactory = new CertificateVerifyFactory($this->context, $this->config);
         }
+
         return $this->certificateVerifyFactory->create($signature);
     }
 
@@ -85,6 +90,7 @@ class MessageFactory
         if (!$this->finishedFactory) {
             $this->finishedFactory = new FinishedFactory($this->context, $this->config);
         }
+
         return $this->finishedFactory->create($isClient);
     }
 
@@ -93,11 +99,12 @@ class MessageFactory
         if (!$this->keyUpdateFactory) {
             $this->keyUpdateFactory = new KeyUpdateFactory($this->context, $this->config);
         }
+
         return $this->keyUpdateFactory->create($requestUpdate);
     }
 
     public function createAlert(AlertLevel $level, AlertDescription $description): string
     {
-        return $level->toByte() . $description->toByte();
+        return $level->toByte().$description->toByte();
     }
 }

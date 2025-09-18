@@ -39,7 +39,7 @@ class RecordCrypto
 
         $keySchedule = $this->context->getKeySchedule();
         if (!$keySchedule) {
-            throw new CraftException("Cannot encrypt record: key schedule not initialized");
+            throw new CraftException('Cannot encrypt record: key schedule not initialized');
         }
 
         // Determine which cipher to use based on handshake completion
@@ -90,7 +90,7 @@ class RecordCrypto
     public function updateApplicationKeys(): void
     {
         if (!$this->context->hasApplicationSecrets()) {
-            throw new CraftException("Cannot update keys: application secrets not available");
+            throw new CraftException('Cannot update keys: application secrets not available');
         }
 
         // Get current traffic secrets
@@ -119,19 +119,19 @@ class RecordCrypto
             $this->initializeHandshakeWriteCipher();
         }
 
-        $innerPlaintext = $record->payload . chr($record->contentType->value);
+        $innerPlaintext = $record->payload.chr($record->contentType->value);
         $additionalData = $this->createAAD(ContentType::APPLICATION_DATA, strlen($innerPlaintext) + 16);
 
         $ciphertext = $this->handshakeWriteCipher->encrypt(
             $innerPlaintext,
             $additionalData,
-            $this->handshakeWriteSequence++
+            $this->handshakeWriteSequence++,
         );
 
         return new Record(
             ContentType::APPLICATION_DATA, // TLS 1.3 hides real content type
             $record->version,
-            $ciphertext
+            $ciphertext,
         );
     }
 
@@ -141,19 +141,19 @@ class RecordCrypto
             $this->initializeApplicationWriteCipher();
         }
 
-        $innerPlaintext = $record->payload . chr($record->contentType->value);
+        $innerPlaintext = $record->payload.chr($record->contentType->value);
         $additionalData = $this->createAAD(ContentType::APPLICATION_DATA, strlen($innerPlaintext) + 16);
 
         $ciphertext = $this->applicationWriteCipher->encrypt(
             $innerPlaintext,
             $additionalData,
-            $this->applicationWriteSequence++
+            $this->applicationWriteSequence++,
         );
 
         return new Record(
             ContentType::APPLICATION_DATA,
             $record->version,
-            $ciphertext
+            $ciphertext,
         );
     }
 
@@ -168,7 +168,7 @@ class RecordCrypto
         $plaintext = $this->handshakeReadCipher->decrypt(
             $record->payload,
             $additionalData,
-            $this->handshakeReadSequence++
+            $this->handshakeReadSequence++,
         );
 
         return $this->extractInnerRecord($plaintext, $record->version);
@@ -185,7 +185,7 @@ class RecordCrypto
         $plaintext = $this->applicationReadCipher->decrypt(
             $record->payload,
             $additionalData,
-            $this->applicationReadSequence++
+            $this->applicationReadSequence++,
         );
 
         return $this->extractInnerRecord($plaintext, $record->version);
@@ -203,6 +203,7 @@ class RecordCrypto
     private function hasHandshakeKeys(): bool
     {
         $keySchedule = $this->context->getKeySchedule();
+
         return $keySchedule && method_exists($keySchedule, 'hasHandshakeKeys')
             ? $keySchedule->hasHandshakeKeys()
             : false;

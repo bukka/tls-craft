@@ -17,11 +17,12 @@ class AlpnExtensionProvider implements ExtensionProvider
     {
         if ($context->isClient()) {
             $context->setClientOfferedProtocols($this->protocols);
+
             return new AlpnExtension($this->protocols);
         }
 
         $selectedProtocol = $context->getSelectedProtocol();
-        if (is_null($selectedProtocol)) {
+        if (null === $selectedProtocol) {
             return null;
         }
 

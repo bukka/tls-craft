@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php\TlsCraft\Protocol;
 
+use InvalidArgumentException;
+
 /**
  * TLS Protocol Version
  */
@@ -22,6 +24,7 @@ enum Version: int
     public static function fromBytes(string $bytes): self
     {
         $value = unpack('n', $bytes)[1];
+
         return self::from($value);
     }
 
@@ -47,7 +50,7 @@ enum Version: int
             'TLS 1.1', 'tls_1_1', '1.1' => self::TLS_1_1,
             'TLS 1.2', 'tls_1_2', '1.2' => self::TLS_1_2,
             'TLS 1.3', 'tls_1_3', '1.3' => self::TLS_1_3,
-            default => throw new \InvalidArgumentException("Unknown TLS version: {$name}")
+            default => throw new InvalidArgumentException("Unknown TLS version: {$name}"),
         };
     }
 }

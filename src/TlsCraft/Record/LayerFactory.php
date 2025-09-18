@@ -11,6 +11,7 @@ class LayerFactory
     public function createEncryptedLayer(Connection $connection, Context $context, ?FlowController $flowController = null): EncryptedLayer
     {
         $baseLayer = new Layer($connection, $flowController);
+
         return new EncryptedLayer($baseLayer, $context);
     }
 }

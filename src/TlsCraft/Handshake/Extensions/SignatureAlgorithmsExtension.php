@@ -11,9 +11,8 @@ use Php\TlsCraft\Handshake\ExtensionType;
 class SignatureAlgorithmsExtension extends Extension
 {
     public function __construct(
-        private array $signatureAlgorithms
-    )
-    {
+        private array $signatureAlgorithms,
+    ) {
         parent::__construct(ExtensionType::SIGNATURE_ALGORITHMS);
     }
 
@@ -33,7 +32,8 @@ class SignatureAlgorithmsExtension extends Extension
         foreach ($this->signatureAlgorithms as $algorithm) {
             $algorithmsData .= pack('n', $algorithm->value);
         }
-        return pack('n', strlen($algorithmsData)) . $algorithmsData;
+
+        return pack('n', strlen($algorithmsData)).$algorithmsData;
     }
 
     public static function decode(string $data): static

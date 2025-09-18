@@ -8,8 +8,8 @@ use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
 use Php\TlsCraft\Handshake\Extensions\ServerNameExtension;
 use Php\TlsCraft\Handshake\Extensions\SignatureAlgorithmsExtension;
 use Php\TlsCraft\Handshake\Extensions\SupportedVersionsExtension;
-use Php\TlsCraft\Handshake\Messages\ClientHello;
 use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Handshake\Messages\ClientHello;
 use Php\TlsCraft\Protocol\Version;
 
 class ClientHelloProcessor extends MessageProcessor
@@ -18,17 +18,17 @@ class ClientHelloProcessor extends MessageProcessor
     {
         // Validate version
         if (!$message->version->isSupported()) {
-            throw new ProtocolViolationException("Unsupported TLS version");
+            throw new ProtocolViolationException('Unsupported TLS version');
         }
 
         // Validate cipher suites
         if (empty($message->cipherSuites)) {
-            throw new ProtocolViolationException("No cipher suites offered");
+            throw new ProtocolViolationException('No cipher suites offered');
         }
 
         // Validate compression methods
         if (!in_array(0, $message->compressionMethods)) {
-            throw new ProtocolViolationException("Null compression method not supported");
+            throw new ProtocolViolationException('Null compression method not supported');
         }
 
         // Set client random
@@ -57,11 +57,11 @@ class ClientHelloProcessor extends MessageProcessor
         /** @var SupportedVersionsExtension $ext */
         $ext = $message->getExtension(ExtensionType::SUPPORTED_VERSIONS);
         if (!$ext) {
-            throw new ProtocolViolationException("supported_versions extension required for TLS 1.3");
+            throw new ProtocolViolationException('supported_versions extension required for TLS 1.3');
         }
 
         if (!$ext->supportsVersion(Version::TLS_1_3)) {
-            throw new ProtocolViolationException("Client does not support TLS 1.3");
+            throw new ProtocolViolationException('Client does not support TLS 1.3');
         }
 
         $this->context->setNegotiatedVersion(Version::TLS_1_3);
@@ -72,7 +72,7 @@ class ClientHelloProcessor extends MessageProcessor
         /** @var KeyShareExtension $ext */
         $ext = $message->getExtension(ExtensionType::KEY_SHARE);
         if (!$ext) {
-            throw new ProtocolViolationException("key_share extension missing");
+            throw new ProtocolViolationException('key_share extension missing');
         }
 
         $clientKeyShares = $ext->getKeyShares();
@@ -86,7 +86,7 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         if (!$selectedGroup) {
-            throw new ProtocolViolationException("No supported key exchange group found");
+            throw new ProtocolViolationException('No supported key exchange group found');
         }
     }
 
@@ -95,7 +95,7 @@ class ClientHelloProcessor extends MessageProcessor
         /** @var SignatureAlgorithmsExtension $ext */
         $ext = $message->getExtension(ExtensionType::SIGNATURE_ALGORITHMS);
         if (!$ext) {
-            throw new ProtocolViolationException("signature_algorithms extension missing");
+            throw new ProtocolViolationException('signature_algorithms extension missing');
         }
 
         $clientSigAlgs = $ext->getSignatureAlgorithms();
@@ -108,7 +108,7 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         if (!$selectedSigAlg) {
-            throw new ProtocolViolationException("No supported signature algorithm found");
+            throw new ProtocolViolationException('No supported signature algorithm found');
         }
         $this->context->setNegotiatedSignatureScheme($selectedSigAlg);
     }
@@ -149,6 +149,7 @@ class ClientHelloProcessor extends MessageProcessor
                 return $clientProtocol;
             }
         }
+
         return null;
     }
 }

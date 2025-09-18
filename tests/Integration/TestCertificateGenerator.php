@@ -2,17 +2,22 @@
 
 namespace Php\TlsCraft\Tests\Integration;
 
+use Exception;
 use RuntimeException;
+
+use const DEBUG_BACKTRACE_IGNORE_ARGS;
+use const OPENSSL_KEYTYPE_EC;
+use const OPENSSL_KEYTYPE_RSA;
 
 /**
  * Certificate generator for integration tests
  */
 class TestCertificateGenerator
 {
-    private $ca = null;
-    private $caKey = null;
-    private $lastCert = null;
-    private $lastKey = null;
+    private $ca;
+    private $caKey;
+    private $lastCert;
+    private $lastKey;
 
     public const KEY_TYPE_RSA = 'rsa';
     public const KEY_TYPE_EC = 'ec';
@@ -46,7 +51,7 @@ class TestCertificateGenerator
             'stateOrProvinceName' => 'Test State',
             'localityName' => 'Test City',
             'organizationName' => 'Test CA',
-            'commonName' => 'Test CA Certificate'
+            'commonName' => 'Test CA Certificate',
         ];
 
         $config = $this->getOpenSSLConfig();
@@ -70,7 +75,7 @@ class TestCertificateGenerator
             'stateOrProvinceName' => 'Test State',
             'localityName' => 'Test City',
             'organizationName' => 'Test Server',
-            'commonName' => $hostname
+            'commonName' => $hostname,
         ];
 
         // Create temporary config file for SAN extension
@@ -82,7 +87,7 @@ class TestCertificateGenerator
         $config = [
             'config' => $configFile,
             'req_extensions' => 'v3_req',
-            'x509_extensions' => 'usr_cert'
+            'x509_extensions' => 'usr_cert',
         ];
 
         try {
@@ -108,7 +113,7 @@ class TestCertificateGenerator
             // Write files
             file_put_contents($certFile, $certPem);
             file_put_contents($keyFile, $keyPem);
-            file_put_contents($combinedFile, $certPem . $keyPem);
+            file_put_contents($combinedFile, $certPem.$keyPem);
 
             // Track generated files for cleanup
             self::$generatedFiles = array_merge(self::$generatedFiles, [$certFile, $keyFile, $combinedFile]);
@@ -119,11 +124,11 @@ class TestCertificateGenerator
                 'cert_file' => $certFile,
                 'key_file' => $keyFile,
                 'combined_file' => $combinedFile,
-                'hostname' => $hostname
+                'hostname' => $hostname,
             ];
 
-        } catch (\Exception $e) {
-            throw new RuntimeException("Certificate generation failed: " . $e->getMessage(), 0, $e);
+        } catch (Exception $e) {
+            throw new RuntimeException('Certificate generation failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -134,6 +139,7 @@ class TestCertificateGenerator
     {
         $caCert = '';
         openssl_x509_export($this->ca, $caCert);
+
         return $caCert;
     }
 
@@ -150,7 +156,7 @@ class TestCertificateGenerator
         self::$generatedFiles = [];
 
         // Also clean up any remaining files matching our pattern
-        $pattern = sys_get_temp_dir() . '/tlscraft_test_*';
+        $pattern = sys_get_temp_dir().'/tlscraft_test_*';
         foreach (glob($pattern) as $file) {
             if (is_file($file)) {
                 unlink($file);
@@ -180,7 +186,7 @@ class TestCertificateGenerator
         ]);
 
         if (!$key) {
-            throw new RuntimeException("Failed to generate RSA key");
+            throw new RuntimeException('Failed to generate RSA key');
         }
 
         return $key;
@@ -249,22 +255,25 @@ CONFIG;
 
     private function getTempPath(string $suffix): string
     {
-        $prefix = 'tlscraft_test_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $this->testName) . '_';
-        return sys_get_temp_dir() . '/' . $prefix . $suffix;
+        $prefix = 'tlscraft_test_'.preg_replace('/[^a-zA-Z0-9_-]/', '_', $this->testName).'_';
+
+        return sys_get_temp_dir().'/'.$prefix.$suffix;
     }
 
     /**
      * Create generator with specific parameters for testing
      */
-    public static function forRSA(int $keySize = 2048, string $testName = null): self
+    public static function forRSA(int $keySize = 2048, ?string $testName = null): self
     {
         $testName = $testName ?: self::getCallerName();
+
         return new self(self::KEY_TYPE_RSA, ['key_size' => $keySize], $testName);
     }
 
-    public static function forECC(string $curve = 'prime256v1', string $testName = null): self
+    public static function forECC(string $curve = 'prime256v1', ?string $testName = null): self
     {
         $testName = $testName ?: self::getCallerName();
+
         return new self(self::KEY_TYPE_EC, ['curve' => $curve], $testName);
     }
 
@@ -273,19 +282,19 @@ CONFIG;
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
 
         // Look for the calling test method
-        for ($i = 1; $i < count($trace); $i++) {
-            if (isset($trace[$i]['function']) && strpos($trace[$i]['function'], 'test') === 0) {
+        for ($i = 1; $i < count($trace); ++$i) {
+            if (isset($trace[$i]['function']) && str_starts_with($trace[$i]['function'], 'test')) {
                 return $trace[$i]['function'];
             }
         }
 
         // Fallback to class::method or just method name
         if (isset($trace[2]['class'], $trace[2]['function'])) {
-            return $trace[2]['class'] . '::' . $trace[2]['function'];
+            return $trace[2]['class'].'::'.$trace[2]['function'];
         } elseif (isset($trace[2]['function'])) {
             return $trace[2]['function'];
         }
 
-        return 'unknown_test_' . uniqid();
+        return 'unknown_test_'.uniqid();
     }
 }

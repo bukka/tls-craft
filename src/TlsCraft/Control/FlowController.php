@@ -9,6 +9,7 @@ use Php\TlsCraft\Protocol\ContentType;
 use Php\TlsCraft\Record\Record;
 use Php\TlsCraft\State\ConnectionState;
 use Php\TlsCraft\State\StateTracker;
+use Throwable;
 
 class FlowController
 {
@@ -50,7 +51,7 @@ class FlowController
         if (isset($this->eventListeners[$eventType])) {
             $this->eventListeners[$eventType] = array_filter(
                 $this->eventListeners[$eventType],
-                fn($l) => $l !== $listener
+                fn ($l) => $l !== $listener,
             );
         }
     }
@@ -74,7 +75,7 @@ class FlowController
             $afterSeconds,
             'key_update',
             ['request_update' => $requestUpdate],
-            "key_update"
+            'key_update',
         );
 
         return $this;
@@ -86,7 +87,7 @@ class FlowController
             $afterSeconds,
             'abrupt_close',
             [],
-            "abrupt_close"
+            'abrupt_close',
         );
 
         return $this;
@@ -98,7 +99,7 @@ class FlowController
             $afterSeconds,
             'send_alert',
             ['level' => $level, 'description' => $description],
-            "alert_{$description->name}"
+            "alert_{$description->name}",
         );
 
         return $this;
@@ -107,6 +108,7 @@ class FlowController
     public function scheduleCustomEvent(float $afterSeconds, string $eventType, array $data = []): self
     {
         $this->scheduleAction($afterSeconds, $eventType, $data, $eventType);
+
         return $this;
     }
 
@@ -121,24 +123,28 @@ class FlowController
     public function addRecordDelay(ContentType $type, float $seconds): self
     {
         $this->timing->addRecordDelay($type, $seconds);
+
         return $this;
     }
 
     public function addStateTransitionDelay(ConnectionState $state, float $seconds): self
     {
         $this->timing->addStateDelay($state, $seconds);
+
         return $this;
     }
 
     public function setGlobalDelay(float $seconds): self
     {
         $this->timing->setGlobalDelay($seconds);
+
         return $this;
     }
 
     public function enableJitter(float $maxJitter): self
     {
         $this->timing->enableJitter($maxJitter);
+
         return $this;
     }
 
@@ -148,12 +154,14 @@ class FlowController
     {
         $this->fragmentationEnabled = true;
         $this->maxFragmentSize = min($maxSize, Record::MAX_PAYLOAD_LENGTH);
+
         return $this;
     }
 
     public function disableRecordFragmentation(): self
     {
         $this->fragmentationEnabled = false;
+
         return $this;
     }
 
@@ -162,8 +170,9 @@ class FlowController
         $this->corruptionRules[] = [
             'type' => $type,
             'position' => $bytePosition,
-            'value' => $newValue
+            'value' => $newValue,
         ];
+
         return $this;
     }
 
@@ -172,8 +181,9 @@ class FlowController
         $this->dropRules[] = [
             'type' => $type,
             'count' => $count,
-            'dropped' => 0
+            'dropped' => 0,
         ];
+
         return $this;
     }
 
@@ -182,12 +192,14 @@ class FlowController
     public function onRecordSent(callable $callback): self
     {
         $this->recordInterceptions['send'][] = $callback;
+
         return $this;
     }
 
     public function onRecordReceived(callable $callback): self
     {
         $this->recordInterceptions['receive'][] = $callback;
+
         return $this;
     }
 
@@ -232,10 +244,12 @@ class FlowController
     {
         foreach ($this->dropRules as &$rule) {
             if ($rule['type'] === $record->contentType && $rule['dropped'] < $rule['count']) {
-                $rule['dropped']++;
+                ++$rule['dropped'];
+
                 return true;
             }
         }
+
         return false;
     }
 
@@ -249,6 +263,7 @@ class FlowController
         if ($this->fragmentationEnabled && $record->getLength() > $this->maxFragmentSize) {
             return $this->maxFragmentSize;
         }
+
         return null;
     }
 
@@ -263,9 +278,9 @@ class FlowController
                 try {
                     $event = $action->createEvent();
                     $this->triggerEvent($event->type, $event->data);
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     // Log error but continue
-                    error_log("Scheduled action failed: " . $e->getMessage());
+                    error_log('Scheduled action failed: '.$e->getMessage());
                 }
                 unset($this->scheduledActions[$key]);
             }
@@ -287,7 +302,7 @@ class FlowController
         $this->triggerEvent('state_change', [
             'old_state' => $oldState,
             'new_state' => $newState,
-            'reason' => $reason
+            'reason' => $reason,
         ]);
     }
 }

@@ -8,8 +8,9 @@ class OpenSslKeyPair implements KeyPair
 {
     public function __construct(
         private $privateKeyResource,
-        private string $publicKey
-    ) {}
+        private string $publicKey,
+    ) {
+    }
 
     public function getPublicKey(): string
     {
@@ -21,7 +22,7 @@ class OpenSslKeyPair implements KeyPair
         $sharedSecret = openssl_dh_compute_key($peerPublicKey, $this->privateKeyResource);
 
         if ($sharedSecret === false) {
-            throw new CryptoException("Failed to compute shared secret: " . openssl_error_string());
+            throw new CryptoException('Failed to compute shared secret: '.openssl_error_string());
         }
 
         return $sharedSecret;

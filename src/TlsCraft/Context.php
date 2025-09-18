@@ -2,6 +2,7 @@
 
 namespace Php\TlsCraft;
 
+use OpenSSLAsymmetricKey;
 use Php\TlsCraft\Crypto\{CipherSuite,
     CryptoFactory,
     KeyPair,
@@ -33,7 +34,7 @@ class Context
 
     // Certificate chain and private key
     private array $certificateChain = [];
-    private $privateKey = null;
+    private $privateKey;
 
     // Handshake transcript
     private array $handshakeMessages = [];
@@ -44,7 +45,7 @@ class Context
     private mixed $serverKeyShare;
     private bool $serverNameAcknowledged;
     private array $serverSupportedGroups;
-    private \OpenSSLAsymmetricKey $peerPublicKey;
+    private OpenSSLAsymmetricKey $peerPublicKey;
     private string $certificateRequestContext;
     private bool $certificateVerified;
     private bool $handshakeComplete;
@@ -57,13 +58,11 @@ class Context
     /** @var KeyPair[] */
     private array $keyPairs = [];
 
-
     public function __construct(
-        private bool   $isClient,
+        private bool $isClient,
         private Config $config,
-        private CryptoFactory $cryptoFactory
-    )
-    {
+        private CryptoFactory $cryptoFactory,
+    ) {
     }
 
     // === Getters ===
@@ -113,6 +112,7 @@ class Context
         if ($this->clientRandom === null) {
             $this->clientRandom = RandomGenerator::generateClientRandom();
         }
+
         return $this->clientRandom;
     }
 
@@ -156,7 +156,7 @@ class Context
     public function setClientRandom(string $random): void
     {
         if (strlen($random) !== 32) {
-            throw new ProtocolViolationException("Client random must be 32 bytes");
+            throw new ProtocolViolationException('Client random must be 32 bytes');
         }
         $this->clientRandom = $random;
     }
@@ -164,7 +164,7 @@ class Context
     public function setServerRandom(string $random): void
     {
         if (strlen($random) !== 32) {
-            throw new ProtocolViolationException("Server random must be 32 bytes");
+            throw new ProtocolViolationException('Server random must be 32 bytes');
         }
         $this->serverRandom = $random;
     }
@@ -201,7 +201,7 @@ class Context
     public function deriveHandshakeSecrets(): void
     {
         if (!$this->keySchedule || !$this->sharedSecret) {
-            throw new CraftException("Cannot derive handshake secrets: missing key schedule or shared secret");
+            throw new CraftException('Cannot derive handshake secrets: missing key schedule or shared secret');
         }
 
         $this->keySchedule->deriveHandshakeSecret($this->sharedSecret);
@@ -210,7 +210,7 @@ class Context
     public function deriveApplicationSecrets(): void
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Cannot derive application secrets: missing key schedule");
+            throw new CraftException('Cannot derive application secrets: missing key schedule');
         }
 
         $this->keySchedule->deriveMasterSecret();
@@ -219,7 +219,7 @@ class Context
     public function getHandshakeKeys(bool $forClient): array
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
 
         $trafficSecret = $forClient ?
@@ -232,7 +232,7 @@ class Context
     public function getApplicationKeys(bool $forClient): array
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
 
         $trafficSecret = $forClient ?
@@ -245,7 +245,7 @@ class Context
     public function getFinishedData(bool $forClient): string
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
 
         $trafficSecret = $forClient ?
@@ -253,6 +253,7 @@ class Context
             $this->keySchedule->getServerHandshakeTrafficSecret();
 
         $finishedKey = $this->keySchedule->getFinishedKey($trafficSecret);
+
         return $this->keySchedule->calculateFinishedData($finishedKey);
     }
 
@@ -261,7 +262,7 @@ class Context
     public function updateTrafficKeys(): void
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
 
         // Update both client and server traffic secrets
@@ -354,12 +355,12 @@ class Context
         return $this->serverSupportedGroups;
     }
 
-    public function setPeerPublicKey(\OpenSSLAsymmetricKey $publicKey)
+    public function setPeerPublicKey(OpenSSLAsymmetricKey $publicKey)
     {
         $this->peerPublicKey = $publicKey;
     }
 
-    public function getPeerPublicKey(): \OpenSSLAsymmetricKey
+    public function getPeerPublicKey(): OpenSSLAsymmetricKey
     {
         return $this->peerPublicKey;
     }
@@ -392,7 +393,7 @@ class Context
     public function getTranscriptHash(): string
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
 
         $transcriptData = $this->getHandshakeTranscript();
@@ -412,28 +413,30 @@ class Context
     }
 
 
-// === Application Traffic Secret Management ===
+    // === Application Traffic Secret Management ===
 
     public function getServerApplicationTrafficSecret(): string
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
+
         return $this->keySchedule->getServerApplicationTrafficSecret();
     }
 
     public function getClientApplicationTrafficSecret(): string
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
+
         return $this->keySchedule->getClientApplicationTrafficSecret();
     }
 
     public function setServerApplicationTrafficSecret(string $secret): void
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
         $this->keySchedule->setServerApplicationTrafficSecret($secret);
     }
@@ -441,7 +444,7 @@ class Context
     public function setClientApplicationTrafficSecret(string $secret): void
     {
         if (!$this->keySchedule) {
-            throw new CraftException("Key schedule not initialized");
+            throw new CraftException('Key schedule not initialized');
         }
         $this->keySchedule->setClientApplicationTrafficSecret($secret);
     }

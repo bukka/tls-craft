@@ -7,6 +7,7 @@ use Php\TlsCraft\Context;
 use Php\TlsCraft\Control\{FlowController};
 use Php\TlsCraft\Crypto\CertificateUtils;
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
+use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\Messages\{Certificate,
     CertificateVerify,
     ClientHello,
@@ -15,10 +16,9 @@ use Php\TlsCraft\Handshake\Messages\{Certificate,
     KeyUpdate,
     Message,
     ServerHello};
+use Php\TlsCraft\Handshake\ProcessorManager;
 use Php\TlsCraft\Record\{Builder, EncryptedLayer, LayerFactory, Record};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
-use Php\TlsCraft\Handshake\MessageFactory;
-use Php\TlsCraft\Handshake\ProcessorManager;
 
 /**
  * Updated ProtocolOrchestrator with clean typing and proper integration
@@ -35,16 +35,15 @@ class ProtocolOrchestrator
     private Connection $connection;
 
     public function __construct(
-        StateTracker      $stateTracker,
+        StateTracker $stateTracker,
         ProtocolValidator $validator,
-        Context           $context,
-        ProcessorManager  $processorManager,
-        LayerFactory      $layerFactory,
-        MessageFactory    $messageFactory,
-        Connection        $connection,
-        ?FlowController   $flowController,
-    )
-    {
+        Context $context,
+        ProcessorManager $processorManager,
+        LayerFactory $layerFactory,
+        MessageFactory $messageFactory,
+        Connection $connection,
+        ?FlowController $flowController,
+    ) {
         $this->stateTracker = $stateTracker;
         $this->validator = $validator;
         $this->context = $context;
@@ -107,7 +106,7 @@ class ProtocolOrchestrator
     public function sendApplicationData(string $data): void
     {
         if (!$this->stateTracker->isConnected()) {
-            throw new CraftException("Cannot send application data: not connected");
+            throw new CraftException('Cannot send application data: not connected');
         }
 
         $record = Builder::applicationData($data);
@@ -117,7 +116,7 @@ class ProtocolOrchestrator
     public function receiveApplicationData(): ?string
     {
         if (!$this->stateTracker->isConnected()) {
-            throw new CraftException("Cannot receive application data: not connected");
+            throw new CraftException('Cannot receive application data: not connected');
         }
 
         $record = $this->recordLayer->receiveRecord();
@@ -131,6 +130,7 @@ class ProtocolOrchestrator
 
         // Handle non-application data records
         $this->handleNonApplicationRecord($record);
+
         return null;
     }
 
@@ -139,7 +139,7 @@ class ProtocolOrchestrator
     public function sendKeyUpdate(bool $requestUpdate = false): void
     {
         if (!$this->stateTracker->isConnected()) {
-            throw new CraftException("Cannot send KeyUpdate: not connected");
+            throw new CraftException('Cannot send KeyUpdate: not connected');
         }
 
         $keyUpdate = $this->messageFactory->createKeyUpdate($requestUpdate);
@@ -181,11 +181,9 @@ class ProtocolOrchestrator
         if (!$this->validator->validateHandshakeMessage(
             $message->type,
             $this->stateTracker->getHandshakeState(),
-            $this->stateTracker->isClient()
+            $this->stateTracker->isClient(),
         )) {
-            throw new ProtocolViolationException(
-                "Invalid handshake message {$message->type->name} in state {$this->stateTracker->getHandshakeState()->value}"
-            );
+            throw new ProtocolViolationException("Invalid handshake message {$message->type->name} in state {$this->stateTracker->getHandshakeState()->value}");
         }
 
         // Add to context transcript
@@ -203,7 +201,7 @@ class ProtocolOrchestrator
             HandshakeType::ENCRYPTED_EXTENSIONS,
             HandshakeType::CERTIFICATE,
             HandshakeType::CERTIFICATE_VERIFY,
-            HandshakeType::FINISHED
+            HandshakeType::FINISHED,
         ];
 
         $receivedCount = 0;
@@ -211,12 +209,12 @@ class ProtocolOrchestrator
         while ($receivedCount < count($expectedMessages)) {
             $record = $this->recordLayer->receiveRecord();
             if (!$record) {
-                throw new CraftException("Connection closed during handshake");
+                throw new CraftException('Connection closed during handshake');
             }
 
             if ($record->isHandshake()) {
                 $this->processHandshakeRecord($record);
-                $receivedCount++;
+                ++$receivedCount;
             }
         }
     }
@@ -226,7 +224,7 @@ class ProtocolOrchestrator
         while ($this->stateTracker->getHandshakeState() === HandshakeState::WAIT_CLIENT_HELLO) {
             $record = $this->recordLayer->receiveRecord();
             if (!$record) {
-                throw new CraftException("Connection closed waiting for ClientHello");
+                throw new CraftException('Connection closed waiting for ClientHello');
             }
 
             if ($record->isHandshake()) {
@@ -265,7 +263,7 @@ class ProtocolOrchestrator
         while (!$this->stateTracker->isHandshakeComplete()) {
             $record = $this->recordLayer->receiveRecord();
             if (!$record) {
-                throw new CraftException("Connection closed waiting for client Finished");
+                throw new CraftException('Connection closed waiting for client Finished');
             }
 
             if ($record->isHandshake()) {
@@ -285,11 +283,9 @@ class ProtocolOrchestrator
             if (!$this->validator->validateHandshakeMessage(
                 $handshakeType,
                 $this->stateTracker->getHandshakeState(),
-                $this->stateTracker->isClient()
+                $this->stateTracker->isClient(),
             )) {
-                throw new ProtocolViolationException(
-                    "Unexpected handshake message {$handshakeType->name} in state {$this->stateTracker->getHandshakeState()->value}"
-                );
+                throw new ProtocolViolationException("Unexpected handshake message {$handshakeType->name} in state {$this->stateTracker->getHandshakeState()->value}");
             }
 
             // Parse to specific type and handle with processors
@@ -341,7 +337,7 @@ class ProtocolOrchestrator
             }
 
         } catch (CraftException $e) {
-            $this->stateTracker->error("handshake_parse_error: " . $e->getMessage());
+            $this->stateTracker->error('handshake_parse_error: '.$e->getMessage());
             throw $e;
         }
     }
@@ -349,7 +345,7 @@ class ProtocolOrchestrator
     private function handleKeyUpdate(KeyUpdate $keyUpdate): void
     {
         if (!$this->stateTracker->isConnected()) {
-            throw new ProtocolViolationException("KeyUpdate received before connection established");
+            throw new ProtocolViolationException('KeyUpdate received before connection established');
         }
 
         // Update keys
@@ -397,7 +393,7 @@ class ProtocolOrchestrator
         $signatureScheme = $this->context->getNegotiatedSignatureScheme();
 
         if (!$privateKey || !$signatureScheme) {
-            throw new CraftException("Missing private key or signature scheme for CertificateVerify");
+            throw new CraftException('Missing private key or signature scheme for CertificateVerify');
         }
 
         return CertificateUtils::createSignature($signatureContext, $privateKey, $signatureScheme);
@@ -406,12 +402,12 @@ class ProtocolOrchestrator
     private function buildSignatureContext(string $transcript): string
     {
         $contextString = $this->stateTracker->isClient() ?
-            "TLS 1.3, client CertificateVerify" :
-            "TLS 1.3, server CertificateVerify";
+            'TLS 1.3, client CertificateVerify' :
+            'TLS 1.3, server CertificateVerify';
 
-        return str_repeat("\x20", 64) .
-            $contextString .
-            "\x00" .
+        return str_repeat("\x20", 64).
+            $contextString.
+            "\x00".
             hash('sha256', $transcript, true);
     }
 }

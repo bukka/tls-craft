@@ -8,9 +8,8 @@ use Php\TlsCraft\Protocol\HandshakeType;
 class EncryptedExtensions extends Message
 {
     public function __construct(
-        public readonly array $extensions // array of Extension
-    )
-    {
+        public readonly array $extensions, // array of Extension
+    ) {
         parent::__construct(HandshakeType::ENCRYPTED_EXTENSIONS);
     }
 
@@ -23,6 +22,7 @@ class EncryptedExtensions extends Message
     {
         $offset = 0;
         $extensions = Extension::decodeList($data, $offset);
+
         return new self($extensions);
     }
 }

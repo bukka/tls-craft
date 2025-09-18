@@ -8,9 +8,6 @@ use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\ProcessorFactory;
 use Php\TlsCraft\Handshake\ProcessorManager;
-use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
-use Php\TlsCraft\Handshake\ExtensionProviders\SignatureAlgorithmsProvider;
-use Php\TlsCraft\Handshake\ExtensionProviders\ServerNameExtensionProvider;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
 use Php\TlsCraft\Record\LayerFactory;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -25,7 +22,7 @@ class Client
     public function __construct(
         string $hostname,
         int $port,
-        ?Config $config = null
+        ?Config $config = null,
     ) {
         $this->hostname = $hostname;
         $this->port = $port;
@@ -39,8 +36,9 @@ class Client
 
         // Create a state tracker and validator
         $stateTracker = new StateTracker(true); // isClient = true
-        $validator = $this->config->hasCustomValidator() ??
-            new ProtocolValidator($this->config->isAllowProtocolViolations());
+        $validator = $this->config->hasCustomValidator() ?? new ProtocolValidator(
+            $this->config->isAllowProtocolViolations(),
+        );
 
         // Create a crypto factory
         $cryptoFactory = new CryptoFactory();
@@ -60,7 +58,7 @@ class Client
             $layerFactory,
             $messageFactory,
             $connection,
-            $flowController
+            $flowController,
         );
 
         // Perform handshake

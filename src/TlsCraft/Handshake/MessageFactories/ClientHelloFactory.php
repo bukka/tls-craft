@@ -17,7 +17,7 @@ class ClientHelloFactory extends AbstractMessageFactory
             '', // Empty session ID for TLS 1.3
             $this->config->getCipherSuites(),
             [0], // Null compression
-            $extensions
+            $extensions,
         );
     }
 }

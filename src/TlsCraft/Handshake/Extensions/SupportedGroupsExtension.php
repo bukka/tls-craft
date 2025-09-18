@@ -11,9 +11,8 @@ use Php\TlsCraft\Handshake\ExtensionType;
 class SupportedGroupsExtension extends Extension
 {
     public function __construct(
-        private array $groups // Array of group names/identifiers
-    )
-    {
+        private array $groups, // Array of group names/identifiers
+    ) {
         parent::__construct(ExtensionType::SUPPORTED_GROUPS);
     }
 
@@ -35,7 +34,8 @@ class SupportedGroupsExtension extends Extension
             $groupId = $this->groupNameToId($group);
             $groupsData .= pack('n', $groupId);
         }
-        return pack('n', strlen($groupsData)) . $groupsData;
+
+        return pack('n', strlen($groupsData)).$groupsData;
     }
 
     public static function decode(string $data): static
@@ -60,7 +60,7 @@ class SupportedGroupsExtension extends Extension
             'P-521' => 25,
             'X25519' => 29,
             'X448' => 30,
-            default => throw new CraftException("Unknown group: {$group}")
+            default => throw new CraftException("Unknown group: {$group}"),
         };
     }
 
@@ -72,7 +72,7 @@ class SupportedGroupsExtension extends Extension
             25 => 'P-521',
             29 => 'X25519',
             30 => 'X448',
-            default => "unknown_{$groupId}"
+            default => "unknown_{$groupId}",
         };
     }
 }

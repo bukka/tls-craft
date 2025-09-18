@@ -17,38 +17,42 @@ class Builder
     public function contentType(ContentType $type): self
     {
         $this->contentType = $type;
+
         return $this;
     }
 
     public function version(Version $version): self
     {
         $this->version = $version;
+
         return $this;
     }
 
     public function payload(string $payload): self
     {
         $this->payload = $payload;
+
         return $this;
     }
-
 
     private function encrypted(bool $encrypted): self
     {
         $this->encrypted = $encrypted;
+
         return $this;
     }
 
     public function appendPayload(string $data): self
     {
         $this->payload .= $data;
+
         return $this;
     }
 
     public function build(): Record
     {
         if (!isset($this->contentType)) {
-            throw new CraftException("Content type must be set");
+            throw new CraftException('Content type must be set');
         }
 
         return new Record($this->contentType, $this->version, $this->payload);
@@ -85,7 +89,7 @@ class Builder
     public static function oversized(int $size, Version $version = Version::TLS_1_3): Record
     {
         if ($size <= Record::MAX_PAYLOAD_LENGTH) {
-            throw new CraftException("Size must exceed maximum payload length for oversized record");
+            throw new CraftException('Size must exceed maximum payload length for oversized record');
         }
 
         return (new self())

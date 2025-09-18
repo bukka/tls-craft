@@ -42,14 +42,13 @@ class Config
     private bool $allowSelfSignedCertificates = true;
 
     public function __construct(
-        ?array  $supportedVersions = null,
-        ?array  $cipherSuites = null,
-        ?array  $supportedGroups = null,
-        ?array  $signatureAlgorithms = null,
+        ?array $supportedVersions = null,
+        ?array $cipherSuites = null,
+        ?array $supportedGroups = null,
+        ?array $signatureAlgorithms = null,
         ?string $serverName = null,
-        ?array  $supportedProtocols = null
-    )
-    {
+        ?array $supportedProtocols = null,
+    ) {
         // Set immutable protocol parameters
         $this->supportedVersions = $supportedVersions ?? [Version::TLS_1_3];
 
@@ -134,6 +133,7 @@ class Config
     public function setOnStateChange(?Closure $callback): self
     {
         $this->onStateChange = $callback;
+
         return $this;
     }
 
@@ -145,6 +145,7 @@ class Config
     public function setOnKeyUpdate(?Closure $callback): self
     {
         $this->onKeyUpdate = $callback;
+
         return $this;
     }
 
@@ -156,6 +157,7 @@ class Config
     public function setOnAlert(?Closure $callback): self
     {
         $this->onAlert = $callback;
+
         return $this;
     }
 
@@ -167,6 +169,7 @@ class Config
     public function setAllowProtocolViolations(bool $allow): self
     {
         $this->allowProtocolViolations = $allow;
+
         return $this;
     }
 
@@ -178,6 +181,7 @@ class Config
     public function setCustomValidator(?ProtocolValidator $validator): self
     {
         $this->customValidator = $validator;
+
         return $this;
     }
 
@@ -189,6 +193,7 @@ class Config
     public function setConnectionOptions(array $options): self
     {
         $this->connectionOptions = $options;
+
         return $this;
     }
 
@@ -200,6 +205,7 @@ class Config
     public function setRequireTrustedCertificates(bool $require): self
     {
         $this->requireTrustedCertificates = $require;
+
         return $this;
     }
 
@@ -211,6 +217,7 @@ class Config
     public function setAllowSelfSignedCertificates(bool $allow): self
     {
         $this->allowSelfSignedCertificates = $allow;
+
         return $this;
     }
 
@@ -236,7 +243,7 @@ class Config
             new KeyShareExtensionProvider($this->supportedGroups),
             new SignatureAlgorithmsProvider($this->signatureAlgorithms),
         ]);
-        if (!is_null($this->serverName)) {
+        if (null !== $this->serverName) {
             $this->addServerName($this->serverName);
         }
         if (!empty($this->supportedProtocols)) {
@@ -247,17 +254,17 @@ class Config
     public function addServerName(string $serverName): void
     {
         $this->clientHelloExtensions->add(
-            new ServerNameExtensionProvider($serverName)
+            new ServerNameExtensionProvider($serverName),
         );
     }
 
     public function addAlpn(?array $protocols = null): void
     {
-        if (!is_null($protocols)) {
+        if (null !== $protocols) {
             $this->supportedProtocols = $protocols;
         }
         $this->clientHelloExtensions->add(
-            new AlpnExtensionProvider($this->supportedProtocols)
+            new AlpnExtensionProvider($this->supportedProtocols),
         );
     }
 

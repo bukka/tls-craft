@@ -28,9 +28,7 @@ class FinishedProcessor extends MessageProcessor
 
         // Constant-time comparison to prevent timing attacks
         if (!hash_equals($expectedVerifyData, $receivedVerifyData)) {
-            throw new ProtocolViolationException(
-                "Finished message verification failed - HMAC mismatch"
-            );
+            throw new ProtocolViolationException('Finished message verification failed - HMAC mismatch');
         }
     }
 
@@ -38,9 +36,7 @@ class FinishedProcessor extends MessageProcessor
     {
         $keySchedule = $this->context->getKeySchedule();
         if (!$keySchedule) {
-            throw new ProtocolViolationException(
-                "Key schedule not available for Finished verification"
-            );
+            throw new ProtocolViolationException('Key schedule not available for Finished verification');
         }
 
         // Get the appropriate traffic secret for the peer

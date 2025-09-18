@@ -8,7 +8,7 @@ interface Handle
 
     public function write(string $data): int;
 
-    public function accept(?float $timeout = null): Handle;
+    public function accept(?float $timeout = null): self;
 
     public function isConnected(): bool;
 

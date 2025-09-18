@@ -42,7 +42,7 @@ class Parser
             $boundaries[] = [
                 'start' => $offset,
                 'end' => $recordEnd,
-                'length' => $length
+                'length' => $length,
             ];
 
             $offset = $recordEnd;

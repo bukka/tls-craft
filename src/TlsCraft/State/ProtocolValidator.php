@@ -23,6 +23,7 @@ class ProtocolValidator
         }
 
         $expectedTypes = $this->getExpectedMessageTypes($currentState, $isClient);
+
         return in_array($messageType, $expectedTypes);
     }
 

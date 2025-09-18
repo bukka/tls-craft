@@ -3,8 +3,8 @@
 namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Handshake\Messages\Certificate;
 use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Handshake\Messages\Certificate;
 
 class CertificateProcessor extends MessageProcessor
 {
@@ -16,9 +16,7 @@ class CertificateProcessor extends MessageProcessor
         // Validate certificate request context (should be empty for server cert)
         if (!empty($message->certificateRequestContext)) {
             if (!$this->context->isClient()) {
-                throw new ProtocolViolationException(
-                    "Server Certificate message must have empty certificate_request_context"
-                );
+                throw new ProtocolViolationException('Server Certificate message must have empty certificate_request_context');
             }
             // For client certificates, context should match CertificateRequest
             $this->validateCertificateRequestContext($message->certificateRequestContext);
@@ -26,9 +24,7 @@ class CertificateProcessor extends MessageProcessor
 
         // Validate certificate list
         if (empty($message->certificateList)) {
-            throw new ProtocolViolationException(
-                "Certificate message must contain at least one certificate"
-            );
+            throw new ProtocolViolationException('Certificate message must contain at least one certificate');
         }
 
         // Process certificate chain
@@ -48,9 +44,7 @@ class CertificateProcessor extends MessageProcessor
     {
         $expectedContext = $this->context->getCertificateRequestContext();
         if ($context !== $expectedContext) {
-            throw new ProtocolViolationException(
-                "Certificate request context mismatch"
-            );
+            throw new ProtocolViolationException('Certificate request context mismatch');
         }
     }
 
@@ -77,22 +71,18 @@ class CertificateProcessor extends MessageProcessor
     {
         $certResource = openssl_x509_read($certificateData);
         if ($certResource === false) {
-            throw new ProtocolViolationException(
-                "Failed to parse X.509 certificate"
-            );
+            throw new ProtocolViolationException('Failed to parse X.509 certificate');
         }
 
         $certInfo = openssl_x509_parse($certResource);
         if ($certInfo === false) {
-            throw new ProtocolViolationException(
-                "Failed to parse certificate information"
-            );
+            throw new ProtocolViolationException('Failed to parse certificate information');
         }
 
         return [
             'resource' => $certResource,
             'info' => $certInfo,
-            'pem' => openssl_x509_export($certResource, $pem) ? $pem : null
+            'pem' => openssl_x509_export($certResource, $pem) ? $pem : null,
         ];
     }
 
@@ -103,9 +93,7 @@ class CertificateProcessor extends MessageProcessor
         // Extract public key for signature verification
         $publicKey = openssl_pkey_get_public($parsedCert['resource']);
         if ($publicKey === false) {
-            throw new ProtocolViolationException(
-                "Failed to extract public key from certificate"
-            );
+            throw new ProtocolViolationException('Failed to extract public key from certificate');
         }
 
         $this->context->setPeerPublicKey($publicKey);
@@ -131,9 +119,7 @@ class CertificateProcessor extends MessageProcessor
 
         // Validate that this is a CA certificate
         if (!$this->isCACertificate($certInfo)) {
-            throw new ProtocolViolationException(
-                "Intermediate certificate is not a valid CA certificate"
-            );
+            throw new ProtocolViolationException('Intermediate certificate is not a valid CA certificate');
         }
 
         // Validate certificate validity period
@@ -150,33 +136,25 @@ class CertificateProcessor extends MessageProcessor
 
         if (!$this->context->isClient()) {
             // Server certificate validation
-            if (!str_contains($keyUsage, 'Digital Signature') &&
-                !str_contains($keyUsage, 'Key Agreement')) {
-                throw new ProtocolViolationException(
-                    "Server certificate missing required key usage"
-                );
+            if (!str_contains($keyUsage, 'Digital Signature')
+                && !str_contains($keyUsage, 'Key Agreement')) {
+                throw new ProtocolViolationException('Server certificate missing required key usage');
             }
 
             // Check Extended Key Usage
             $extKeyUsage = $certInfo['extensions']['extendedKeyUsage'] ?? '';
             if (!str_contains($extKeyUsage, 'TLS Web Server Authentication')) {
-                throw new ProtocolViolationException(
-                    "Server certificate missing serverAuth extended key usage"
-                );
+                throw new ProtocolViolationException('Server certificate missing serverAuth extended key usage');
             }
         } else {
             // Client certificate validation
             if (!str_contains($keyUsage, 'Digital Signature')) {
-                throw new ProtocolViolationException(
-                    "Client certificate missing Digital Signature key usage"
-                );
+                throw new ProtocolViolationException('Client certificate missing Digital Signature key usage');
             }
 
             $extKeyUsage = $certInfo['extensions']['extendedKeyUsage'] ?? '';
             if (!str_contains($extKeyUsage, 'TLS Web Client Authentication')) {
-                throw new ProtocolViolationException(
-                    "Client certificate missing clientAuth extended key usage"
-                );
+                throw new ProtocolViolationException('Client certificate missing clientAuth extended key usage');
             }
         }
     }
@@ -188,15 +166,11 @@ class CertificateProcessor extends MessageProcessor
         $validTo = $certInfo['validTo_time_t'];
 
         if ($now < $validFrom) {
-            throw new ProtocolViolationException(
-                "Certificate is not yet valid (valid from: " . date('Y-m-d H:i:s', $validFrom) . ")"
-            );
+            throw new ProtocolViolationException('Certificate is not yet valid (valid from: '.date('Y-m-d H:i:s', $validFrom).')');
         }
 
         if ($now > $validTo) {
-            throw new ProtocolViolationException(
-                "Certificate has expired (valid to: " . date('Y-m-d H:i:s', $validTo) . ")"
-            );
+            throw new ProtocolViolationException('Certificate has expired (valid to: '.date('Y-m-d H:i:s', $validTo).')');
         }
     }
 
@@ -240,9 +214,7 @@ class CertificateProcessor extends MessageProcessor
             }
         }
 
-        throw new ProtocolViolationException(
-            "Certificate does not match requested server name: {$requestedName}"
-        );
+        throw new ProtocolViolationException("Certificate does not match requested server name: {$requestedName}");
     }
 
     private function matchesHostname(string $hostname, string $pattern): bool
@@ -255,7 +227,8 @@ class CertificateProcessor extends MessageProcessor
         // Wildcard matching (*.example.com)
         if (str_starts_with($pattern, '*.')) {
             $domain = substr($pattern, 2);
-            return str_ends_with($hostname, '.' . $domain);
+
+            return str_ends_with($hostname, '.'.$domain);
         }
 
         return false;
@@ -264,6 +237,7 @@ class CertificateProcessor extends MessageProcessor
     private function isCACertificate(array $certInfo): bool
     {
         $basicConstraints = $certInfo['extensions']['basicConstraints'] ?? '';
+
         return str_contains($basicConstraints, 'CA:TRUE');
     }
 
@@ -346,14 +320,12 @@ class CertificateProcessor extends MessageProcessor
 
     private function validateChainSignatures(array $certificateList): void
     {
-        for ($i = 0; $i < count($certificateList) - 1; $i++) {
+        for ($i = 0; $i < count($certificateList) - 1; ++$i) {
             $cert = $certificateList[$i]['certificate'];
             $issuer = $certificateList[$i + 1]['certificate'];
 
             if (!$this->verifyCertificateSignature($cert, $issuer)) {
-                throw new ProtocolViolationException(
-                    "Certificate chain validation failed at position {$i}"
-                );
+                throw new ProtocolViolationException("Certificate chain validation failed at position {$i}");
             }
         }
 
@@ -387,9 +359,7 @@ class CertificateProcessor extends MessageProcessor
 
         if ($this->config->isRequireTrustedCertificates()) {
             // Implement trust store verification
-            throw new ProtocolViolationException(
-                "Certificate trust store verification not implemented"
-            );
+            throw new ProtocolViolationException('Certificate trust store verification not implemented');
         }
     }
 }

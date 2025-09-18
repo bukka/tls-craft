@@ -18,17 +18,17 @@ class KeyDerivation
     public static function hkdfExpand(string $prk, string $info, int $length, string $algorithm = 'sha256'): string
     {
         $hashLength = strlen(hash($algorithm, '', true));
-        $n = (int)ceil($length / $hashLength);
+        $n = (int) ceil($length / $hashLength);
 
         if ($n > 255) {
-            throw new CryptoException("HKDF expand length too large");
+            throw new CryptoException('HKDF expand length too large');
         }
 
         $okm = '';
         $t = '';
 
-        for ($i = 1; $i <= $n; $i++) {
-            $t = hash_hmac($algorithm, $t . $info . chr($i), $prk, true);
+        for ($i = 1; $i <= $n; ++$i) {
+            $t = hash_hmac($algorithm, $t.$info.chr($i), $prk, true);
             $okm .= $t;
         }
 
@@ -38,6 +38,7 @@ class KeyDerivation
     public static function hkdf(string $ikm, string $salt, string $info, int $length, string $algorithm = 'sha256'): string
     {
         $prk = self::hkdfExtract($salt, $ikm, $algorithm);
+
         return self::hkdfExpand($prk, $info, $length, $algorithm);
     }
 
@@ -47,7 +48,7 @@ class KeyDerivation
         $hashLength = $cipherSuite->getHashLength();
 
         $transcript = hash($hashAlg, $messages, true);
-        $hkdfLabel = self::buildHkdfLabel($hashLength, "tls13 " . $label, $transcript);
+        $hkdfLabel = self::buildHkdfLabel($hashLength, 'tls13 '.$label, $transcript);
 
         return self::hkdfExpand($secret, $hkdfLabel, $hashLength, $hashAlg);
     }
@@ -55,7 +56,7 @@ class KeyDerivation
     public static function expandLabel(string $secret, string $label, string $context, int $length, CipherSuite $cipherSuite): string
     {
         $hashAlg = $cipherSuite->getHashAlgorithm();
-        $hkdfLabel = self::buildHkdfLabel($length, "tls13 " . $label, $context);
+        $hkdfLabel = self::buildHkdfLabel($length, 'tls13 '.$label, $context);
 
         return self::hkdfExpand($secret, $hkdfLabel, $length, $hashAlg);
     }
@@ -63,8 +64,8 @@ class KeyDerivation
     private static function buildHkdfLabel(int $length, string $label, string $context): string
     {
         $hkdfLabel = pack('n', $length); // Length (2 bytes)
-        $hkdfLabel .= chr(strlen($label)) . $label; // Label
-        $hkdfLabel .= chr(strlen($context)) . $context; // Context
+        $hkdfLabel .= chr(strlen($label)).$label; // Label
+        $hkdfLabel .= chr(strlen($context)).$context; // Context
 
         return $hkdfLabel;
     }

@@ -45,7 +45,7 @@ abstract class ExtensionProviders
     {
         $this->providers = array_filter(
             $this->providers,
-            fn($provider) => $provider->getExtensionType() !== $extensionType
+            fn ($provider) => $provider->getExtensionType() !== $extensionType,
         );
         $this->providers = array_values($this->providers); // Re-index
     }
@@ -59,6 +59,7 @@ abstract class ExtensionProviders
                 $extensions[] = $extension;
             }
         }
+
         return $extensions;
     }
 

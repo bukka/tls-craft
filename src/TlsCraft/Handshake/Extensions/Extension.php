@@ -11,9 +11,8 @@ use Php\TlsCraft\Handshake\ExtensionType;
 abstract class Extension
 {
     public function __construct(
-        public readonly ExtensionType $type
-    )
-    {
+        public readonly ExtensionType $type,
+    ) {
     }
 
     abstract public function encode(): string;
@@ -21,13 +20,14 @@ abstract class Extension
     final public function encodeWithHeader(): string
     {
         $extensionData = $this->encode();
-        return pack('nn', $this->type->value, strlen($extensionData)) . $extensionData;
+
+        return pack('nn', $this->type->value, strlen($extensionData)).$extensionData;
     }
 
-    public static function decodeFromWire(string $data, int &$offset = 0): Extension
+    public static function decodeFromWire(string $data, int &$offset = 0): self
     {
         if (strlen($data) - $offset < 4) {
-            throw new CraftException("Insufficient data for extension");
+            throw new CraftException('Insufficient data for extension');
         }
 
         $typeValue = unpack('n', substr($data, $offset, 2))[1];
@@ -35,7 +35,7 @@ abstract class Extension
         $offset += 4;
 
         if (strlen($data) - $offset < $length) {
-            throw new CraftException("Insufficient data for extension data");
+            throw new CraftException('Insufficient data for extension data');
         }
 
         $extensionData = substr($data, $offset, $length);
@@ -47,7 +47,7 @@ abstract class Extension
         return self::createExtension($type, $extensionData);
     }
 
-    private static function createExtension(ExtensionType $type, string $data): Extension
+    private static function createExtension(ExtensionType $type, string $data): self
     {
         return match ($type) {
             ExtensionType::SERVER_NAME => ServerNameExtension::decode($data),
@@ -56,7 +56,7 @@ abstract class Extension
             ExtensionType::SIGNATURE_ALGORITHMS => SignatureAlgorithmsExtension::decode($data),
             ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION => ALPNExtension::decode($data),
             ExtensionType::SUPPORTED_GROUPS => SupportedGroupsExtension::decode($data),
-            default => CustomExtension::decode($data, $type)
+            default => CustomExtension::decode($data, $type),
         };
     }
 
@@ -70,20 +70,20 @@ abstract class Extension
             $encoded .= $extension->encodeWithHeader();
         }
 
-        return pack('n', strlen($encoded)) . $encoded;
+        return pack('n', strlen($encoded)).$encoded;
     }
 
     public static function decodeList(string $data, int &$offset = 0): array
     {
         if (strlen($data) - $offset < 2) {
-            throw new CraftException("Insufficient data for extensions length");
+            throw new CraftException('Insufficient data for extensions length');
         }
 
         $listLength = unpack('n', substr($data, $offset, 2))[1];
         $offset += 2;
 
         if (strlen($data) - $offset < $listLength) {
-            throw new CraftException("Insufficient data for extensions");
+            throw new CraftException('Insufficient data for extensions');
         }
 
         $extensions = [];

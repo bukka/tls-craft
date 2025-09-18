@@ -20,10 +20,9 @@ class Connection
     private function __construct(
         Handle $handle,
         string $address,
-        int    $port,
-        bool   $isServer = false
-    )
-    {
+        int $port,
+        bool $isServer = false,
+    ) {
         $this->handle = $handle;
         $this->address = $address;
         $this->port = $port;
@@ -35,12 +34,12 @@ class Connection
      */
     public static function connect(
         string $address,
-        int    $port,
-        float  $timeout = 30.0,
-        array  $options = []
-    ): self
-    {
+        int $port,
+        float $timeout = 30.0,
+        array $options = [],
+    ): self {
         $handle = ConnectionFactory::connect($address, $port, $timeout, $options);
+
         return new self($handle, $address, $port, false);
     }
 
@@ -49,11 +48,11 @@ class Connection
      */
     public static function server(
         string $address,
-        int    $port,
-        array  $options = []
-    ): self
-    {
+        int $port,
+        array $options = [],
+    ): self {
         $handle = ConnectionFactory::server($address, $port, $options);
+
         return new self($handle, $address, $port, true);
     }
 
@@ -63,7 +62,7 @@ class Connection
     public function accept(?float $timeout = null): self
     {
         if (!$this->isServer) {
-            throw new CraftException("Cannot accept on client connection");
+            throw new CraftException('Cannot accept on client connection');
         }
 
         $clientHandle = $this->handle->accept($timeout);
@@ -98,7 +97,7 @@ class Connection
         }
 
         if (strlen($data) !== $length) {
-            throw new CraftException("Incomplete read: expected {$length} bytes, got " . strlen($data));
+            throw new CraftException("Incomplete read: expected {$length} bytes, got ".strlen($data));
         }
 
         return $data;
@@ -120,7 +119,7 @@ class Connection
             $result = $this->handle->write(substr($data, $written));
 
             if ($result <= 0) {
-                throw new CraftException("Failed to write data (wrote 0 bytes)");
+                throw new CraftException('Failed to write data (wrote 0 bytes)');
             }
 
             $written += $result;
@@ -218,7 +217,8 @@ class Connection
      */
     public function select(array $otherConnections = [], float $timeout = 0.0, bool $checkWrite = false): array
     {
-        $otherHandles = array_map(fn($conn) => $conn->handle, $otherConnections);
+        $otherHandles = array_map(fn ($conn) => $conn->handle, $otherConnections);
+
         return $this->handle->select($otherHandles, $timeout, $checkWrite);
     }
 
@@ -228,6 +228,7 @@ class Connection
     public function isReadReady(float $timeout = 0.0): bool
     {
         $result = $this->select([], $timeout, false);
+
         return in_array($this->handle, $result['read']);
     }
 
@@ -237,6 +238,7 @@ class Connection
     public function isWriteReady(float $timeout = 0.0): bool
     {
         $result = $this->select([], $timeout, true);
+
         return in_array($this->handle, $result['write']);
     }
 
@@ -297,7 +299,7 @@ class Connection
 
         return [
             new self($handle1, 'local', 0, false),
-            new self($handle2, 'local', 0, false)
+            new self($handle2, 'local', 0, false),
         ];
     }
 
@@ -307,7 +309,7 @@ class Connection
     private function parsePeerName(string $peerName): array
     {
         if (empty($peerName)) {
-            throw new CraftException("Invalid peer name");
+            throw new CraftException('Invalid peer name');
         }
 
         // Handle IPv6 addresses which are wrapped in brackets
@@ -318,11 +320,11 @@ class Connection
             }
 
             $address = substr($peerName, 1, $closeBracket - 1);
-            $port = (int)substr($peerName, $closeBracket + 2);
+            $port = (int) substr($peerName, $closeBracket + 2);
         } else {
             // IPv4 or hostname
             $parts = explode(':', $peerName);
-            $port = (int)array_pop($parts);
+            $port = (int) array_pop($parts);
             $address = implode(':', $parts);
         }
 

@@ -4,15 +4,19 @@ namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
 
+use const OPENSSL_KEYTYPE_EC;
+
 class EcdhKeyExchange implements KeyExchange
 {
-    public function __construct(private string $curveName) {}
+    public function __construct(private string $curveName)
+    {
+    }
 
     public function generateKeyPair(): KeyPair
     {
         $keyResource = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_EC,
-            'curve_name' => $this->curveName
+            'curve_name' => $this->curveName,
         ]);
 
         if (!$keyResource) {
@@ -20,9 +24,10 @@ class EcdhKeyExchange implements KeyExchange
         }
 
         $details = openssl_pkey_get_details($keyResource);
+
         return new OpenSslKeyPair(
             $keyResource,
-            $details['ec']['pub'] ?? throw new CryptoException("Failed to extract public key")
+            $details['ec']['pub'] ?? throw new CryptoException('Failed to extract public key'),
         );
     }
 }

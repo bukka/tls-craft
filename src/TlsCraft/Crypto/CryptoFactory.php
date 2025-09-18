@@ -19,7 +19,7 @@ class CryptoFactory
             NamedGroup::SECP521R1 => new EcdhKeyExchange('secp521r1'),
             NamedGroup::X25519 => new X25519KeyExchange(),
             NamedGroup::X448 => new X448KeyExchange(),
-            default => throw new CryptoException("Unsupported group: {$group->getName()}")
+            default => throw new CryptoException("Unsupported group: {$group->getName()}"),
         };
     }
 }

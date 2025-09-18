@@ -132,7 +132,7 @@ enum ExtensionType: int
             self::KEY_SHARE => 'key_share',
             self::QUIC_TRANSPORT_PARAMETERS => 'quic_transport_parameters',
             self::ENCRYPTED_CLIENT_HELLO => 'encrypted_client_hello',
-            default => 'unknown_' . $this->value
+            default => 'unknown_'.$this->value,
         };
     }
 
@@ -145,7 +145,7 @@ enum ExtensionType: int
             self::SUPPORTED_VERSIONS,
             self::KEY_SHARE,
             self::SIGNATURE_ALGORITHMS => true,
-            default => false
+            default => false,
         };
     }
 
@@ -174,7 +174,7 @@ enum ExtensionType: int
             self::RECORD_SIZE_LIMIT,
             self::SUPPORTED_VERSIONS,
             self::KEY_SHARE => true,
-            default => false
+            default => false,
         };
     }
 
@@ -190,7 +190,7 @@ enum ExtensionType: int
             self::CLIENT_CERTIFICATE_TYPE,
             self::SERVER_CERTIFICATE_TYPE,
             self::RECORD_SIZE_LIMIT => true,
-            default => false
+            default => false,
         };
     }
 }

@@ -42,13 +42,13 @@ class KeySchedule
             $this->earlySecret,
             'derived',
             '',
-            $this->cipherSuite
+            $this->cipherSuite,
         );
 
         $this->handshakeSecret = KeyDerivation::hkdfExtract(
             $derivedSecret,
             $sharedSecret,
-            $this->hashAlgorithm
+            $this->hashAlgorithm,
         );
     }
 
@@ -58,13 +58,13 @@ class KeySchedule
             $this->handshakeSecret,
             'derived',
             '',
-            $this->cipherSuite
+            $this->cipherSuite,
         );
 
         $this->masterSecret = KeyDerivation::hkdfExtract(
             $derivedSecret,
             str_repeat("\x00", $this->hashLength),
-            $this->hashAlgorithm
+            $this->hashAlgorithm,
         );
     }
 
@@ -74,7 +74,7 @@ class KeySchedule
             $this->handshakeSecret,
             'c hs traffic',
             $this->handshakeMessages,
-            $this->cipherSuite
+            $this->cipherSuite,
         );
     }
 
@@ -84,7 +84,7 @@ class KeySchedule
             $this->handshakeSecret,
             's hs traffic',
             $this->handshakeMessages,
-            $this->cipherSuite
+            $this->cipherSuite,
         );
     }
 
@@ -99,11 +99,12 @@ class KeySchedule
             $this->masterSecret,
             'c ap traffic',
             $this->handshakeMessages,
-            $this->cipherSuite
+            $this->cipherSuite,
         );
 
         // Store for future updates
         $this->currentClientApplicationTrafficSecret = $secret;
+
         return $secret;
     }
 
@@ -118,11 +119,12 @@ class KeySchedule
             $this->masterSecret,
             's ap traffic',
             $this->handshakeMessages,
-            $this->cipherSuite
+            $this->cipherSuite,
         );
 
         // Store for future updates
         $this->currentServerApplicationTrafficSecret = $secret;
+
         return $secret;
     }
 
@@ -143,13 +145,14 @@ class KeySchedule
             'finished',
             '',
             $this->hashLength,
-            $this->cipherSuite
+            $this->cipherSuite,
         );
     }
 
     public function calculateFinishedData(string $finishedKey): string
     {
         $transcript = hash($this->hashAlgorithm, $this->handshakeMessages, true);
+
         return hash_hmac($this->hashAlgorithm, $transcript, $finishedKey, true);
     }
 
@@ -160,7 +163,7 @@ class KeySchedule
             'key',
             '',
             $this->cipherSuite->getKeyLength(),
-            $this->cipherSuite
+            $this->cipherSuite,
         );
 
         $iv = KeyDerivation::expandLabel(
@@ -168,7 +171,7 @@ class KeySchedule
             'iv',
             '',
             $this->cipherSuite->getIVLength(),
-            $this->cipherSuite
+            $this->cipherSuite,
         );
 
         return ['key' => $key, 'iv' => $iv];
@@ -181,7 +184,7 @@ class KeySchedule
             'traffic upd',
             '',
             $this->hashLength,
-            $this->cipherSuite
+            $this->cipherSuite,
         );
     }
 

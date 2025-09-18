@@ -2,6 +2,8 @@
 
 namespace Php\TlsCraft\State;
 
+use ReflectionFunction;
+
 /**
  * Pure state machine - tracks states and validates transitions
  */
@@ -66,6 +68,7 @@ class StateTracker
         $this->connectionState = $newState;
 
         $this->notifyStateChange($oldState, $newState, $reason);
+
         return true;
     }
 
@@ -75,8 +78,8 @@ class StateTracker
         $this->handshakeState = $newState;
 
         // Auto-transition connection state when handshake completes
-        if ($newState === HandshakeState::CONNECTED &&
-            $this->connectionState === ConnectionState::HANDSHAKING) {
+        if ($newState === HandshakeState::CONNECTED
+            && $this->connectionState === ConnectionState::HANDSHAKING) {
             $this->transitionConnection(ConnectionState::CONNECTED, 'handshake_complete');
         }
 
@@ -129,7 +132,7 @@ class StateTracker
     {
         foreach ($this->stateChangeCallbacks as $callback) {
             if (is_callable([$callback, '__invoke'])) {
-                $reflection = new \ReflectionFunction($callback);
+                $reflection = new ReflectionFunction($callback);
                 if ($reflection->getNumberOfParameters() > 3) {
                     $callback(null, null, null, $oldState, $newState);
                 }

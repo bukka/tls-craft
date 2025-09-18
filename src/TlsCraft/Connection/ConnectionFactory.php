@@ -4,6 +4,13 @@ namespace Php\TlsCraft\Connection;
 
 use Php\TlsCraft\Exceptions\CraftException;
 
+use const STREAM_CLIENT_CONNECT;
+use const STREAM_IPPROTO_IP;
+use const STREAM_PF_UNIX;
+use const STREAM_SERVER_BIND;
+use const STREAM_SERVER_LISTEN;
+use const STREAM_SOCK_STREAM;
+
 /**
  * Connection factory for creating handles
  */
@@ -14,11 +21,10 @@ class ConnectionFactory
      */
     public static function connect(
         string $address,
-        int    $port,
-        float  $timeout = 30.0,
-        array  $options = []
-    ): Handle
-    {
+        int $port,
+        float $timeout = 30.0,
+        array $options = [],
+    ): Handle {
         $defaultOptions = [
             'tcp_nodelay' => true,
             'so_reuseport' => true,
@@ -33,7 +39,7 @@ class ConnectionFactory
             $errstr,
             $timeout,
             STREAM_CLIENT_CONNECT,
-            $context
+            $context,
         );
 
         if (!$resource) {
@@ -42,7 +48,7 @@ class ConnectionFactory
 
         // Set optimal socket options
         stream_set_blocking($resource, true);
-        stream_set_timeout($resource, (int)$timeout, (int)(($timeout - floor($timeout)) * 1000000));
+        stream_set_timeout($resource, (int) $timeout, (int) (($timeout - floor($timeout)) * 1000000));
 
         return new StreamHandle($resource, false);
     }
@@ -52,15 +58,14 @@ class ConnectionFactory
      */
     public static function server(
         string $address,
-        int    $port,
-        array  $options = []
-    ): Handle
-    {
+        int $port,
+        array $options = [],
+    ): Handle {
         $resource = stream_socket_server(
             "tcp://{$address}:{$port}",
             $errno,
             $errstr,
-            STREAM_SERVER_BIND | STREAM_SERVER_LISTEN
+            STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
         );
 
         if (!$resource) {
@@ -78,12 +83,12 @@ class ConnectionFactory
         $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
 
         if ($sockets === false) {
-            throw new CraftException("Failed to create socket pair");
+            throw new CraftException('Failed to create socket pair');
         }
 
         return [
             new StreamHandle($sockets[0], false),
-            new StreamHandle($sockets[1], false)
+            new StreamHandle($sockets[1], false),
         ];
     }
 }

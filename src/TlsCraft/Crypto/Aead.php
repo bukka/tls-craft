@@ -4,6 +4,8 @@ namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
 
+use const OPENSSL_RAW_DATA;
+
 class Aead
 {
     private string $key;
@@ -28,14 +30,14 @@ class Aead
             OPENSSL_RAW_DATA,
             $nonce,
             $tag,
-            $additionalData
+            $additionalData,
         );
 
         if ($encrypted === false) {
-            throw new CryptoException("AEAD encryption failed");
+            throw new CryptoException('AEAD encryption failed');
         }
 
-        return $encrypted . $tag;
+        return $encrypted.$tag;
     }
 
     public function decrypt(string $ciphertext, string $additionalData, int $sequenceNumber): string
@@ -45,7 +47,7 @@ class Aead
         // Extract tag (last 16 bytes for GCM)
         $tagLength = 16; // GCM tag length
         if (strlen($ciphertext) < $tagLength) {
-            throw new CryptoException("Ciphertext too short");
+            throw new CryptoException('Ciphertext too short');
         }
 
         $tag = substr($ciphertext, -$tagLength);
@@ -58,11 +60,11 @@ class Aead
             OPENSSL_RAW_DATA,
             $nonce,
             $tag,
-            $additionalData
+            $additionalData,
         );
 
         if ($decrypted === false) {
-            throw new CryptoException("AEAD decryption failed");
+            throw new CryptoException('AEAD decryption failed');
         }
 
         return $decrypted;
@@ -74,9 +76,9 @@ class Aead
 
         // XOR the last 8 bytes of IV with sequence number
         $nonce = $this->iv;
-        for ($i = 0; $i < 8; $i++) {
+        for ($i = 0; $i < 8; ++$i) {
             $nonce[strlen($this->iv) - 8 + $i] = chr(
-                ord($this->iv[strlen($this->iv) - 8 + $i]) ^ ord($seqBytes[$i])
+                ord($this->iv[strlen($this->iv) - 8 + $i]) ^ ord($seqBytes[$i]),
             );
         }
 

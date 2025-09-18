@@ -27,7 +27,7 @@ enum HandshakeState: string
             self::WAIT_CERTIFICATE,
             self::WAIT_CERTIFICATE_VERIFY,
             self::WAIT_FINISHED => true,
-            default => false
+            default => false,
         };
     }
 
@@ -36,7 +36,7 @@ enum HandshakeState: string
         return match ($this) {
             self::WAIT_CLIENT_HELLO,
             self::WAIT_FLIGHT2 => true,
-            default => false
+            default => false,
         };
     }
 }

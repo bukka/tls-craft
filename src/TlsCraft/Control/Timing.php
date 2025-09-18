@@ -16,18 +16,21 @@ class Timing
     public function addRecordDelay(ContentType $type, float $seconds): self
     {
         $this->recordDelays[$type->value] = $seconds;
+
         return $this;
     }
 
     public function addStateDelay(ConnectionState $state, float $seconds): self
     {
         $this->stateDelays[$state->value] = $seconds;
+
         return $this;
     }
 
     public function setGlobalDelay(float $seconds): self
     {
         $this->globalDelay = $seconds;
+
         return $this;
     }
 
@@ -35,6 +38,7 @@ class Timing
     {
         $this->randomJitterEnabled = true;
         $this->maxJitter = $maxJitter;
+
         return $this;
     }
 
@@ -44,7 +48,7 @@ class Timing
         $delay += $this->globalDelay;
 
         if ($this->randomJitterEnabled) {
-            $delay += mt_rand(0, (int)($this->maxJitter * 1000)) / 1000;
+            $delay += mt_rand(0, (int) ($this->maxJitter * 1000)) / 1000;
         }
 
         return $delay;
@@ -58,7 +62,7 @@ class Timing
     public function applyDelay(float $seconds): void
     {
         if ($seconds > 0) {
-            usleep((int)($seconds * 1_000_000));
+            usleep((int) ($seconds * 1_000_000));
         }
     }
 }

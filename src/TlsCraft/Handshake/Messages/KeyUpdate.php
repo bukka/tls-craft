@@ -8,9 +8,8 @@ use Php\TlsCraft\Protocol\HandshakeType;
 class KeyUpdate extends Message
 {
     public function __construct(
-        public readonly bool $requestUpdate
-    )
-    {
+        public readonly bool $requestUpdate,
+    ) {
         parent::__construct(HandshakeType::KEY_UPDATE);
     }
 
@@ -21,8 +20,8 @@ class KeyUpdate extends Message
 
     public static function decode(string $data): static
     {
-        if (strlen($data) < 1) {
-            throw new CraftException("Invalid KeyUpdate message length");
+        if ($data === '') {
+            throw new CraftException('Invalid KeyUpdate message length');
         }
 
         return new self(ord($data[0]) === 1);

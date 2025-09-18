@@ -3,6 +3,9 @@
 namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CraftException;
+use ValueError;
+
+use const OPENSSL_KEYTYPE_EC;
 
 /**
  * Key Share entry for TLS 1.3 key exchange
@@ -11,15 +14,12 @@ class KeyShare
 {
     public function __construct(
         private NamedGroup $group,
-        private string $keyExchange
+        private string $keyExchange,
     ) {
         // Validate key exchange length
         $expectedLength = $this->group->getKeySize();
         if ($expectedLength > 0 && strlen($this->keyExchange) !== $expectedLength) {
-            throw new CraftException(
-                "Invalid key exchange length for {$this->group->getName()}: " .
-                "expected {$expectedLength}, got " . strlen($this->keyExchange)
-            );
+            throw new CraftException("Invalid key exchange length for {$this->group->getName()}: expected {$expectedLength}, got ".strlen($this->keyExchange));
         }
     }
 
@@ -45,13 +45,13 @@ class KeyShare
 
     public function encode(): string
     {
-        return pack('nn', $this->group->value, strlen($this->keyExchange)) . $this->keyExchange;
+        return pack('nn', $this->group->value, strlen($this->keyExchange)).$this->keyExchange;
     }
 
     public static function decode(string $data, int &$offset): self
     {
         if (strlen($data) - $offset < 4) {
-            throw new CraftException("Insufficient data for key share");
+            throw new CraftException('Insufficient data for key share');
         }
 
         $groupValue = unpack('n', substr($data, $offset, 2))[1];
@@ -59,7 +59,7 @@ class KeyShare
         $offset += 4;
 
         if (strlen($data) - $offset < $keyLength) {
-            throw new CraftException("Insufficient data for key exchange");
+            throw new CraftException('Insufficient data for key exchange');
         }
 
         $keyExchange = substr($data, $offset, $keyLength);
@@ -67,7 +67,7 @@ class KeyShare
 
         try {
             $group = NamedGroup::from($groupValue);
-        } catch (\ValueError $e) {
+        } catch (ValueError $e) {
             throw new CraftException("Unknown named group: {$groupValue}");
         }
 
@@ -85,7 +85,7 @@ class KeyShare
             NamedGroup::SECP521R1 => self::generateECDH($group, 'secp521r1'),
             NamedGroup::X25519 => self::generateX25519($group),
             NamedGroup::X448 => self::generateX448($group),
-            default => throw new CraftException("Key generation not implemented for group: {$group->getName()}")
+            default => throw new CraftException("Key generation not implemented for group: {$group->getName()}"),
         };
     }
 
@@ -94,7 +94,7 @@ class KeyShare
         // Generate ECDH key pair using OpenSSL
         $keyResource = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_EC,
-            'curve_name' => $curveName
+            'curve_name' => $curveName,
         ]);
 
         if (!$keyResource) {
@@ -138,16 +138,17 @@ class KeyShare
     {
         // X448 key generation (simplified - would need proper curve448 implementation)
         $publicKey = random_bytes(56); // X448 public keys are 56 bytes
+
         return new self($group, $publicKey);
     }
 
     /**
      * Compute shared secret with peer's key share
      */
-    public function computeSharedSecret(KeyShare $peerKeyShare): string
+    public function computeSharedSecret(self $peerKeyShare): string
     {
         if ($this->group !== $peerKeyShare->group) {
-            throw new CraftException("Cannot compute shared secret: group mismatch");
+            throw new CraftException('Cannot compute shared secret: group mismatch');
         }
 
         return match($this->group) {
@@ -156,7 +157,7 @@ class KeyShare
             NamedGroup::SECP256R1,
             NamedGroup::SECP384R1,
             NamedGroup::SECP521R1 => $this->computeECDHSharedSecret($peerKeyShare->keyExchange),
-            default => throw new CraftException("Shared secret computation not implemented for: {$this->group->getName()}")
+            default => throw new CraftException("Shared secret computation not implemented for: {$this->group->getName()}"),
         };
     }
 
@@ -165,23 +166,23 @@ class KeyShare
         if (function_exists('sodium_crypto_scalarmult')) {
             // Assuming we have access to our private key (in real implementation)
             // This is simplified - you'd need to store the private key when generating
-            throw new CraftException("X25519 shared secret computation requires private key access");
+            throw new CraftException('X25519 shared secret computation requires private key access');
         }
 
         // Fallback (NOT cryptographically correct!)
-        return hash('sha256', $this->keyExchange . $peerPublicKey, true);
+        return hash('sha256', $this->keyExchange.$peerPublicKey, true);
     }
 
     private function computeX448SharedSecret(string $peerPublicKey): string
     {
         // X448 computation (simplified)
-        throw new CraftException("X448 shared secret computation requires private key access");
+        throw new CraftException('X448 shared secret computation requires private key access');
     }
 
     private function computeECDHSharedSecret(string $peerPublicKey): string
     {
         // ECDH computation using OpenSSL (simplified)
-        throw new CraftException("ECDH shared secret computation requires private key access");
+        throw new CraftException('ECDH shared secret computation requires private key access');
     }
 
     /**
@@ -202,13 +203,13 @@ class KeyShare
             NamedGroup::SECP521R1 => $this->validateECPoint(),
             NamedGroup::X25519,
             NamedGroup::X448 => true, // Any 32/56 bytes are valid
-            default => true
+            default => true,
         };
     }
 
     private function validateECPoint(): bool
     {
         // For ECDH, check if it's a valid uncompressed point (starts with 0x04)
-        return strlen($this->keyExchange) > 0 && ord($this->keyExchange[0]) === 0x04;
+        return $this->keyExchange !== '' && ord($this->keyExchange[0]) === 0x04;
     }
 }

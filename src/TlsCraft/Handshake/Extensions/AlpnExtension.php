@@ -10,9 +10,8 @@ use Php\TlsCraft\Handshake\ExtensionType;
 class AlpnExtension extends Extension
 {
     public function __construct(
-        private array $protocols
-    )
-    {
+        private array $protocols,
+    ) {
         parent::__construct(ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
     }
 
@@ -25,9 +24,10 @@ class AlpnExtension extends Extension
     {
         $protocolsData = '';
         foreach ($this->protocols as $protocol) {
-            $protocolsData .= chr(strlen($protocol)) . $protocol;
+            $protocolsData .= chr(strlen($protocol)).$protocol;
         }
-        return pack('n', strlen($protocolsData)) . $protocolsData;
+
+        return pack('n', strlen($protocolsData)).$protocolsData;
     }
 
     public static function decode(string $data): static
@@ -39,7 +39,7 @@ class AlpnExtension extends Extension
         $protocols = [];
         while ($offset < $endOffset) {
             $protocolLength = ord($data[$offset]);
-            $offset += 1;
+            ++$offset;
             $protocols[] = substr($data, $offset, $protocolLength);
             $offset += $protocolLength;
         }

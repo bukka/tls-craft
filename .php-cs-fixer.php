@@ -7,23 +7,34 @@ $finder = PhpCsFixer\Finder::create()
     ->ignoreVCS(true);
 
 return (new PhpCsFixer\Config())
-    // Symfony preset = close to what you showed; enable risky for a few extra tidy-ups
+    // Symfony preset
     ->setRules([
         '@Symfony' => true,
         '@Symfony:risky' => true,
-        '@PSR12' => true, // keep PSR-12 alignment with modern PHP
-        'declare_strict_types' => false,   // flip to true if you’ll add strict_types
+        '@PSR12' => true,
+        'declare_strict_types' => false,
         'ordered_imports' => ['imports_order' => ['class', 'function', 'const'], 'sort_algorithm' => 'alpha'],
         'phpdoc_align' => ['align' => 'vertical'],
-        'phpdoc_summary' => false,         // don’t force one-line summaries if you don’t like them
+        'phpdoc_summary' => false,
         'native_function_invocation' => false,
         'no_superfluous_phpdoc_tags' => ['allow_mixed' => true, 'remove_inheritdoc' => true],
         'single_quote' => true,
         'yoda_style' => false,
+        'method_argument_space' => [
+            'on_multiline' => 'ensure_fully_multiline', // each arg on its own line
+            'keep_multiple_spaces_after_comma' => false // avoid weird spacing after commas
+        ],
+        'trailing_comma_in_multiline' => ['elements' => ['parameters', 'arguments', 'arrays']],
+        'binary_operator_spaces' => [
+            'default' => 'single_space',
+            'operators' => [
+                '='  => 'single_space',
+                '=>' => 'single_space', // set to 'align_single_space_minimal' if you like aligning array arrows
+            ],
+        ],
         'multiline_whitespace_before_semicolons' => ['strategy' => 'no_multi_line'],
-        'binary_operator_spaces' => ['default' => 'align_single_space_minimal'],
         'global_namespace_import' => ['import_classes' => true, 'import_constants' => true, 'import_functions' => true],
-        'modernize_strpos' => true,        // requires @Symfony:risky
+        'modernize_strpos' => true,
         'nullable_type_declaration_for_default_null_value' => true,
     ])
     ->setRiskyAllowed(true)

@@ -21,9 +21,8 @@ abstract class Message
 
     public function __construct(
         public readonly HandshakeType $type,
-        public readonly array $extensions = []
-    )
-    {
+        public readonly array $extensions = [],
+    ) {
     }
 
     abstract public function encode(): string;
@@ -37,11 +36,11 @@ abstract class Message
             $length = strlen($payload);
 
             if ($length > 0xFFFFFF) {
-                throw new ProtocolViolationException("Handshake message too large");
+                throw new ProtocolViolationException('Handshake message too large');
             }
 
-            $this->rawMessage = $this->type->toByte() .
-                substr(pack('N', $length), 1) . // 3-byte length
+            $this->rawMessage = $this->type->toByte().
+                substr(pack('N', $length), 1). // 3-byte length
                 $payload;
         }
 
@@ -51,15 +50,15 @@ abstract class Message
     public static function fromWire(string $data, int &$offset = 0): static
     {
         if (strlen($data) - $offset < 4) {
-            throw new CraftException("Insufficient data for handshake header");
+            throw new CraftException('Insufficient data for handshake header');
         }
 
         $type = HandshakeType::fromByte($data[$offset]);
-        $length = unpack('N', "\x00" . substr($data, $offset + 1, 3))[1];
+        $length = unpack('N', "\x00".substr($data, $offset + 1, 3))[1];
         $offset += 4;
 
         if (strlen($data) - $offset < $length) {
-            throw new CraftException("Insufficient data for handshake payload");
+            throw new CraftException('Insufficient data for handshake payload');
         }
 
         $payload = substr($data, $offset, $length);
@@ -73,12 +72,12 @@ abstract class Message
             HandshakeType::CERTIFICATE_VERIFY => CertificateVerify::decode($payload),
             HandshakeType::FINISHED => Finished::decode($payload),
             HandshakeType::KEY_UPDATE => KeyUpdate::decode($payload),
-            default => throw new CraftException("Unsupported handshake type: {$type->name}")
+            default => throw new CraftException("Unsupported handshake type: {$type->name}"),
         };
     }
 
     public function getExtension(ExtensionType $type): ?Extension
     {
-        return array_find($this->extensions, fn(Extension $extension) => $extension->type->value === $type->value);
+        return array_find($this->extensions, fn (Extension $extension) => $extension->type->value === $type->value);
     }
 }

@@ -11,17 +11,16 @@ class ClientHello extends Message
 {
     public function __construct(
         public readonly Version $version,
-        public readonly string  $random, // 32 bytes
-        public readonly string  $sessionId,
-        public readonly array   $cipherSuites, // array of int
-        public readonly array   $compressionMethods, // array of int
-        array                   $extensions // array of Extension
-    )
-    {
+        public readonly string $random, // 32 bytes
+        public readonly string $sessionId,
+        public readonly array $cipherSuites, // array of int
+        public readonly array $compressionMethods, // array of int
+        array $extensions, // array of Extension
+    ) {
         parent::__construct(HandshakeType::CLIENT_HELLO, $extensions);
 
         if (strlen($random) !== 32) {
-            throw new ProtocolViolationException("ClientHello random must be 32 bytes");
+            throw new ProtocolViolationException('ClientHello random must be 32 bytes');
         }
     }
 
@@ -31,21 +30,21 @@ class ClientHello extends Message
         $encoded .= $this->random;
 
         // Session ID (length-prefixed)
-        $encoded .= chr(strlen($this->sessionId)) . $this->sessionId;
+        $encoded .= chr(strlen($this->sessionId)).$this->sessionId;
 
         // Cipher suites (length-prefixed, 2 bytes per suite)
         $cipherSuitesData = '';
         foreach ($this->cipherSuites as $suite) {
             $cipherSuitesData .= pack('n', $suite);
         }
-        $encoded .= pack('n', strlen($cipherSuitesData)) . $cipherSuitesData;
+        $encoded .= pack('n', strlen($cipherSuitesData)).$cipherSuitesData;
 
         // Compression methods (length-prefixed, 1 byte per method)
         $compressionData = '';
         foreach ($this->compressionMethods as $method) {
             $compressionData .= chr($method);
         }
-        $encoded .= chr(strlen($compressionData)) . $compressionData;
+        $encoded .= chr(strlen($compressionData)).$compressionData;
 
         // Extensions
         $encoded .= Extension::encodeList($this->extensions);
@@ -67,7 +66,7 @@ class ClientHello extends Message
 
         // Session ID
         $sessionIdLength = ord($data[$offset]);
-        $offset++;
+        ++$offset;
         $sessionId = substr($data, $offset, $sessionIdLength);
         $offset += $sessionIdLength;
 
@@ -83,10 +82,10 @@ class ClientHello extends Message
 
         // Compression methods
         $compressionLength = ord($data[$offset]);
-        $offset++;
+        ++$offset;
 
         $compressionMethods = [];
-        for ($i = 0; $i < $compressionLength; $i++) {
+        for ($i = 0; $i < $compressionLength; ++$i) {
             $compressionMethods[] = ord($data[$offset + $i]);
         }
         $offset += $compressionLength;
