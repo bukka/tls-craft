@@ -16,7 +16,7 @@ class SignatureAlgorithmsProvider implements ExtensionProvider
     {
     }
 
-    public function create(Context $context): Extension
+    public function create(Context $context): ?Extension
     {
         return new SignatureAlgorithmsExtension(array_map(
             fn($sigAlg) => SignatureScheme::fromName($sigAlg), $this->signatureAlgorithms

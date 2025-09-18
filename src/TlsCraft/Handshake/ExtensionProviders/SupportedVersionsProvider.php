@@ -16,7 +16,7 @@ class SupportedVersionsProvider implements ExtensionProvider
     {
     }
 
-    public function create(Context $context): Extension
+    public function create(Context $context): ?Extension
     {
         return new SupportedVersionsExtension(array_map(
             fn($version) => Version::fromName($version), $this->supportedVersions

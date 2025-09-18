@@ -37,10 +37,10 @@ class Context
 
     // Handshake transcript
     private array $handshakeMessages = [];
-    private KeyShare $keyShare;
+    private ?KeyShare $keyShare;
     private string $requestedServerName;
     private array $clientOfferedProtocols;
-    private string $selectedProtocol;
+    private ?string $selectedProtocol = null;
     private mixed $serverKeyShare;
     private bool $serverNameAcknowledged;
     private array $serverSupportedGroups;
@@ -314,7 +314,7 @@ class Context
         $this->selectedProtocol = $alpnProtocol;
     }
 
-    public function getSelectedProtocol(): string
+    public function getSelectedProtocol(): ?string
     {
         return $this->selectedProtocol;
     }

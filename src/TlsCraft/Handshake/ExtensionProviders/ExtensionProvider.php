@@ -8,7 +8,7 @@ use Php\TlsCraft\Messages\ExtensionType;
 
 interface ExtensionProvider
 {
-    public function create(Context $context): Extension;
+    public function create(Context $context): ?Extension;
 
     public function getExtensionType(): ExtensionType;
 }

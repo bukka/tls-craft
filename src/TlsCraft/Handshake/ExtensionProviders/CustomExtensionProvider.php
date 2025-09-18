@@ -16,7 +16,7 @@ class CustomExtensionProvider implements ExtensionProvider
     {
     }
 
-    public function create(Context $context): Extension
+    public function create(Context $context): ?Extension
     {
         return new CustomExtension(ExtensionType::from($this->extensionType), $this->extensionData);
     }
