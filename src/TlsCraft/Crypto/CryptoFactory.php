@@ -6,9 +6,14 @@ use Php\TlsCraft\Exceptions\CryptoException;
 
 class CryptoFactory
 {
+    public function createAead(string $key, string $iv, CipherSuite $cipherSuite): Aead
+    {
+        return new Aead($key, $iv, $cipherSuite);
+    }
+
     public function createKeyExchange(NamedGroup $group): KeyExchange
     {
-        return match($group) {
+        return match ($group) {
             NamedGroup::SECP256R1 => new EcdhKeyExchange('secp256r1'),
             NamedGroup::SECP384R1 => new EcdhKeyExchange('secp384r1'),
             NamedGroup::SECP521R1 => new EcdhKeyExchange('secp521r1'),

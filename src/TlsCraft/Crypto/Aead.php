@@ -6,22 +6,25 @@ use Php\TlsCraft\Exceptions\CryptoException;
 
 class Aead
 {
-    public static function encrypt(
-        string      $key,
-        string      $iv,
-        string      $plaintext,
-        string      $additionalData,
-        CipherSuite $cipherSuite,
-        int         $sequenceNumber
-    ): string
+    private string $key;
+    private string $iv;
+    private string $algorithm;
+
+    public function __construct(string $key, string $iv, CipherSuite $cipherSuite)
     {
-        $nonce = self::constructNonce($iv, $sequenceNumber);
-        $algorithm = $cipherSuite->getAEADAlgorithm();
+        $this->key = $key;
+        $this->iv = $iv;
+        $this->algorithm = $cipherSuite->getAEADAlgorithm();
+    }
+
+    public function encrypt(string $plaintext, string $additionalData, int $sequenceNumber): string
+    {
+        $nonce = $this->constructNonce($sequenceNumber);
 
         $encrypted = openssl_encrypt(
             $plaintext,
-            $algorithm,
-            $key,
+            $this->algorithm,
+            $this->key,
             OPENSSL_RAW_DATA,
             $nonce,
             $tag,
@@ -29,23 +32,15 @@ class Aead
         );
 
         if ($encrypted === false) {
-            throw new CryptoException("Aead encryption failed");
+            throw new CryptoException("AEAD encryption failed");
         }
 
         return $encrypted . $tag;
     }
 
-    public static function decrypt(
-        string      $key,
-        string      $iv,
-        string      $ciphertext,
-        string      $additionalData,
-        CipherSuite $cipherSuite,
-        int         $sequenceNumber
-    ): string
+    public function decrypt(string $ciphertext, string $additionalData, int $sequenceNumber): string
     {
-        $nonce = self::constructNonce($iv, $sequenceNumber);
-        $algorithm = $cipherSuite->getAEADAlgorithm();
+        $nonce = $this->constructNonce($sequenceNumber);
 
         // Extract tag (last 16 bytes for GCM)
         $tagLength = 16; // GCM tag length
@@ -58,8 +53,8 @@ class Aead
 
         $decrypted = openssl_decrypt(
             $encrypted,
-            $algorithm,
-            $key,
+            $this->algorithm,
+            $this->key,
             OPENSSL_RAW_DATA,
             $nonce,
             $tag,
@@ -67,21 +62,21 @@ class Aead
         );
 
         if ($decrypted === false) {
-            throw new CryptoException("Aead decryption failed");
+            throw new CryptoException("AEAD decryption failed");
         }
 
         return $decrypted;
     }
 
-    private static function constructNonce(string $iv, int $sequenceNumber): string
+    private function constructNonce(int $sequenceNumber): string
     {
         $seqBytes = pack('J', $sequenceNumber); // 64-bit big-endian
 
         // XOR the last 8 bytes of IV with sequence number
-        $nonce = $iv;
+        $nonce = $this->iv;
         for ($i = 0; $i < 8; $i++) {
-            $nonce[strlen($iv) - 8 + $i] = chr(
-                ord($iv[strlen($iv) - 8 + $i]) ^ ord($seqBytes[$i])
+            $nonce[strlen($this->iv) - 8 + $i] = chr(
+                ord($this->iv[strlen($this->iv) - 8 + $i]) ^ ord($seqBytes[$i])
             );
         }
 

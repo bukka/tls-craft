@@ -10,10 +10,18 @@ use Php\TlsCraft\Protocol\ContentType;
 class RecordCrypto
 {
     private Context $context;
-    private ?Aead $readCipher = null;
-    private ?Aead $writeCipher = null;
-    private int $readSequence = 0;
-    private int $writeSequence = 0;
+
+    // Handshake phase ciphers
+    private ?Aead $handshakeReadCipher = null;
+    private ?Aead $handshakeWriteCipher = null;
+    private int $handshakeReadSequence = 0;
+    private int $handshakeWriteSequence = 0;
+
+    // Application phase ciphers
+    private ?Aead $applicationReadCipher = null;
+    private ?Aead $applicationWriteCipher = null;
+    private int $applicationReadSequence = 0;
+    private int $applicationWriteSequence = 0;
 
     public function __construct(Context $context)
     {
@@ -29,22 +37,95 @@ class RecordCrypto
             return $record;
         }
 
-        if (!$this->context->getKeySchedule() || !$this->shouldEncrypt()) {
-            return throw new CraftException("Cannot encrypt record: handshake not complete");
+        $keySchedule = $this->context->getKeySchedule();
+        if (!$keySchedule) {
+            throw new CraftException("Cannot encrypt record: key schedule not initialized");
         }
 
-        if (!$this->writeCipher) {
-            $this->initializeWriteCipher();
+        // Determine which cipher to use based on handshake completion
+        if ($this->context->hasApplicationSecrets()) {
+            return $this->encryptWithApplicationKeys($record);
+        } else {
+            return $this->encryptWithHandshakeKeys($record);
+        }
+    }
+
+    /**
+     * Decrypt a received record
+     */
+    public function decryptRecord(Record $record): Record
+    {
+        // Don't decrypt plaintext handshake records (before encryption starts)
+        if ($record->contentType === ContentType::HANDSHAKE && !$this->hasHandshakeKeys()) {
+            return $record;
         }
 
-        // TLS 1.3 record encryption
+        $keySchedule = $this->context->getKeySchedule();
+        if (!$keySchedule) {
+            return $record; // Return as-is during early handshake
+        }
+
+        // Determine which cipher to use based on handshake completion
+        if ($this->context->hasApplicationSecrets()) {
+            return $this->decryptWithApplicationKeys($record);
+        } else {
+            return $this->decryptWithHandshakeKeys($record);
+        }
+    }
+
+    /**
+     * Update to application traffic keys after handshake completion
+     */
+    public function activateApplicationKeys(): void
+    {
+        $this->applicationReadCipher = null;  // Will be initialized on first use
+        $this->applicationWriteCipher = null;
+        $this->applicationReadSequence = 0;
+        $this->applicationWriteSequence = 0;
+    }
+
+    /**
+     * Update traffic keys after KeyUpdate message
+     */
+    public function updateApplicationKeys(): void
+    {
+        if (!$this->context->hasApplicationSecrets()) {
+            throw new CraftException("Cannot update keys: application secrets not available");
+        }
+
+        // Get current traffic secrets
+        $clientSecret = $this->context->getClientApplicationTrafficSecret();
+        $serverSecret = $this->context->getServerApplicationTrafficSecret();
+
+        // Update them using KeySchedule
+        $keySchedule = $this->context->getKeySchedule();
+        $newClientSecret = $keySchedule->updateTrafficSecret($clientSecret);
+        $newServerSecret = $keySchedule->updateTrafficSecret($serverSecret);
+
+        // Store updated secrets back
+        $this->context->setClientApplicationTrafficSecret($newClientSecret);
+        $this->context->setServerApplicationTrafficSecret($newServerSecret);
+
+        // Reset sequence numbers and ciphers (will reinitialize with new keys)
+        $this->applicationReadCipher = null;
+        $this->applicationWriteCipher = null;
+        $this->applicationReadSequence = 0;
+        $this->applicationWriteSequence = 0;
+    }
+
+    private function encryptWithHandshakeKeys(Record $record): Record
+    {
+        if (!$this->handshakeWriteCipher) {
+            $this->initializeHandshakeWriteCipher();
+        }
+
         $innerPlaintext = $record->payload . chr($record->contentType->value);
         $additionalData = $this->createAAD(ContentType::APPLICATION_DATA, strlen($innerPlaintext) + 16);
 
-        $ciphertext = $this->writeCipher->encrypt(
+        $ciphertext = $this->handshakeWriteCipher->encrypt(
             $innerPlaintext,
             $additionalData,
-            $this->writeSequence++
+            $this->handshakeWriteSequence++
         );
 
         return new Record(
@@ -54,79 +135,113 @@ class RecordCrypto
         );
     }
 
-    /**
-     * Decrypt a received record
-     */
-    public function decryptRecord(Record $record): Record
+    private function encryptWithApplicationKeys(Record $record): Record
     {
-        if ($record->contentType === ContentType::HANDSHAKE) {
-            // This is a handshake record, do not decrypt
-            return $record;
+        if (!$this->applicationWriteCipher) {
+            $this->initializeApplicationWriteCipher();
         }
 
-        if (!$this->context->getKeySchedule() || !$this->shouldEncrypt()) {
-            return $record; // Return as-is during handshake
-        }
+        $innerPlaintext = $record->payload . chr($record->contentType->value);
+        $additionalData = $this->createAAD(ContentType::APPLICATION_DATA, strlen($innerPlaintext) + 16);
 
-        if (!$this->readCipher) {
-            $this->initializeReadCipher();
+        $ciphertext = $this->applicationWriteCipher->encrypt(
+            $innerPlaintext,
+            $additionalData,
+            $this->applicationWriteSequence++
+        );
+
+        return new Record(
+            ContentType::APPLICATION_DATA,
+            $record->version,
+            $ciphertext
+        );
+    }
+
+    private function decryptWithHandshakeKeys(Record $record): Record
+    {
+        if (!$this->handshakeReadCipher) {
+            $this->initializeHandshakeReadCipher();
         }
 
         $additionalData = $this->createAAD($record->contentType, strlen($record->payload));
 
-        $plaintext = $this->readCipher->decrypt(
+        $plaintext = $this->handshakeReadCipher->decrypt(
             $record->payload,
             $additionalData,
-            $this->readSequence++
+            $this->handshakeReadSequence++
         );
 
+        return $this->extractInnerRecord($plaintext, $record->version);
+    }
+
+    private function decryptWithApplicationKeys(Record $record): Record
+    {
+        if (!$this->applicationReadCipher) {
+            $this->initializeApplicationReadCipher();
+        }
+
+        $additionalData = $this->createAAD($record->contentType, strlen($record->payload));
+
+        $plaintext = $this->applicationReadCipher->decrypt(
+            $record->payload,
+            $additionalData,
+            $this->applicationReadSequence++
+        );
+
+        return $this->extractInnerRecord($plaintext, $record->version);
+    }
+
+    private function extractInnerRecord(string $plaintext, $version): Record
+    {
         // Extract real content type from end of plaintext (TLS 1.3)
         $realContentType = ContentType::from(ord($plaintext[-1]));
         $messageData = substr($plaintext, 0, -1);
 
-        return new Record(
-            $realContentType,
-            $record->version,
-            $messageData
-        );
+        return new Record($realContentType, $version, $messageData);
     }
 
-    /**
-     * Check if we should encrypt records (after handshake keys are established)
-     */
-    private function shouldEncrypt(): bool
+    private function hasHandshakeKeys(): bool
     {
         $keySchedule = $this->context->getKeySchedule();
-        return $keySchedule && $keySchedule->hasHandshakeKeys();
+        return $keySchedule && method_exists($keySchedule, 'hasHandshakeKeys')
+            ? $keySchedule->hasHandshakeKeys()
+            : false;
     }
 
-    private function initializeWriteCipher(): void
+    private function initializeHandshakeWriteCipher(): void
     {
         $keys = $this->context->getHandshakeKeys($this->context->isClient());
-        $this->writeCipher = new Aead($keys['key'], $keys['iv']);
+        $cipherSuite = $this->context->getNegotiatedCipherSuite();
+        $this->handshakeWriteCipher = $this->context->getCryptoFactory()
+            ->createAead($keys['key'], $keys['iv'], $cipherSuite);
     }
 
-    private function initializeReadCipher(): void
+    private function initializeHandshakeReadCipher(): void
     {
         $keys = $this->context->getHandshakeKeys(!$this->context->isClient());
-        $this->readCipher = new Aead($keys['key'], $keys['iv']);
+        $cipherSuite = $this->context->getNegotiatedCipherSuite();
+        $this->handshakeReadCipher = $this->context->getCryptoFactory()
+            ->createAead($keys['key'], $keys['iv'], $cipherSuite);
+    }
+
+    private function initializeApplicationWriteCipher(): void
+    {
+        $keys = $this->context->getApplicationKeys($this->context->isClient());
+        $cipherSuite = $this->context->getNegotiatedCipherSuite();
+        $this->applicationWriteCipher = $this->context->getCryptoFactory()
+            ->createAead($keys['key'], $keys['iv'], $cipherSuite);
+    }
+
+    private function initializeApplicationReadCipher(): void
+    {
+        $keys = $this->context->getApplicationKeys(!$this->context->isClient());
+        $cipherSuite = $this->context->getNegotiatedCipherSuite();
+        $this->applicationReadCipher = $this->context->getCryptoFactory()
+            ->createAead($keys['key'], $keys['iv'], $cipherSuite);
     }
 
     private function createAAD(ContentType $contentType, int $length): string
     {
         return pack('Cnn', $contentType->value, $this->context->getNegotiatedVersion()->value, $length);
-    }
-
-    /**
-     * Update traffic keys after KeyUpdate
-     */
-    public function updateTrafficKeys(): void
-    {
-        $this->context->updateTrafficKeys();
-
-        // Re-initialize ciphers with new keys
-        $this->readCipher = null;
-        $this->writeCipher = null;
-        // They will be re-initialized on next use
     }
 }

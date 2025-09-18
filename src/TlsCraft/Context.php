@@ -490,4 +490,9 @@ class Context
     {
         return $this->keyPairs[$group->getName()] ?? null;
     }
+
+    public function setHandshakeComplete(bool $complete): void
+    {
+        $this->handshakeComplete = $complete;
+    }
 }

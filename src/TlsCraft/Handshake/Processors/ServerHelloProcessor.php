@@ -9,6 +9,9 @@ use Php\TlsCraft\Messages\ExtensionType;
 use Php\TlsCraft\Messages\ServerHello;
 use Php\TlsCraft\Protocol\Version;
 
+/**
+ * Process ServerHello message which happens on the client side after ClientHello
+ */
 class ServerHelloProcessor extends MessageProcessor
 {
     public function process(ServerHello $message): void

@@ -11,11 +11,9 @@ class KeySchedule
     private string $earlySecret;
     private string $handshakeSecret;
     private string $masterSecret;
-
-    private string $handshakeMessages = '';
-
     private ?string $currentClientApplicationTrafficSecret = null;
     private ?string $currentServerApplicationTrafficSecret = null;
+    private string $handshakeMessages = '';
 
     public function __construct(CipherSuite $cipherSuite)
     {
@@ -187,9 +185,13 @@ class KeySchedule
         );
     }
 
-    // Add this method to KeySchedule class
     public function hasApplicationSecrets(): bool
     {
         return isset($this->masterSecret);
+    }
+
+    public function hasHandshakeKeys(): bool
+    {
+        return isset($this->handshakeSecret);
     }
 }
