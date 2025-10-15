@@ -13,7 +13,6 @@ use Php\TlsCraft\Handshake\ExtensionProviders\ServerNameExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SignatureAlgorithmsProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SupportedVersionsProvider;
 use Php\TlsCraft\Handshake\ServerHelloExtensionProviders;
-use Php\TlsCraft\Protocol\Version;
 use Php\TlsCraft\State\ProtocolValidator;
 
 class Config
@@ -50,7 +49,7 @@ class Config
         ?array $supportedProtocols = null,
     ) {
         // Set immutable protocol parameters
-        $this->supportedVersions = $supportedVersions ?? [Version::TLS_1_3];
+        $this->supportedVersions = $supportedVersions ?? ['TLS 1.3'];
 
         $this->cipherSuites = $cipherSuites ?? [
             CipherSuite::TLS_AES_128_GCM_SHA256->value,
