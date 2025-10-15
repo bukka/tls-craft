@@ -40,7 +40,7 @@ class Client
 
         // Create a state tracker and validator
         $stateTracker = new StateTracker(true); // isClient = true
-        $validator = $this->config->hasCustomValidator() ?? new ProtocolValidator(
+        $validator = $this->config->hasCustomValidator() ? $this->config->getCustomValidator() : new ProtocolValidator(
             $this->config->isAllowProtocolViolations(),
         );
 
