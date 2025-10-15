@@ -17,7 +17,7 @@ class OpenSslKeyPair implements KeyPair
         return $this->publicKey;
     }
 
-    public function computeSharedSecret(string $peerPublicKey): string
+    public function computeSharedSecret(mixed $peerPublicKey): string
     {
         $sharedSecret = openssl_dh_compute_key($peerPublicKey, $this->privateKeyResource);
 

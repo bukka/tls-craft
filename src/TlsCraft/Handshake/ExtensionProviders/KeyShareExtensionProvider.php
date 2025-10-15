@@ -4,6 +4,7 @@ namespace Php\TlsCraft\Handshake\ExtensionProviders;
 
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Crypto\{KeyShare, NamedGroup};
+use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
 use Php\TlsCraft\Handshake\ExtensionType;

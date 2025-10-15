@@ -108,6 +108,7 @@ class ServerHelloProcessor extends MessageProcessor
         }
 
         // Compute shared secret using our key pair
+        // TODO: This needs to go through the key exchange
         $sharedSecret = $clientKeyPair->computeSharedSecret($serverKeyShare->getKeyExchange());
         $this->context->setSharedSecret($sharedSecret);
 
