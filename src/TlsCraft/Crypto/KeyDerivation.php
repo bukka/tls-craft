@@ -6,7 +6,7 @@ use Php\TlsCraft\Exceptions\CryptoException;
 
 class KeyDerivation
 {
-    public static function hkdfExtract(string $salt, string $ikm, string $algorithm = 'sha256'): string
+    public function hkdfExtract(string $salt, string $ikm, string $algorithm = 'sha256'): string
     {
         if (empty($salt)) {
             $salt = str_repeat("\x00", hash_hmac_algos() ? hash('sha256', '', true) : 32);
@@ -15,7 +15,7 @@ class KeyDerivation
         return hash_hmac($algorithm, $ikm, $salt, true);
     }
 
-    public static function hkdfExpand(string $prk, string $info, int $length, string $algorithm = 'sha256'): string
+    public function hkdfExpand(string $prk, string $info, int $length, string $algorithm = 'sha256'): string
     {
         $hashLength = strlen(hash($algorithm, '', true));
         $n = (int) ceil($length / $hashLength);
@@ -35,33 +35,33 @@ class KeyDerivation
         return substr($okm, 0, $length);
     }
 
-    public static function hkdf(string $ikm, string $salt, string $info, int $length, string $algorithm = 'sha256'): string
+    public function hkdf(string $ikm, string $salt, string $info, int $length, string $algorithm = 'sha256'): string
     {
-        $prk = self::hkdfExtract($salt, $ikm, $algorithm);
+        $prk = $this->hkdfExtract($salt, $ikm, $algorithm);
 
-        return self::hkdfExpand($prk, $info, $length, $algorithm);
+        return $this->hkdfExpand($prk, $info, $length, $algorithm);
     }
 
-    public static function deriveSecret(string $secret, string $label, string $messages, CipherSuite $cipherSuite): string
+    public function deriveSecret(string $secret, string $label, string $messages, CipherSuite $cipherSuite): string
     {
         $hashAlg = $cipherSuite->getHashAlgorithm();
         $hashLength = $cipherSuite->getHashLength();
 
         $transcript = hash($hashAlg, $messages, true);
-        $hkdfLabel = self::buildHkdfLabel($hashLength, 'tls13 '.$label, $transcript);
+        $hkdfLabel = $this->buildHkdfLabel($hashLength, 'tls13 '.$label, $transcript);
 
-        return self::hkdfExpand($secret, $hkdfLabel, $hashLength, $hashAlg);
+        return $this->hkdfExpand($secret, $hkdfLabel, $hashLength, $hashAlg);
     }
 
-    public static function expandLabel(string $secret, string $label, string $context, int $length, CipherSuite $cipherSuite): string
+    public function expandLabel(string $secret, string $label, string $context, int $length, CipherSuite $cipherSuite): string
     {
         $hashAlg = $cipherSuite->getHashAlgorithm();
         $hkdfLabel = self::buildHkdfLabel($length, 'tls13 '.$label, $context);
 
-        return self::hkdfExpand($secret, $hkdfLabel, $length, $hashAlg);
+        return $this->hkdfExpand($secret, $hkdfLabel, $length, $hashAlg);
     }
 
-    private static function buildHkdfLabel(int $length, string $label, string $context): string
+    private function buildHkdfLabel(int $length, string $label, string $context): string
     {
         $hkdfLabel = pack('n', $length); // Length (2 bytes)
         $hkdfLabel .= chr(strlen($label)).$label; // Label

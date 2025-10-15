@@ -3,6 +3,7 @@
 namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
+use PhpCsFixer\Cache\Signature;
 
 class CryptoFactory
 {
@@ -21,5 +22,15 @@ class CryptoFactory
             NamedGroup::X448 => new X448KeyExchange(),
             default => throw new CryptoException("Unsupported group: {$group->getName()}"),
         };
+    }
+
+    public function createKeySchedule(CipherSuite $cipherSuite): KeySchedule
+    {
+        return new KeySchedule($cipherSuite, new KeyDerivation());
+    }
+
+    public function createRandomGenerator(): RandomGenerator
+    {
+        return new RandomGenerator();
     }
 }

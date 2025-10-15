@@ -3,6 +3,7 @@
 namespace Php\TlsCraft;
 
 use Php\TlsCraft\Connection\Connection;
+use Php\TlsCraft\Connection\ConnectionFactory;
 use Php\TlsCraft\Control\FlowController;
 use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Exceptions\CraftException;
@@ -11,6 +12,7 @@ use Php\TlsCraft\Handshake\ProcessorFactory;
 use Php\TlsCraft\Handshake\ProcessorManager;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
 use Php\TlsCraft\Record\LayerFactory;
+use Php\TlsCraft\Record\RecordFactory;
 use Php\TlsCraft\State\ProtocolValidator;
 use Php\TlsCraft\State\StateTracker;
 
@@ -19,16 +21,19 @@ class Server
     private string $certificatePath;
     private string $privateKeyPath;
     private Config $config;
+    private ConnectionFactory $connectionFactory;
     private ?Connection $serverConnection = null;
 
     public function __construct(
         string $certificatePath,
         string $privateKeyPath,
         ?Config $config = null,
+        ?ConnectionFactory $connectionFactory = null,
     ) {
         $this->certificatePath = $certificatePath;
         $this->privateKeyPath = $privateKeyPath;
         $this->config = $config ?? new Config();
+        $this->connectionFactory = $connectionFactory ?? new ConnectionFactory();
     }
 
     public function getConfig(): Config
@@ -38,7 +43,7 @@ class Server
 
     public function listen(string $address, int $port): void
     {
-        $this->serverConnection = Connection::server(
+        $this->serverConnection = $this->connectionFactory->server(
             $address,
             $port,
             $this->config->getConnectionOptions(),
@@ -69,6 +74,7 @@ class Server
         $context->setPrivateKey($this->loadPrivateKey());
 
         $layerFactory = new LayerFactory();
+        $recordFactory = new RecordFactory();
         $messageFactory = new MessageFactory($context);
         $processorManager = new ProcessorManager(new ProcessorFactory($context));
 
@@ -79,6 +85,7 @@ class Server
             $context,
             $processorManager,
             $layerFactory,
+            $recordFactory,
             $messageFactory,
             $clientConnection,
             $flowController,

@@ -20,13 +20,4 @@ class CertificateVerify extends Message
             pack('n', strlen($this->signature)).
             $this->signature;
     }
-
-    public static function decode(string $data): static
-    {
-        $algorithm = unpack('n', substr($data, 0, 2))[1];
-        $sigLength = unpack('n', substr($data, 2, 2))[1];
-        $signature = substr($data, 4, $sigLength);
-
-        return new self(SignatureScheme::from($algorithm), $signature);
-    }
 }

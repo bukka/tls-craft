@@ -17,13 +17,4 @@ class KeyUpdate extends Message
     {
         return chr($this->requestUpdate ? 1 : 0);
     }
-
-    public static function decode(string $data): static
-    {
-        if ($data === '') {
-            throw new CraftException('Invalid KeyUpdate message length');
-        }
-
-        return new self(ord($data[0]) === 1);
-    }
 }

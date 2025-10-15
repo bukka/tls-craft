@@ -5,6 +5,8 @@ namespace Php\TlsCraft\Crypto;
 class KeySchedule
 {
     private CipherSuite $cipherSuite;
+
+    private KeyDerivation $keyDerivation;
     private string $hashAlgorithm;
     private int $hashLength;
 
@@ -15,11 +17,12 @@ class KeySchedule
     private ?string $currentServerApplicationTrafficSecret = null;
     private string $handshakeMessages = '';
 
-    public function __construct(CipherSuite $cipherSuite)
+    public function __construct(CipherSuite $cipherSuite, KeyDerivation $keyDerivation)
     {
         $this->cipherSuite = $cipherSuite;
         $this->hashAlgorithm = $cipherSuite->getHashAlgorithm();
         $this->hashLength = $cipherSuite->getHashLength();
+        $this->keyDerivation = $keyDerivation;
 
         // Initialize with zeros
         $this->earlySecret = str_repeat("\x00", $this->hashLength);
@@ -33,19 +36,19 @@ class KeySchedule
     public function deriveEarlySecret(?string $psk = null): void
     {
         $ikm = $psk ?? str_repeat("\x00", $this->hashLength);
-        $this->earlySecret = KeyDerivation::hkdfExtract('', $ikm, $this->hashAlgorithm);
+        $this->earlySecret = $this->keyDerivation->hkdfExtract('', $ikm, $this->hashAlgorithm);
     }
 
     public function deriveHandshakeSecret(string $sharedSecret): void
     {
-        $derivedSecret = KeyDerivation::deriveSecret(
+        $derivedSecret = $this->keyDerivation->deriveSecret(
             $this->earlySecret,
             'derived',
             '',
             $this->cipherSuite,
         );
 
-        $this->handshakeSecret = KeyDerivation::hkdfExtract(
+        $this->handshakeSecret = $this->keyDerivation->hkdfExtract(
             $derivedSecret,
             $sharedSecret,
             $this->hashAlgorithm,
@@ -54,14 +57,14 @@ class KeySchedule
 
     public function deriveMasterSecret(): void
     {
-        $derivedSecret = KeyDerivation::deriveSecret(
+        $derivedSecret = $this->keyDerivation->deriveSecret(
             $this->handshakeSecret,
             'derived',
             '',
             $this->cipherSuite,
         );
 
-        $this->masterSecret = KeyDerivation::hkdfExtract(
+        $this->masterSecret = $this->keyDerivation->hkdfExtract(
             $derivedSecret,
             str_repeat("\x00", $this->hashLength),
             $this->hashAlgorithm,
@@ -70,7 +73,7 @@ class KeySchedule
 
     public function getClientHandshakeTrafficSecret(): string
     {
-        return KeyDerivation::deriveSecret(
+        return $this->keyDerivation->deriveSecret(
             $this->handshakeSecret,
             'c hs traffic',
             $this->handshakeMessages,
@@ -80,7 +83,7 @@ class KeySchedule
 
     public function getServerHandshakeTrafficSecret(): string
     {
-        return KeyDerivation::deriveSecret(
+        return $this->keyDerivation->deriveSecret(
             $this->handshakeSecret,
             's hs traffic',
             $this->handshakeMessages,
@@ -95,7 +98,7 @@ class KeySchedule
             return $this->currentClientApplicationTrafficSecret;
         }
 
-        $secret = KeyDerivation::deriveSecret(
+        $secret = $this->keyDerivation->deriveSecret(
             $this->masterSecret,
             'c ap traffic',
             $this->handshakeMessages,
@@ -115,7 +118,7 @@ class KeySchedule
             return $this->currentServerApplicationTrafficSecret;
         }
 
-        $secret = KeyDerivation::deriveSecret(
+        $secret = $this->keyDerivation->deriveSecret(
             $this->masterSecret,
             's ap traffic',
             $this->handshakeMessages,
@@ -140,7 +143,7 @@ class KeySchedule
 
     public function getFinishedKey(string $trafficSecret): string
     {
-        return KeyDerivation::expandLabel(
+        return $this->keyDerivation->expandLabel(
             $trafficSecret,
             'finished',
             '',
@@ -158,7 +161,7 @@ class KeySchedule
 
     public function deriveApplicationKeys(string $trafficSecret): array
     {
-        $key = KeyDerivation::expandLabel(
+        $key = $this->keyDerivation->expandLabel(
             $trafficSecret,
             'key',
             '',
@@ -166,7 +169,7 @@ class KeySchedule
             $this->cipherSuite,
         );
 
-        $iv = KeyDerivation::expandLabel(
+        $iv = $this->keyDerivation->expandLabel(
             $trafficSecret,
             'iv',
             '',
@@ -179,7 +182,7 @@ class KeySchedule
 
     public function updateTrafficSecret(string $trafficSecret): string
     {
-        return KeyDerivation::expandLabel(
+        return $this->keyDerivation->expandLabel(
             $trafficSecret,
             'traffic upd',
             '',

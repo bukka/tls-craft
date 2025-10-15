@@ -51,48 +51,4 @@ class ClientHello extends Message
 
         return $encoded;
     }
-
-    public static function decode(string $data): static
-    {
-        $offset = 0;
-
-        // Version (2 bytes)
-        $version = Version::fromBytes(substr($data, $offset, 2));
-        $offset += 2;
-
-        // Random (32 bytes)
-        $random = substr($data, $offset, 32);
-        $offset += 32;
-
-        // Session ID
-        $sessionIdLength = ord($data[$offset]);
-        ++$offset;
-        $sessionId = substr($data, $offset, $sessionIdLength);
-        $offset += $sessionIdLength;
-
-        // Cipher suites
-        $cipherSuitesLength = unpack('n', substr($data, $offset, 2))[1];
-        $offset += 2;
-
-        $cipherSuites = [];
-        for ($i = 0; $i < $cipherSuitesLength; $i += 2) {
-            $cipherSuites[] = unpack('n', substr($data, $offset + $i, 2))[1];
-        }
-        $offset += $cipherSuitesLength;
-
-        // Compression methods
-        $compressionLength = ord($data[$offset]);
-        ++$offset;
-
-        $compressionMethods = [];
-        for ($i = 0; $i < $compressionLength; ++$i) {
-            $compressionMethods[] = ord($data[$offset + $i]);
-        }
-        $offset += $compressionLength;
-
-        // Extensions
-        $extensions = Extension::decodeList($data, $offset);
-
-        return new self($version, $random, $sessionId, $cipherSuites, $compressionMethods, $extensions);
-    }
 }

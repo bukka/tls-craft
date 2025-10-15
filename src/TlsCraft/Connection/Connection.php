@@ -17,7 +17,7 @@ class Connection
     private int $port;
     private bool $isServer;
 
-    private function __construct(
+    public function __construct(
         Handle $handle,
         string $address,
         int $port,
@@ -27,50 +27,6 @@ class Connection
         $this->address = $address;
         $this->port = $port;
         $this->isServer = $isServer;
-    }
-
-    /**
-     * Create client connection
-     */
-    public static function connect(
-        string $address,
-        int $port,
-        float $timeout = 30.0,
-        array $options = [],
-    ): self {
-        $handle = ConnectionFactory::connect($address, $port, $timeout, $options);
-
-        return new self($handle, $address, $port, false);
-    }
-
-    /**
-     * Create server connection
-     */
-    public static function server(
-        string $address,
-        int $port,
-        array $options = [],
-    ): self {
-        $handle = ConnectionFactory::server($address, $port, $options);
-
-        return new self($handle, $address, $port, true);
-    }
-
-    /**
-     * Accept incoming connection (server only)
-     */
-    public function accept(?float $timeout = null): self
-    {
-        if (!$this->isServer) {
-            throw new CraftException('Cannot accept on client connection');
-        }
-
-        $clientHandle = $this->handle->accept($timeout);
-        $peerName = $clientHandle->getPeerName();
-
-        [$clientAddress, $clientPort] = $this->parsePeerName($peerName);
-
-        return new self($clientHandle, $clientAddress, $clientPort, false);
     }
 
     /**
@@ -154,6 +110,23 @@ class Connection
         $this->handle->setBlocking(true);
 
         return $data;
+    }
+
+    /**
+     * Accept incoming connection (server only)
+     */
+    public function accept(?float $timeout = null): self
+    {
+        if (!$this->isServer) {
+            throw new CraftException('Cannot accept on client connection');
+        }
+
+        $clientHandle = $this->handle->accept($timeout);
+        $peerName = $clientHandle->getPeerName();
+
+        [$clientAddress, $clientPort] = $this->parsePeerName($peerName);
+
+        return new self($clientHandle, $clientAddress, $clientPort, false);
     }
 
     /**
@@ -288,19 +261,6 @@ class Connection
     public function __destruct()
     {
         $this->close();
-    }
-
-    /**
-     * Create a pair of connected connections for testing
-     */
-    public static function createSocketPair(): array
-    {
-        [$handle1, $handle2] = ConnectionFactory::createSocketPair();
-
-        return [
-            new self($handle1, 'local', 0, false),
-            new self($handle2, 'local', 0, false),
-        ];
     }
 
     /**

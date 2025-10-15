@@ -2,7 +2,7 @@
 
 namespace Php\TlsCraft;
 
-use Php\TlsCraft\Connection\Connection;
+use Php\TlsCraft\Connection\ConnectionFactory;
 use Php\TlsCraft\Control\FlowController;
 use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Handshake\MessageFactory;
@@ -10,6 +10,7 @@ use Php\TlsCraft\Handshake\ProcessorFactory;
 use Php\TlsCraft\Handshake\ProcessorManager;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
 use Php\TlsCraft\Record\LayerFactory;
+use Php\TlsCraft\Record\RecordFactory;
 use Php\TlsCraft\State\ProtocolValidator;
 use Php\TlsCraft\State\StateTracker;
 
@@ -18,21 +19,24 @@ class Client
     private string $hostname;
     private int $port;
     private Config $config;
+    private ConnectionFactory $connectionFactory;
 
     public function __construct(
         string $hostname,
         int $port,
         ?Config $config = null,
+        ?ConnectionFactory $connectionFactory = null,
     ) {
         $this->hostname = $hostname;
         $this->port = $port;
         $this->config = $config ?? new Config();
+        $this->connectionFactory = $connectionFactory ?? new ConnectionFactory();
     }
 
     public function connect(float $timeout = 30.0, ?FlowController $flowController = null): Session
     {
         // Establish TCP connection
-        $connection = Connection::connect($this->hostname, $this->port, $timeout);
+        $connection = $this->connectionFactory->connect($this->hostname, $this->port, $timeout);
 
         // Create a state tracker and validator
         $stateTracker = new StateTracker(true); // isClient = true
@@ -46,6 +50,7 @@ class Client
         // Create a handshake context
         $context = new Context(true, $this->config, $cryptoFactory);
         $layerFactory = new LayerFactory();
+        $recordFactory = new RecordFactory();
         $messageFactory = new MessageFactory($context);
         $processorManager = new ProcessorManager(new ProcessorFactory($context));
 
@@ -56,6 +61,7 @@ class Client
             $context,
             $processorManager,
             $layerFactory,
+            $recordFactory,
             $messageFactory,
             $connection,
             $flowController,

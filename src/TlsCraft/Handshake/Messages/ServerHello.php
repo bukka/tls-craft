@@ -4,7 +4,7 @@ namespace Php\TlsCraft\Handshake\Messages;
 
 use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Extensions\Extension;
+use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Protocol\HandshakeType;
 use Php\TlsCraft\Protocol\Version;
 
@@ -43,37 +43,5 @@ class ServerHello extends Message
         $encoded .= Extension::encodeList($this->extensions);
 
         return $encoded;
-    }
-
-    public static function decode(string $data): static
-    {
-        $offset = 0;
-
-        // Version (2 bytes)
-        $version = Version::fromBytes(substr($data, $offset, 2));
-        $offset += 2;
-
-        // Random (32 bytes)
-        $random = substr($data, $offset, 32);
-        $offset += 32;
-
-        // Session ID
-        $sessionIdLength = ord($data[$offset]);
-        ++$offset;
-        $sessionId = substr($data, $offset, $sessionIdLength);
-        $offset += $sessionIdLength;
-
-        // Cipher suite (2 bytes)
-        $cipherSuite = CipherSuite::from(unpack('n', substr($data, $offset, 2))[1]);
-        $offset += 2;
-
-        // Compression method (1 byte)
-        $compressionMethod = ord($data[$offset]);
-        ++$offset;
-
-        // Extensions
-        $extensions = Extension::decodeList($data, $offset);
-
-        return new self($version, $random, $sessionId, $cipherSuite, $compressionMethod, $extensions);
     }
 }

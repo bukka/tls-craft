@@ -27,38 +27,4 @@ class Certificate extends Message
 
         return $encoded;
     }
-
-    public static function decode(string $data): static
-    {
-        $offset = 0;
-
-        // Certificate request context
-        $contextLength = ord($data[$offset]);
-        ++$offset;
-        $context = substr($data, $offset, $contextLength);
-        $offset += $contextLength;
-
-        // Certificate list
-        $listLength = unpack('N', "\x00".substr($data, $offset, 3))[1];
-        $offset += 3;
-
-        $certificates = [];
-        $endOffset = $offset + $listLength;
-
-        while ($offset < $endOffset) {
-            $certLength = unpack('N', "\x00".substr($data, $offset, 3))[1];
-            $offset += 3;
-
-            $certificate = substr($data, $offset, $certLength);
-            $offset += $certLength;
-
-            // Skip extensions
-            $extLength = unpack('n', substr($data, $offset, 2))[1];
-            $offset += 2 + $extLength;
-
-            $certificates[] = $certificate;
-        }
-
-        return new self($context, $certificates);
-    }
 }

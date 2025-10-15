@@ -20,6 +20,7 @@ use Php\TlsCraft\Protocol\Version;
  */
 class Context
 {
+    private RandomGenerator $randomGenerator;
     private Version $negotiatedVersion;
     private ?CipherSuite $negotiatedCipherSuite = null;
     private ?SignatureScheme $negotiatedSignatureScheme = null;
@@ -63,6 +64,7 @@ class Context
         private Config $config,
         private CryptoFactory $cryptoFactory,
     ) {
+        $this->randomGenerator = $this->cryptoFactory->createRandomGenerator();
     }
 
     // === Getters ===
@@ -110,7 +112,7 @@ class Context
     public function getClientRandom(): ?string
     {
         if ($this->clientRandom === null) {
-            $this->clientRandom = RandomGenerator::generateClientRandom();
+            $this->clientRandom = $this->randomGenerator->generateClientRandom();
         }
 
         return $this->clientRandom;
@@ -119,7 +121,7 @@ class Context
     public function getServerRandom(): ?string
     {
         if ($this->serverRandom === null) {
-            $this->serverRandom = RandomGenerator::generateServerRandom();
+            $this->serverRandom = $this->randomGenerator->generateServerRandom();
         }
 
         return $this->serverRandom;
@@ -145,7 +147,7 @@ class Context
     public function setNegotiatedCipherSuite(CipherSuite $cipherSuite): void
     {
         $this->negotiatedCipherSuite = $cipherSuite;
-        $this->keySchedule = new KeySchedule($cipherSuite);
+        $this->keySchedule = $this->cryptoFactory->createKeySchedule($cipherSuite);
     }
 
     public function setNegotiatedSignatureScheme(SignatureScheme $scheme): void

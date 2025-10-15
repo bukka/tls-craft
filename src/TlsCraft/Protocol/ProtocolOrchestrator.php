@@ -8,16 +8,9 @@ use Php\TlsCraft\Control\{FlowController};
 use Php\TlsCraft\Crypto\CertificateUtils;
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
 use Php\TlsCraft\Handshake\MessageFactory;
-use Php\TlsCraft\Handshake\Messages\{Certificate,
-    CertificateVerify,
-    ClientHello,
-    EncryptedExtensions,
-    Finished,
-    KeyUpdate,
-    Message,
-    ServerHello};
+use Php\TlsCraft\Handshake\Messages\{KeyUpdate, Message};
 use Php\TlsCraft\Handshake\ProcessorManager;
-use Php\TlsCraft\Record\{Builder, EncryptedLayer, LayerFactory, Record};
+use Php\TlsCraft\Record\{EncryptedLayer, LayerFactory, Record, RecordFactory};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
 
 /**
@@ -31,6 +24,7 @@ class ProtocolOrchestrator
     private ProcessorManager $processorManager;
     private MessageFactory $messageFactory;
     private EncryptedLayer $recordLayer;
+    private RecordFactory $recordFactory;
     private ?FlowController $flowController;
     private Connection $connection;
 
@@ -40,6 +34,7 @@ class ProtocolOrchestrator
         Context $context,
         ProcessorManager $processorManager,
         LayerFactory $layerFactory,
+        RecordFactory $recordFactory,
         MessageFactory $messageFactory,
         Connection $connection,
         ?FlowController $flowController,
@@ -51,6 +46,7 @@ class ProtocolOrchestrator
         $this->messageFactory = $messageFactory;
         $this->connection = $connection;
         $this->flowController = $flowController;
+        $this->recordFactory = $recordFactory;
         $this->recordLayer = $layerFactory->createEncryptedLayer($connection, $context, $this->flowController);
     }
 
@@ -109,7 +105,7 @@ class ProtocolOrchestrator
             throw new CraftException('Cannot send application data: not connected');
         }
 
-        $record = Builder::applicationData($data);
+        $record = $this->recordFactory->createApplicationData($data);
         $this->recordLayer->sendRecord($record);
     }
 
@@ -152,7 +148,7 @@ class ProtocolOrchestrator
     public function sendAlert(AlertLevel $level, AlertDescription $description): void
     {
         $alertData = $this->messageFactory->createAlert($level, $description);
-        $record = Builder::alert($alertData);
+        $record = $this->recordFactory->createAlert($alertData);
         $this->recordLayer->sendRecord($record);
 
         if ($description->isFatal()) {
@@ -190,7 +186,7 @@ class ProtocolOrchestrator
         $this->context->addHandshakeMessage($message);
 
         // Send record
-        $record = Builder::handshake($message->toWire(), $encrypted);
+        $record = $this->recordFactory->createHandshake($message->toWire(), $encrypted);
         $this->recordLayer->sendRecord($record);
     }
 
@@ -236,11 +232,11 @@ class ProtocolOrchestrator
     private function sendServerHandshakeFlight(): void
     {
         // 1. ServerHello
-        $serverHello = $this->messageFactory->createServerHello($this->context);
+        $serverHello = $this->messageFactory->createServerHello();
         $this->sendHandshakeMessage($serverHello);
 
         // 2. EncryptedExtensions
-        $encryptedExtensions = $this->messageFactory->createEncryptedExtensions($this->context);
+        $encryptedExtensions = $this->messageFactory->createEncryptedExtensions();
         $this->sendHandshakeMessage($encryptedExtensions);
 
         // 3. Certificate
@@ -285,49 +281,51 @@ class ProtocolOrchestrator
                 $this->stateTracker->getHandshakeState(),
                 $this->stateTracker->isClient(),
             )) {
-                throw new ProtocolViolationException("Unexpected handshake message {$handshakeType->name} in state {$this->stateTracker->getHandshakeState()->value}");
+                $handshakeState = $this->stateTracker->getHandshakeState()->value;
+                throw new ProtocolViolationException(
+                    "Unexpected handshake message {$handshakeType->name} in state {$handshakeState}");
             }
 
             // Parse to specific type and handle with processors
             switch ($handshakeType) {
                 case HandshakeType::CLIENT_HELLO:
-                    $clientHello = ClientHello::fromWire($record->payload);
+                    $clientHello = $this->messageFactory->createClientHelloFromWire($record->payload);
                     $this->processorManager->processClientHello($clientHello);
                     $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FLIGHT2);
                     break;
 
                 case HandshakeType::SERVER_HELLO:
-                    $serverHello = ServerHello::fromWire($record->payload);
+                    $serverHello = $this->messageFactory->createServerHelloFromWire($record->payload);
                     $this->processorManager->processServerHello($serverHello);
                     $this->stateTracker->transitionHandshake(HandshakeState::WAIT_ENCRYPTED_EXTENSIONS);
                     break;
 
                 case HandshakeType::ENCRYPTED_EXTENSIONS:
-                    $encryptedExtensions = EncryptedExtensions::fromWire($record->payload);
+                    $encryptedExtensions = $this->messageFactory->createEncryptedExtensionsFromWire($record->payload);
                     $this->processorManager->processEncryptedExtensions($encryptedExtensions);
                     $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE);
                     break;
 
                 case HandshakeType::CERTIFICATE:
-                    $certificate = Certificate::fromWire($record->payload);
+                    $certificate = $this->messageFactory->createCertificateFromWire($record->payload);
                     $this->processorManager->processCertificate($certificate);
                     $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE_VERIFY);
                     break;
 
                 case HandshakeType::CERTIFICATE_VERIFY:
-                    $certificateVerify = CertificateVerify::fromWire($record->payload);
+                    $certificateVerify = $this->messageFactory->createCertificateVerifyFromWire($record->payload);
                     $this->processorManager->processCertificateVerify($certificateVerify);
                     $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FINISHED);
                     break;
 
                 case HandshakeType::FINISHED:
-                    $finished = Finished::fromWire($record->payload);
+                    $finished = $this->messageFactory->createFinishedFromWire($record->payload);
                     $this->processorManager->processFinished($finished);
                     $this->stateTracker->completeHandshake();
                     break;
 
                 case HandshakeType::KEY_UPDATE:
-                    $keyUpdate = KeyUpdate::fromWire($record->payload);
+                    $keyUpdate = $this->messageFactory->createKeyUpdateFromWire($record->payload);
                     $this->processorManager->processKeyUpdate($keyUpdate);
                     // KeyUpdate doesn't change handshake state (post-handshake message)
                     break;

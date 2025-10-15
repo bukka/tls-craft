@@ -4,27 +4,20 @@ namespace Php\TlsCraft\Connection;
 
 use Php\TlsCraft\Exceptions\CraftException;
 
-use const STREAM_CLIENT_CONNECT;
-use const STREAM_IPPROTO_IP;
-use const STREAM_PF_UNIX;
-use const STREAM_SERVER_BIND;
-use const STREAM_SERVER_LISTEN;
-use const STREAM_SOCK_STREAM;
-
 /**
- * Connection factory for creating handles
+ * Connection factory for creating connections
  */
 class ConnectionFactory
 {
     /**
-     * Create client connection handle
+     * Create client connection
      */
-    public static function connect(
+    public function connect(
         string $address,
         int $port,
         float $timeout = 30.0,
         array $options = [],
-    ): Handle {
+    ): Connection {
         $defaultOptions = [
             'tcp_nodelay' => true,
             'so_reuseport' => true,
@@ -50,17 +43,19 @@ class ConnectionFactory
         stream_set_blocking($resource, true);
         stream_set_timeout($resource, (int) $timeout, (int) (($timeout - floor($timeout)) * 1000000));
 
-        return new StreamHandle($resource, false);
+        $handle = new StreamHandle($resource, false);
+
+        return new Connection($handle, $address, $port, false);
     }
 
     /**
-     * Create server connection handle
+     * Create server connection
      */
-    public static function server(
+    public function server(
         string $address,
         int $port,
         array $options = [],
-    ): Handle {
+    ): Connection {
         $resource = stream_socket_server(
             "tcp://{$address}:{$port}",
             $errno,
@@ -72,13 +67,15 @@ class ConnectionFactory
             throw new CraftException("Failed to bind to {$address}:{$port}: {$errstr} (errno: {$errno})");
         }
 
-        return new StreamHandle($resource, true);
+        $handle = new StreamHandle($resource, true);
+
+        return new Connection($handle, $address, $port, true);
     }
 
     /**
-     * Create a pair of connected handles for testing
+     * Create a pair of connected connections for testing
      */
-    public static function createSocketPair(): array
+    public function createSocketPair(): array
     {
         $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
 
@@ -86,9 +83,12 @@ class ConnectionFactory
             throw new CraftException('Failed to create socket pair');
         }
 
+        $handle1 = new StreamHandle($sockets[0], false);
+        $handle2 = new StreamHandle($sockets[1], false);
+
         return [
-            new StreamHandle($sockets[0], false),
-            new StreamHandle($sockets[1], false),
+            new Connection($handle1, 'local', 0, false),
+            new Connection($handle2, 'local', 0, false),
         ];
     }
 }

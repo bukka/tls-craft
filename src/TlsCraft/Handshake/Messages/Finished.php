@@ -16,9 +16,4 @@ class Finished extends Message
     {
         return $this->verifyData;
     }
-
-    public static function decode(string $data): static
-    {
-        return new self($data);
-    }
 }

@@ -17,12 +17,4 @@ class EncryptedExtensions extends Message
     {
         return Extension::encodeList($this->extensions);
     }
-
-    public static function decode(string $data): static
-    {
-        $offset = 0;
-        $extensions = Extension::decodeList($data, $offset);
-
-        return new self($extensions);
-    }
 }
