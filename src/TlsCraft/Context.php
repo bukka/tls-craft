@@ -43,7 +43,7 @@ class Context
     private string $requestedServerName;
     private array $clientOfferedProtocols;
     private ?string $selectedProtocol = null;
-    private mixed $serverKeyShare;
+    private ?KeyShare $serverKeyShare = null;
     private bool $serverNameAcknowledged;
     private array $serverSupportedGroups;
     private OpenSSLAsymmetricKey $peerPublicKey;
@@ -322,12 +322,12 @@ class Context
         return $this->selectedProtocol;
     }
 
-    public function setServerKeyShare(mixed $serverKeyShare)
+    public function setServerKeyShare(KeyShare $serverKeyShare)
     {
         $this->serverKeyShare = $serverKeyShare;
     }
 
-    public function getServerKeyShare(): mixed
+    public function getServerKeyShare(): KeyShare
     {
         return $this->serverKeyShare;
     }

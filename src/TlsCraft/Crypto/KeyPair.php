@@ -6,5 +6,5 @@ interface KeyPair
 {
     public function getPublicKey(): string;
 
-    public function computeSharedSecret(mixed $peerPublicKey): string;
+    public function computeSharedSecret(string $peerPublicKey): string;
 }

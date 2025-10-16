@@ -6,7 +6,7 @@ use Php\TlsCraft\Exceptions\CryptoException;
 
 use const OPENSSL_KEYTYPE_EC;
 
-class EcdhKeyExchange implements KeyExchange
+class EcdhKeyExchange implements OpenSslKeyExchange
 {
     private const CURVE_MAPPING = [
         'secp256r1' => 'prime256v1',  // P-256
@@ -46,18 +46,11 @@ class EcdhKeyExchange implements KeyExchange
         // Create uncompressed EC point (0x04 + x + y)
         $publicKey = "\x04" . $x . $y;
 
-        return new OpenSslKeyPair(
-            $keyResource,
-            $publicKey
-        );
+        return new OpenSslKeyPair($keyResource, $publicKey, $this);
     }
 
-    public function computeSharedSecret(KeyPair $ourKeyPair, string $peerPublicKey): string
+    public function getPeerKeyResource(string $peerPublicKey): mixed
     {
-        if (!($ourKeyPair instanceof OpenSslKeyPair)) {
-            throw new CryptoException('Invalid key pair type for ECDH');
-        }
-
         // Verify peer public key format (should start with 0x04 for uncompressed)
         if (strlen($peerPublicKey) < 1 || ord($peerPublicKey[0]) !== 0x04) {
             throw new CryptoException('Invalid peer public key format');
@@ -80,13 +73,6 @@ class EcdhKeyExchange implements KeyExchange
             throw new CryptoException('Failed to create peer public key resource');
         }
 
-        // Compute shared secret using OpenSSL
-        $sharedSecret = $ourKeyPair->computeSharedSecret($peerKeyResource);
-
-        if ($sharedSecret === false) {
-            throw new CryptoException('Failed to compute ECDH shared secret');
-        }
-
-        return $sharedSecret;
+        return $peerKeyResource;
     }
 }

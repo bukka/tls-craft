@@ -2,9 +2,7 @@
 
 namespace Php\TlsCraft\Crypto;
 
-interface KeyExchange
+interface OpenSslKeyExchange extends KeyExchange
 {
-    public function generateKeyPair(): KeyPair;
-
     public function getPeerKeyResource(string $peerPublicKey): mixed;
 }

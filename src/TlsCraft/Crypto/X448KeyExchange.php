@@ -4,7 +4,7 @@ namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
 
-class X448KeyExchange implements KeyExchange
+class X448KeyExchange implements OpenSslKeyExchange
 {
     public function generateKeyPair(): KeyPair
     {
@@ -32,15 +32,11 @@ class X448KeyExchange implements KeyExchange
             throw new CryptoException('Failed to extract X448 public key');
         }
 
-        return new OpenSslKeyPair($keyResource, $publicKey);
+        return new OpenSslKeyPair($keyResource, $publicKey, $this);
     }
 
-    public function computeSharedSecret(KeyPair $ourKeyPair, string $peerPublicKey): string
+    public function getPeerKeyResource(string $peerPublicKey): mixed
     {
-        if (!($ourKeyPair instanceof OpenSslKeyPair)) {
-            throw new CryptoException('Invalid key pair type for X448');
-        }
-
         if (strlen($peerPublicKey) !== 56) {
             throw new CryptoException('Invalid X448 peer public key length');
         }
@@ -53,14 +49,7 @@ class X448KeyExchange implements KeyExchange
             throw new CryptoException('Failed to create peer public key resource');
         }
 
-        // Compute shared secret
-        $sharedSecret = openssl_pkey_derive($peerKeyResource, $ourKeyPair->getPrivateKey(), 56);
-
-        if ($sharedSecret === false) {
-            throw new CryptoException('Failed to compute X448 shared secret');
-        }
-
-        return $sharedSecret;
+        return $peerKeyResource;
     }
 
     private function extractRawFromPem(string $pem): ?string
