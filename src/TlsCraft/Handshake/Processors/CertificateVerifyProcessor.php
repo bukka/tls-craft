@@ -11,6 +11,7 @@ use const OPENSSL_ALGO_SHA384;
 use const OPENSSL_ALGO_SHA512;
 use const OPENSSL_KEYTYPE_EC;
 use const OPENSSL_KEYTYPE_RSA;
+use const OPENSSL_PKCS1_PSS_PADDING;
 
 class CertificateVerifyProcessor extends MessageProcessor
 {
@@ -34,8 +35,14 @@ class CertificateVerifyProcessor extends MessageProcessor
         // Check if the algorithm was offered by us in signature_algorithms extension
         $supportedAlgorithms = $this->config->getSignatureAlgorithms();
 
-        if (!in_array($algorithm, $supportedAlgorithms)) {
-            throw new ProtocolViolationException("Server used unsupported signature algorithm: {$algorithm->name}");
+        // Convert algorithm names to SignatureScheme objects for comparison
+        $supportedSchemes = array_map(
+            fn($name) => SignatureScheme::fromName($name),
+            $supportedAlgorithms
+        );
+
+        if (!in_array($algorithm, $supportedSchemes, true)) {
+            throw new ProtocolViolationException("Server used unsupported signature algorithm: {$algorithm->getName()}");
         }
 
         // Validate algorithm is appropriate for the certificate type
@@ -58,46 +65,25 @@ class CertificateVerifyProcessor extends MessageProcessor
 
         switch ($keyType) {
             case OPENSSL_KEYTYPE_RSA:
-                if (!$this->isRSAAlgorithm($algorithm)) {
-                    throw new ProtocolViolationException("RSA key cannot be used with signature algorithm: {$algorithm->name}");
+                if (!$algorithm->isRSA()) {
+                    throw new ProtocolViolationException("RSA key cannot be used with signature algorithm: {$algorithm->getName()}");
                 }
                 break;
 
             case OPENSSL_KEYTYPE_EC:
-                if (!$this->isECDSAAlgorithm($algorithm)) {
-                    throw new ProtocolViolationException("ECDSA key cannot be used with signature algorithm: {$algorithm->name}");
+                if (!$algorithm->isECDSA()) {
+                    throw new ProtocolViolationException("ECDSA key cannot be used with signature algorithm: {$algorithm->getName()}");
                 }
                 break;
 
             default:
+                // Check for EdDSA keys if supported
+                if ($algorithm->isEdDSA()) {
+                    // EdDSA verification will be handled by OpenSSL
+                    break;
+                }
                 throw new ProtocolViolationException('Unsupported public key type for signature verification');
         }
-    }
-
-    private function isRSAAlgorithm(SignatureScheme $algorithm): bool
-    {
-        return match($algorithm) {
-            SignatureScheme::RSA_PKCS1_SHA256,
-            SignatureScheme::RSA_PKCS1_SHA384,
-            SignatureScheme::RSA_PKCS1_SHA512,
-            SignatureScheme::RSA_PSS_RSAE_SHA256,
-            SignatureScheme::RSA_PSS_RSAE_SHA384,
-            SignatureScheme::RSA_PSS_RSAE_SHA512,
-            SignatureScheme::RSA_PSS_PSS_SHA256,
-            SignatureScheme::RSA_PSS_PSS_SHA384,
-            SignatureScheme::RSA_PSS_PSS_SHA512 => true,
-            default => false,
-        };
-    }
-
-    private function isECDSAAlgorithm(SignatureScheme $algorithm): bool
-    {
-        return match($algorithm) {
-            SignatureScheme::ECDSA_SECP256R1_SHA256,
-            SignatureScheme::ECDSA_SECP384R1_SHA384,
-            SignatureScheme::ECDSA_SECP521R1_SHA512 => true,
-            default => false,
-        };
     }
 
     private function verifySignature(SignatureScheme $algorithm, string $signature): void
@@ -135,9 +121,9 @@ class CertificateVerifyProcessor extends MessageProcessor
         $contextString = $this->getContextString();
         $transcriptHash = $this->context->getTranscriptHash();
 
-        return str_repeat("\x20", 64).
-            $contextString.
-            "\x00".
+        return str_repeat("\x20", 64) .
+            $contextString .
+            "\x00" .
             $transcriptHash;
     }
 
@@ -158,49 +144,59 @@ class CertificateVerifyProcessor extends MessageProcessor
         $publicKey,
         SignatureScheme $algorithm,
     ): bool {
-        return match($algorithm) {
-            // RSA PKCS#1 v1.5
-            SignatureScheme::RSA_PKCS1_SHA256 => openssl_verify($data, $signature, $publicKey, OPENSSL_ALGO_SHA256) === 1,
-            SignatureScheme::RSA_PKCS1_SHA384 => openssl_verify($data, $signature, $publicKey, OPENSSL_ALGO_SHA384) === 1,
-            SignatureScheme::RSA_PKCS1_SHA512 => openssl_verify($data, $signature, $publicKey, OPENSSL_ALGO_SHA512) === 1,
+        // Get the OpenSSL algorithm constant and padding type
+        [$opensslAlgo, $padding] = $this->getOpenSSLParameters($algorithm);
 
-            // ECDSA
-            SignatureScheme::ECDSA_SECP256R1_SHA256 => openssl_verify($data, $signature, $publicKey, OPENSSL_ALGO_SHA256) === 1,
-            SignatureScheme::ECDSA_SECP384R1_SHA384 => openssl_verify($data, $signature, $publicKey, OPENSSL_ALGO_SHA384) === 1,
-            SignatureScheme::ECDSA_SECP521R1_SHA512 => openssl_verify($data, $signature, $publicKey, OPENSSL_ALGO_SHA512) === 1,
-
-            // RSA-PSS
-            SignatureScheme::RSA_PSS_RSAE_SHA256,
-            SignatureScheme::RSA_PSS_PSS_SHA256 => $this->verifyRSAPSS($data, $signature, $publicKey, 'sha256'),
-            SignatureScheme::RSA_PSS_RSAE_SHA384,
-            SignatureScheme::RSA_PSS_PSS_SHA384 => $this->verifyRSAPSS($data, $signature, $publicKey, 'sha384'),
-            SignatureScheme::RSA_PSS_RSAE_SHA512,
-            SignatureScheme::RSA_PSS_PSS_SHA512 => $this->verifyRSAPSS($data, $signature, $publicKey, 'sha512'),
-
-            default => throw new ProtocolViolationException("Signature verification not implemented for algorithm: {$algorithm->name}"),
-        };
-    }
-
-    private function verifyRSAPSS(string $data, string $signature, $publicKey, string $hashAlg): bool
-    {
-        // RSA-PSS signature verification
-        // Note: OpenSSL's openssl_verify() may not directly support PSS padding
-        // This is a simplified implementation - production code would need proper PSS handling
-
-        $keyDetails = openssl_pkey_get_details($publicKey);
-        if (!$keyDetails || $keyDetails['type'] !== OPENSSL_KEYTYPE_RSA) {
-            return false;
+        if ($opensslAlgo === null) {
+            throw new ProtocolViolationException(
+                "Signature verification not implemented for algorithm: {$algorithm->getName()}"
+            );
         }
 
-        // For now, fall back to basic verification
-        // In production, you'd need to implement proper PSS padding verification
-        $openSSLAlgo = match($hashAlg) {
-            'sha256' => OPENSSL_ALGO_SHA256,
-            'sha384' => OPENSSL_ALGO_SHA384,
-            'sha512' => OPENSSL_ALGO_SHA512,
-            default => throw new CryptoException("Unsupported hash algorithm: {$hashAlg}"),
-        };
+        $result = openssl_verify($data, $signature, $publicKey, $opensslAlgo, $padding);
 
-        return openssl_verify($data, $signature, $publicKey, $openSSLAlgo) === 1;
+        if ($result === -1) {
+            // Error occurred
+            $error = openssl_error_string();
+            throw new CryptoException("OpenSSL verification error: {$error}");
+        }
+
+        return $result === 1;
+    }
+
+    /**
+     * Get OpenSSL algorithm constant and padding type for a signature scheme
+     *
+     * @return array{int|string|null, int} [algorithm, padding]
+     */
+    private function getOpenSSLParameters(SignatureScheme $algorithm): array
+    {
+        return match($algorithm) {
+            // RSA PKCS#1 v1.5 - use default padding (0)
+            SignatureScheme::RSA_PKCS1_SHA256 => [OPENSSL_ALGO_SHA256, 0],
+            SignatureScheme::RSA_PKCS1_SHA384 => [OPENSSL_ALGO_SHA384, 0],
+            SignatureScheme::RSA_PKCS1_SHA512 => [OPENSSL_ALGO_SHA512, 0],
+
+            // ECDSA - padding parameter is ignored for EC keys
+            SignatureScheme::ECDSA_SECP256R1_SHA256 => [OPENSSL_ALGO_SHA256, 0],
+            SignatureScheme::ECDSA_SECP384R1_SHA384 => [OPENSSL_ALGO_SHA384, 0],
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => [OPENSSL_ALGO_SHA512, 0],
+
+            // RSA-PSS - use PSS padding constant from PHP 8.5
+            SignatureScheme::RSA_PSS_RSAE_SHA256,
+            SignatureScheme::RSA_PSS_PSS_SHA256 => [OPENSSL_ALGO_SHA256, OPENSSL_PKCS1_PSS_PADDING],
+
+            SignatureScheme::RSA_PSS_RSAE_SHA384,
+            SignatureScheme::RSA_PSS_PSS_SHA384 => [OPENSSL_ALGO_SHA384, OPENSSL_PKCS1_PSS_PADDING],
+
+            SignatureScheme::RSA_PSS_RSAE_SHA512,
+            SignatureScheme::RSA_PSS_PSS_SHA512 => [OPENSSL_ALGO_SHA512, OPENSSL_PKCS1_PSS_PADDING],
+
+            // EdDSA - if supported by OpenSSL
+            SignatureScheme::ED25519 => ['Ed25519', 0],
+            SignatureScheme::ED448 => ['Ed448', 0],
+
+            default => [null, 0],
+        };
     }
 }
