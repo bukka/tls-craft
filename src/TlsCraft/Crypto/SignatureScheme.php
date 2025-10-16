@@ -3,6 +3,7 @@
 namespace Php\TlsCraft\Crypto;
 
 use InvalidArgumentException;
+use ValueError;
 
 enum SignatureScheme: int
 {
@@ -37,10 +38,11 @@ enum SignatureScheme: int
             self::RSA_PSS_RSAE_SHA256 => 'rsa_pss_rsae_sha256',
             self::RSA_PSS_RSAE_SHA384 => 'rsa_pss_rsae_sha384',
             self::RSA_PSS_RSAE_SHA512 => 'rsa_pss_rsae_sha512',
+            self::ED25519 => 'ed25519',
+            self::ED448 => 'ed448',
             self::RSA_PSS_PSS_SHA256 => 'rsa_pss_pss_sha256',
             self::RSA_PSS_PSS_SHA384 => 'rsa_pss_pss_sha384',
             self::RSA_PSS_PSS_SHA512 => 'rsa_pss_pss_sha512',
-            default => 'unknown_'.$this->value,
         };
     }
 
@@ -58,11 +60,33 @@ enum SignatureScheme: int
             'rsa_pss_rsae_sha256' => self::RSA_PSS_RSAE_SHA256,
             'rsa_pss_rsae_sha384' => self::RSA_PSS_RSAE_SHA384,
             'rsa_pss_rsae_sha512' => self::RSA_PSS_RSAE_SHA512,
+            'ed25519' => self::ED25519,
+            'ed448' => self::ED448,
             'rsa_pss_pss_sha256' => self::RSA_PSS_PSS_SHA256,
             'rsa_pss_pss_sha384' => self::RSA_PSS_PSS_SHA384,
             'rsa_pss_pss_sha512' => self::RSA_PSS_PSS_SHA512,
             default => throw new InvalidArgumentException("Unknown signature scheme: {$name}"),
         };
+    }
+
+    /**
+     * Decode a signature scheme from its numeric value
+     */
+    public static function decode(int $value): self
+    {
+        try {
+            return self::from($value);
+        } catch (ValueError $e) {
+            throw new InvalidArgumentException("Unknown signature scheme value: 0x" . dechex($value) . " ({$value})");
+        }
+    }
+
+    /**
+     * Encode the signature scheme to its wire format (2 bytes)
+     */
+    public function encode(): string
+    {
+        return pack('n', $this->value);
     }
 
     public function getHashAlgorithm(): string
@@ -100,6 +124,8 @@ enum SignatureScheme: int
     public function isRSA(): bool
     {
         return match ($this) {
+            self::RSA_PKCS1_SHA1,
+            self::RSA_PKCS1_SHA224,
             self::RSA_PKCS1_SHA256,
             self::RSA_PKCS1_SHA384,
             self::RSA_PKCS1_SHA512,
@@ -118,6 +144,19 @@ enum SignatureScheme: int
         return match ($this) {
             self::ED25519, self::ED448 => true,
             default => false,
+        };
+    }
+
+    /**
+     * Check if this signature scheme is compatible with TLS 1.3
+     * TLS 1.3 doesn't support SHA-1 or SHA-224
+     */
+    public function isTls13Compatible(): bool
+    {
+        return match ($this) {
+            self::RSA_PKCS1_SHA1,
+            self::RSA_PKCS1_SHA224 => false,
+            default => true,
         };
     }
 }

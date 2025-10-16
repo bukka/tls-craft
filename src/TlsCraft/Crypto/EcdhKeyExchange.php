@@ -43,10 +43,27 @@ class EcdhKeyExchange implements OpenSslKeyExchange
             throw new CryptoException('Failed to extract EC point coordinates');
         }
 
+        // Determine the expected coordinate length for this curve
+        $coordLen = $this->getCoordinateLength();
+
+        // Pad coordinates to the correct length if necessary (important for P-521)
+        $x = str_pad($x, $coordLen, "\x00", STR_PAD_LEFT);
+        $y = str_pad($y, $coordLen, "\x00", STR_PAD_LEFT);
+
         // Create uncompressed EC point (0x04 + x + y)
         $publicKey = "\x04" . $x . $y;
 
         return new OpenSslKeyPair($keyResource, $publicKey, $this);
+    }
+
+    private function getCoordinateLength(): int
+    {
+        return match($this->curveName) {
+            'secp256r1' => 32,
+            'secp384r1' => 48,
+            'secp521r1' => 66,  // 521 bits = 65.125 bytes, padded to 66
+            default => throw new CryptoException("Unknown coordinate length for {$this->curveName}")
+        };
     }
 
     public function getPeerKeyResource(string $peerPublicKey): mixed

@@ -59,10 +59,17 @@ class Config
 
         $this->supportedGroups = $supportedGroups ?? ['P-256', 'P-384', 'P-521'];
 
+        // Use signature algorithm names instead of values
         $this->signatureAlgorithms = $signatureAlgorithms ?? [
-            SignatureScheme::RSA_PKCS1_SHA256->value,
-            SignatureScheme::RSA_PKCS1_SHA384->value,
-            SignatureScheme::ECDSA_SECP256R1_SHA256->value,
+            'rsa_pkcs1_sha256',
+            'rsa_pkcs1_sha384',
+            'rsa_pkcs1_sha512',
+            'ecdsa_secp256r1_sha256',
+            'ecdsa_secp384r1_sha384',
+            'ecdsa_secp521r1_sha512',
+            'rsa_pss_rsae_sha256',
+            'rsa_pss_rsae_sha384',
+            'rsa_pss_rsae_sha512',
         ];
 
         $this->serverName = $serverName;
