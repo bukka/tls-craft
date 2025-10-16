@@ -28,30 +28,4 @@ class ServerNameExtension extends Extension
 
         return pack('n', strlen($nameData)).$nameData;
     }
-
-    public static function decode(string $data): static
-    {
-        $offset = 0;
-
-        // Server name list length
-        $listLength = unpack('n', substr($data, $offset, 2))[1];
-        $offset += 2;
-
-        // Name type (should be 0 for hostname)
-        $nameType = ord($data[$offset]);
-        ++$offset;
-
-        if ($nameType !== 0) {
-            throw new CraftException("Unsupported name type: {$nameType}");
-        }
-
-        // Name length
-        $nameLength = unpack('n', substr($data, $offset, 2))[1];
-        $offset += 2;
-
-        // Server name
-        $serverName = substr($data, $offset, $nameLength);
-
-        return new self($serverName);
-    }
 }

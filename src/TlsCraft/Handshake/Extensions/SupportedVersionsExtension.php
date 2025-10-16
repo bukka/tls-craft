@@ -37,18 +37,4 @@ class SupportedVersionsExtension extends Extension
 
         return chr(strlen($versionsData)).$versionsData;
     }
-
-    public static function decode(string $data): static
-    {
-        $listLength = ord($data[0]);
-        $offset = 1;
-
-        $versions = [];
-        for ($i = 0; $i < $listLength; $i += 2) {
-            $versionBytes = substr($data, $offset + $i, 2);
-            $versions[] = Version::fromBytes($versionBytes);
-        }
-
-        return new self($versions);
-    }
 }

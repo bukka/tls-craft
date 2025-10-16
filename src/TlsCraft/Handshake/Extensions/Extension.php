@@ -82,6 +82,8 @@ abstract class Extension
         $listLength = unpack('n', substr($data, $offset, 2))[1];
         $offset += 2;
 
+        var_dump($listLength);
+
         if (strlen($data) - $offset < $listLength) {
             throw new CraftException('Insufficient data for extensions');
         }

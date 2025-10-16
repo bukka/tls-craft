@@ -25,9 +25,4 @@ class CustomExtension extends Extension
     {
         return $this->rawData;
     }
-
-    public static function decode(string $data, ExtensionType $type): static
-    {
-        return new self($type, $data);
-    }
 }

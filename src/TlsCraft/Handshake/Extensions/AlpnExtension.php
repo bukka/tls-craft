@@ -29,21 +29,4 @@ class AlpnExtension extends Extension
 
         return pack('n', strlen($protocolsData)).$protocolsData;
     }
-
-    public static function decode(string $data): static
-    {
-        $listLength = unpack('n', substr($data, 0, 2))[1];
-        $offset = 2;
-        $endOffset = $offset + $listLength;
-
-        $protocols = [];
-        while ($offset < $endOffset) {
-            $protocolLength = ord($data[$offset]);
-            ++$offset;
-            $protocols[] = substr($data, $offset, $protocolLength);
-            $offset += $protocolLength;
-        }
-
-        return new self($protocols);
-    }
 }
