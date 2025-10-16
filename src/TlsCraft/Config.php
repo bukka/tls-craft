@@ -11,6 +11,7 @@ use Php\TlsCraft\Handshake\ExtensionProviders\AlpnExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\ServerNameExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SignatureAlgorithmsProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\SupportedGroupsProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SupportedVersionsProvider;
 use Php\TlsCraft\Handshake\ServerHelloExtensionProviders;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -246,6 +247,7 @@ class Config
         // MANDATORY TLS 1.3 extensions
         $this->clientHelloExtensions->addMany([
             new SupportedVersionsProvider($this->supportedVersions),
+            new SupportedGroupsProvider($this->supportedGroups),
             new KeyShareExtensionProvider($this->supportedGroups),
             new SignatureAlgorithmsProvider($this->signatureAlgorithms),
         ]);

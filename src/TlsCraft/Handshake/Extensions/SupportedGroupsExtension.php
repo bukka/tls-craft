@@ -2,77 +2,71 @@
 
 namespace Php\TlsCraft\Handshake\Extensions;
 
-use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Crypto\NamedGroup;
 use Php\TlsCraft\Handshake\ExtensionType;
 
-/**
- * Supported Groups Extension
- */
 class SupportedGroupsExtension extends Extension
 {
+    /**
+     * @param NamedGroup[] $groups
+     */
     public function __construct(
-        private array $groups, // Array of group names/identifiers
+        private array $groups
     ) {
         parent::__construct(ExtensionType::SUPPORTED_GROUPS);
     }
 
+    /**
+     * @return NamedGroup[]
+     */
     public function getGroups(): array
     {
         return $this->groups;
     }
 
-    public function supportsGroup(string $group): bool
-    {
-        return in_array($group, $this->groups);
-    }
-
     public function encode(): string
     {
+        // Build the groups list
         $groupsData = '';
         foreach ($this->groups as $group) {
-            // Convert group name to numeric ID (implementation specific)
-            $groupId = $this->groupNameToId($group);
-            $groupsData .= pack('n', $groupId);
+            $groupsData .= pack('n', $group->value);
         }
 
-        return pack('n', strlen($groupsData)).$groupsData;
+        // Groups list length (2 bytes)
+        $groupsLength = strlen($groupsData);
+
+        // Extension data: groups list length (2) + groups
+        $extensionData = pack('n', $groupsLength) . $groupsData;
+
+        // Extension length (2 bytes) and data
+        $data = pack('n', strlen($extensionData)) . $extensionData;
+
+        return $data;
     }
 
-    public static function decode(string $data): static
+    public static function decode(string $data, int &$offset = 0): self
     {
-        $listLength = unpack('n', substr($data, 0, 2))[1];
-        $offset = 2;
+        $offset = 0;
+
+        // Groups list length
+        $groupsLength = unpack('n', substr($data, $offset, 2))[1];
+        $offset += 2;
 
         $groups = [];
-        for ($i = 0; $i < $listLength; $i += 2) {
-            $groupId = unpack('n', substr($data, $offset + $i, 2))[1];
-            $groups[] = self::groupIdToName($groupId);
+        $groupsEnd = $offset + $groupsLength;
+
+        while ($offset < $groupsEnd) {
+            $groupValue = unpack('n', substr($data, $offset, 2))[1];
+            $offset += 2;
+
+            try {
+                $groups[] = NamedGroup::from($groupValue);
+            } catch (\ValueError $e) {
+                // Skip unknown groups
+                continue;
+            }
         }
 
         return new self($groups);
-    }
-
-    private function groupNameToId(string $group): int
-    {
-        return match ($group) {
-            'P-256' => 23,
-            'P-384' => 24,
-            'P-521' => 25,
-            'X25519' => 29,
-            'X448' => 30,
-            default => throw new CraftException("Unknown group: {$group}"),
-        };
-    }
-
-    private static function groupIdToName(int $groupId): string
-    {
-        return match ($groupId) {
-            23 => 'P-256',
-            24 => 'P-384',
-            25 => 'P-521',
-            29 => 'X25519',
-            30 => 'X448',
-            default => "unknown_{$groupId}",
-        };
     }
 }
