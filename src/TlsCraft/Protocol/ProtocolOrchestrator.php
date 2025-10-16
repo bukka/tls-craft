@@ -73,7 +73,7 @@ class ProtocolOrchestrator
 
         // Send ClientHello
         $clientHello = $this->messageFactory->createClientHello();
-        $this->sendHandshakeMessage($clientHello);
+        $this->sendHandshakeMessage($clientHello, false);
 
         // Process server handshake messages
         $this->processServerHandshakeMessages();
@@ -173,15 +173,6 @@ class ProtocolOrchestrator
 
     private function sendHandshakeMessage(Message $message, bool $encrypted = true): void
     {
-        // Validate if enabled
-        if (!$this->validator->validateHandshakeMessage(
-            $message->type,
-            $this->stateTracker->getHandshakeState(),
-            $this->stateTracker->isClient(),
-        )) {
-            throw new ProtocolViolationException("Invalid handshake message {$message->type->name} in state {$this->stateTracker->getHandshakeState()->value}");
-        }
-
         // Add to context transcript
         $this->context->addHandshakeMessage($message);
 
@@ -233,7 +224,7 @@ class ProtocolOrchestrator
     {
         // 1. ServerHello
         $serverHello = $this->messageFactory->createServerHello();
-        $this->sendHandshakeMessage($serverHello);
+        $this->sendHandshakeMessage($serverHello, false);
 
         // 2. EncryptedExtensions
         $encryptedExtensions = $this->messageFactory->createEncryptedExtensions();
