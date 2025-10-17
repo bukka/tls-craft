@@ -7,7 +7,7 @@ use Php\TlsCraft\Handshake\Extensions\AlpnExtension;
 /**
  * ALPN Extension parser
  */
-class AlpnExtensionParser
+class AlpnExtensionParser extends AbstractExtensionParser
 {
     public function parse(string $data): AlpnExtension
     {

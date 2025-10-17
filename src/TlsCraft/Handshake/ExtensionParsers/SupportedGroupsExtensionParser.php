@@ -5,9 +5,9 @@ namespace Php\TlsCraft\Handshake\ExtensionParsers;
 use Php\TlsCraft\Crypto\NamedGroup;
 use Php\TlsCraft\Handshake\Extensions\SupportedGroupsExtension;
 
-class SupportedGroupsExtensionParser
+class SupportedGroupsExtensionParser extends AbstractExtensionParser
 {
-    public static function parse(string $data, int &$offset = 0): SupportedGroupsExtension
+    public function parse(string $data, int &$offset = 0): SupportedGroupsExtension
     {
         $offset = 0;
 

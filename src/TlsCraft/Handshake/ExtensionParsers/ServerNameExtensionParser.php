@@ -5,7 +5,7 @@ namespace Php\TlsCraft\Handshake\ExtensionParsers;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\Extensions\ServerNameExtension;
 
-class ServerNameExtensionParser
+class ServerNameExtensionParser extends AbstractExtensionParser
 {
     public function parse(string $data): ServerNameExtension
     {

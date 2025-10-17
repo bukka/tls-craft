@@ -8,7 +8,7 @@ use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
 /**
  * Key Share Extension parser
  */
-class KeyShareExtensionParser
+class KeyShareExtensionParser extends AbstractExtensionParser
 {
     public function parse(string $data): KeyShareExtension
     {

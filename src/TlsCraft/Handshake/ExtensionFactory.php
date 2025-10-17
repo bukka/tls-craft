@@ -2,6 +2,7 @@
 
 namespace Php\TlsCraft\Handshake;
 
+use Php\TlsCraft\Context;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\ExtensionParsers\{
     AlpnExtensionParser,
@@ -33,10 +34,14 @@ class ExtensionFactory
     private ?SupportedGroupsExtensionParser $supportedGroupsExtensionParser = null;
     private ?SupportedVersionsExtensionParser $supportedVersionsExtensionParser = null;
 
+    public function __construct(private Context $context)
+    {
+    }
+
     private function getAlpnExtensionParser(): AlpnExtensionParser
     {
         if (!$this->alpnExtensionParser) {
-            $this->alpnExtensionParser = new AlpnExtensionParser();
+            $this->alpnExtensionParser = new AlpnExtensionParser($this->context);
         }
         return $this->alpnExtensionParser;
     }
@@ -44,7 +49,7 @@ class ExtensionFactory
     private function getKeyShareExtensionParser(): KeyShareExtensionParser
     {
         if (!$this->keyShareExtensionParser) {
-            $this->keyShareExtensionParser = new KeyShareExtensionParser();
+            $this->keyShareExtensionParser = new KeyShareExtensionParser($this->context);
         }
         return $this->keyShareExtensionParser;
     }
@@ -52,7 +57,7 @@ class ExtensionFactory
     private function getServerNameExtensionParser(): ServerNameExtensionParser
     {
         if (!$this->serverNameExtensionParser) {
-            $this->serverNameExtensionParser = new ServerNameExtensionParser();
+            $this->serverNameExtensionParser = new ServerNameExtensionParser($this->context);
         }
         return $this->serverNameExtensionParser;
     }
@@ -60,7 +65,7 @@ class ExtensionFactory
     private function getSignatureAlgorithmsExtensionParser(): SignatureAlgorithmsExtensionParser
     {
         if (!$this->signatureAlgorithmsExtensionParser) {
-            $this->signatureAlgorithmsExtensionParser = new SignatureAlgorithmsExtensionParser();
+            $this->signatureAlgorithmsExtensionParser = new SignatureAlgorithmsExtensionParser($this->context);
         }
         return $this->signatureAlgorithmsExtensionParser;
     }
@@ -68,7 +73,7 @@ class ExtensionFactory
     private function getSupportedGroupsExtensionParser(): SupportedGroupsExtensionParser
     {
         if (!$this->supportedGroupsExtensionParser) {
-            $this->supportedGroupsExtensionParser = new SupportedGroupsExtensionParser();
+            $this->supportedGroupsExtensionParser = new SupportedGroupsExtensionParser($this->context);
         }
         return $this->supportedGroupsExtensionParser;
     }
@@ -76,7 +81,7 @@ class ExtensionFactory
     private function getSupportedVersionsExtensionParser(): SupportedVersionsExtensionParser
     {
         if (!$this->supportedVersionsExtensionParser) {
-            $this->supportedVersionsExtensionParser = new SupportedVersionsExtensionParser();
+            $this->supportedVersionsExtensionParser = new SupportedVersionsExtensionParser($this->context);
         }
         return $this->supportedVersionsExtensionParser;
     }

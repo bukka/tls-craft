@@ -8,7 +8,7 @@ use Php\TlsCraft\Handshake\Extensions\SignatureAlgorithmsExtension;
 /**
  * Signature Algorithms Extension parser
  */
-class SignatureAlgorithmsExtensionParser
+class SignatureAlgorithmsExtensionParser extends AbstractExtensionParser
 {
     public function parse(string $data): SignatureAlgorithmsExtension
     {

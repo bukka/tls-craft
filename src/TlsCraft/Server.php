@@ -76,7 +76,7 @@ class Server
 
         $layerFactory = new LayerFactory();
         $recordFactory = new RecordFactory();
-        $extensionFactory = new ExtensionFactory();
+        $extensionFactory = new ExtensionFactory($context);
         $messageFactory = new MessageFactory($context, $extensionFactory);
         $processorManager = new ProcessorManager(new ProcessorFactory($context));
 
