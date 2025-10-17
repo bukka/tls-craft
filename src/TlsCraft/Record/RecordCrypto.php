@@ -55,6 +55,11 @@ class RecordCrypto
      */
     public function decryptRecord(Record $record): Record
     {
+        // ChangeCipherSpec is never encrypted in TLS 1.3 (compatibility record)
+        if ($record->contentType === ContentType::CHANGE_CIPHER_SPEC) {
+            return $record;
+        }
+
         // Don't decrypt plaintext handshake records (before encryption starts)
         if ($record->contentType === ContentType::HANDSHAKE && !$this->hasHandshakeKeys()) {
             return $record;
