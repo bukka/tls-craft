@@ -5,17 +5,8 @@ namespace Php\TlsCraft;
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Connection\ConnectionFactory;
 use Php\TlsCraft\Control\FlowController;
-use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Exceptions\CraftException;
-use Php\TlsCraft\Handshake\ExtensionFactory;
-use Php\TlsCraft\Handshake\MessageFactory;
-use Php\TlsCraft\Handshake\ProcessorFactory;
-use Php\TlsCraft\Handshake\ProcessorManager;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
-use Php\TlsCraft\Record\LayerFactory;
-use Php\TlsCraft\Record\RecordFactory;
-use Php\TlsCraft\State\ProtocolValidator;
-use Php\TlsCraft\State\StateTracker;
 
 class Server
 {
@@ -23,6 +14,7 @@ class Server
     private string $privateKeyPath;
     private Config $config;
     private ConnectionFactory $connectionFactory;
+    private DependencyContainer $dependencyContainer;
     private ?Connection $serverConnection = null;
 
     public function __construct(
@@ -30,11 +22,17 @@ class Server
         string $privateKeyPath,
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
+        ?DependencyContainer $dependencyContainer = null,
     ) {
         $this->certificatePath = $certificatePath;
         $this->privateKeyPath = $privateKeyPath;
         $this->config = $config ?? new Config();
         $this->connectionFactory = $connectionFactory ?? new ConnectionFactory();
+        $this->dependencyContainer = $dependencyContainer ?? new DependencyContainer(
+            false,
+            $this->config,
+            $this->connectionFactory
+        );
     }
 
     public function getConfig(): Config
@@ -56,31 +54,21 @@ class Server
         if (!$this->serverConnection) {
             throw new CraftException('Server not listening');
         }
+        RuntimeEnvironment::assertOpenSsl3();
 
-        // Accept TCP connection
         $clientConnection = $this->serverConnection->accept($timeout);
 
-        // Create a state tracker for this connection
-        $stateTracker = new StateTracker(false); // isClient = false
-
-        // Create protocol validator
-        $validator = $this->config->hasCustomValidator() ?? new ProtocolValidator($this->config->isAllowProtocolViolations());
-
-        // Create a crypto factory
-        $cryptoFactory = new CryptoFactory();
-
-        // Create handshake context
-        $context = new Context(false, $this->config, $cryptoFactory); // isClient = false
+        $stateTracker     = $this->dependencyContainer->getStateTracker();
+        $validator        = $this->dependencyContainer->getValidator(); // NOTE: fix your old '??' bug here (use the ternary like in Client)
+        $context          = $this->dependencyContainer->getContext();
         $context->setCertificateChain($this->loadCertificateChain());
         $context->setPrivateKey($this->loadPrivateKey());
 
-        $layerFactory = new LayerFactory();
-        $recordFactory = new RecordFactory();
-        $extensionFactory = new ExtensionFactory($context);
-        $messageFactory = new MessageFactory($context, $extensionFactory);
-        $processorManager = new ProcessorManager(new ProcessorFactory($context));
+        $layerFactory     = $this->dependencyContainer->getLayerFactory();
+        $recordFactory    = $this->dependencyContainer->getRecordFactory();
+        $messageFactory   = $this->dependencyContainer->getMessageFactory();
+        $processorManager = $this->dependencyContainer->getProcessorManager();
 
-        // Create protocol orchestrator
         $orchestrator = new ProtocolOrchestrator(
             $stateTracker,
             $validator,
@@ -93,9 +81,7 @@ class Server
             $flowController,
         );
 
-        // Perform TLS handshake
         $orchestrator->performServerHandshake();
-
         return new Session($clientConnection, $orchestrator);
     }
 
