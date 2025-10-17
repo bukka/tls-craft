@@ -4,5 +4,5 @@ namespace Php\TlsCraft\Crypto;
 
 interface OpenSslKeyExchange extends KeyExchange
 {
-    public function validatePeerPublicKey(string $peerPublicKey): void;
+    public function getPeerPublicKey(string $peerPublicKey): mixed;
 }

@@ -35,7 +35,7 @@ class X25519KeyExchange implements OpenSslKeyExchange
         return new OpenSslKeyPair($keyResource, $publicKey, $this);
     }
 
-    public function validatePeerPublicKey(string $peerPublicKey): void
+    public function getPeerPublicKey(string $peerPublicKey): mixed
     {
         if (strlen($peerPublicKey) !== 32) {
             throw new CryptoException('Invalid X25519 peer public key length');
@@ -48,6 +48,7 @@ class X25519KeyExchange implements OpenSslKeyExchange
         if (!$peerKeyResource) {
             throw new CryptoException('Failed to create peer public key resource');
         }
+        return $peerKeyResource;
     }
 
     private function extractRawFromPem(string $pem): ?string
