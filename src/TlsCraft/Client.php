@@ -26,7 +26,7 @@ class Client
         $this->config = $config ?? new Config();
         $this->connectionFactory = $connectionFactory ?? new ConnectionFactory();
         $this->dependencyContainer = $dependencyContainer ?? new DependencyContainer(
-            false,
+            true,
             $this->config,
             $this->connectionFactory
         );
