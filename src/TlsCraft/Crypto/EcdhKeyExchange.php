@@ -66,7 +66,7 @@ class EcdhKeyExchange implements OpenSslKeyExchange
         };
     }
 
-    public function getPeerKeyResource(string $peerPublicKey): mixed
+    public function validatePeerPublicKey(string $peerPublicKey): void
     {
         // Verify peer public key format (should start with 0x04 for uncompressed)
         if (strlen($peerPublicKey) < 1 || ord($peerPublicKey[0]) !== 0x04) {
@@ -89,7 +89,5 @@ class EcdhKeyExchange implements OpenSslKeyExchange
         if (!$peerKeyResource) {
             throw new CryptoException('Failed to create peer public key resource');
         }
-
-        return $peerKeyResource;
     }
 }

@@ -20,8 +20,8 @@ class OpenSslKeyPair implements KeyPair
 
     public function computeSharedSecret(string $peerPublicKey): string
     {
-        $peerPublicKeyResource = $this->keyExchange->getPeerKeyResource($peerPublicKey);
-        $sharedSecret = openssl_dh_compute_key($peerPublicKeyResource, $this->privateKeyResource);
+        $this->keyExchange->validatePeerPublicKey($peerPublicKey);
+        $sharedSecret = openssl_dh_compute_key($peerPublicKey, $this->privateKeyResource);
 
         if ($sharedSecret === false) {
             throw new CryptoException('Failed to compute shared secret: '.openssl_error_string());

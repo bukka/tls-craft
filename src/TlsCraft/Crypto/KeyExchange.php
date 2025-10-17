@@ -5,6 +5,4 @@ namespace Php\TlsCraft\Crypto;
 interface KeyExchange
 {
     public function generateKeyPair(): KeyPair;
-
-    public function getPeerKeyResource(string $peerPublicKey): mixed;
 }
