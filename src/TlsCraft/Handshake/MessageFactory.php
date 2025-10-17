@@ -50,7 +50,7 @@ class MessageFactory
     private ?FinishedParser $finishedParser = null;
     private ?KeyUpdateParser $keyUpdateParser = null;
 
-    public function __construct(private Context $context)
+    public function __construct(private Context $context, private ExtensionFactory $extensionFactory)
     {
         $this->config = $context->getConfig();
     }
@@ -114,7 +114,7 @@ class MessageFactory
     private function getClientHelloParser(): ClientHelloParser
     {
         if (!$this->clientHelloParser) {
-            $this->clientHelloParser = new ClientHelloParser($this->context, $this->config);
+            $this->clientHelloParser = new ClientHelloParser($this->context, $this->extensionFactory);
         }
         return $this->clientHelloParser;
     }
@@ -122,7 +122,7 @@ class MessageFactory
     private function getServerHelloParser(): ServerHelloParser
     {
         if (!$this->serverHelloParser) {
-            $this->serverHelloParser = new ServerHelloParser($this->context, $this->config);
+            $this->serverHelloParser = new ServerHelloParser($this->context, $this->extensionFactory);
         }
         return $this->serverHelloParser;
     }
@@ -130,7 +130,7 @@ class MessageFactory
     private function getEncryptedExtensionsParser(): EncryptedExtensionsParser
     {
         if (!$this->encryptedExtensionsParser) {
-            $this->encryptedExtensionsParser = new EncryptedExtensionsParser($this->context, $this->config);
+            $this->encryptedExtensionsParser = new EncryptedExtensionsParser($this->context, $this->extensionFactory);
         }
         return $this->encryptedExtensionsParser;
     }
@@ -138,7 +138,7 @@ class MessageFactory
     private function getCertificateParser(): CertificateParser
     {
         if (!$this->certificateParser) {
-            $this->certificateParser = new CertificateParser($this->context, $this->config);
+            $this->certificateParser = new CertificateParser($this->context, $this->extensionFactory);
         }
         return $this->certificateParser;
     }
@@ -146,7 +146,7 @@ class MessageFactory
     private function getCertificateVerifyParser(): CertificateVerifyParser
     {
         if (!$this->certificateVerifyParser) {
-            $this->certificateVerifyParser = new CertificateVerifyParser($this->context, $this->config);
+            $this->certificateVerifyParser = new CertificateVerifyParser($this->context, $this->extensionFactory);
         }
         return $this->certificateVerifyParser;
     }
@@ -154,7 +154,7 @@ class MessageFactory
     private function getFinishedParser(): FinishedParser
     {
         if (!$this->finishedParser) {
-            $this->finishedParser = new FinishedParser($this->context, $this->config);
+            $this->finishedParser = new FinishedParser($this->context, $this->extensionFactory);
         }
         return $this->finishedParser;
     }
@@ -162,7 +162,7 @@ class MessageFactory
     private function getKeyUpdateParser(): KeyUpdateParser
     {
         if (!$this->keyUpdateParser) {
-            $this->keyUpdateParser = new KeyUpdateParser($this->context, $this->config);
+            $this->keyUpdateParser = new KeyUpdateParser($this->context, $this->extensionFactory);
         }
         return $this->keyUpdateParser;
     }

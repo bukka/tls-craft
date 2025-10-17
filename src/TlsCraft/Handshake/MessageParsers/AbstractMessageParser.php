@@ -4,11 +4,12 @@ namespace Php\TlsCraft\Handshake\MessageParsers;
 
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Handshake\ExtensionFactory;
 use Php\TlsCraft\Protocol\HandshakeType;
 
 abstract class AbstractMessageParser
 {
-    public function __construct(protected Context $context)
+    public function __construct(protected Context $context, protected ExtensionFactory $extensionFactory)
     {
     }
 

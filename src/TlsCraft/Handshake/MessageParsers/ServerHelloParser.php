@@ -39,7 +39,7 @@ class ServerHelloParser extends AbstractMessageParser
         ++$offset;
 
         // Extensions
-        $extensions = Extension::decodeList($payload, $offset);
+        $extensions = $this->extensionFactory->decodeExtensionList($payload, $offset);
 
         return new ServerHello($version, $random, $sessionId, $cipherSuite, $compressionMethod, $extensions);
     }

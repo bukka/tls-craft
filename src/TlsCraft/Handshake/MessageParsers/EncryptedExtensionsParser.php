@@ -13,7 +13,7 @@ class EncryptedExtensionsParser extends AbstractMessageParser
         $payload = $this->parseHandshake($data, HandshakeType::ENCRYPTED_EXTENSIONS);
 
         $offset = 0;
-        $extensions = Extension::decodeList($payload, $offset);
+        $extensions = $this->extensionFactory->decodeExtensionList($payload, $offset);
 
         return new EncryptedExtensions($extensions);
     }

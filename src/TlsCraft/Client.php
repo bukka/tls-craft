@@ -5,6 +5,7 @@ namespace Php\TlsCraft;
 use Php\TlsCraft\Connection\ConnectionFactory;
 use Php\TlsCraft\Control\FlowController;
 use Php\TlsCraft\Crypto\CryptoFactory;
+use Php\TlsCraft\Handshake\ExtensionFactory;
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\ProcessorFactory;
 use Php\TlsCraft\Handshake\ProcessorManager;
@@ -51,7 +52,8 @@ class Client
         $context = new Context(true, $this->config, $cryptoFactory);
         $layerFactory = new LayerFactory();
         $recordFactory = new RecordFactory();
-        $messageFactory = new MessageFactory($context);
+        $extensionFactory = new ExtensionFactory();
+        $messageFactory = new MessageFactory($context, $extensionFactory);
         $processorManager = new ProcessorManager(new ProcessorFactory($context));
 
         // Create protocol orchestrator

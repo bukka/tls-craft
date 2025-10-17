@@ -50,7 +50,7 @@ class ClientHelloParser extends AbstractMessageParser
         $offset += $compressionLength;
 
         // Extensions
-        $extensions = Extension::decodeList($payload, $offset);
+        $extensions = $this->extensionFactory->decodeExtensionList($payload, $offset);
 
         return new ClientHello($version, $random, $sessionId, $cipherSuites, $compressionMethods, $extensions);
     }
