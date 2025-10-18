@@ -148,6 +148,11 @@ class Context
     {
         $this->negotiatedCipherSuite = $cipherSuite;
         $this->keySchedule = $this->cryptoFactory->createKeySchedule($cipherSuite);
+        if (!empty($this->handshakeMessages)) {
+            foreach ($this->handshakeMessages as $message) {
+                $this->keySchedule->addHandshakeMessage($message);
+            }
+        }
     }
 
     public function setNegotiatedSignatureScheme(SignatureScheme $scheme): void
@@ -186,6 +191,7 @@ class Context
     public function addHandshakeMessage(Message $message): void
     {
         $wireFormat = $message->toWire();
+
         $this->handshakeMessages[] = $wireFormat;
 
         if ($this->keySchedule) {

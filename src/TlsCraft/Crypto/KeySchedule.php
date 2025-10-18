@@ -2,6 +2,8 @@
 
 namespace Php\TlsCraft\Crypto;
 
+use Php\TlsCraft\Logger;
+
 class KeySchedule
 {
     private CipherSuite $cipherSuite;
@@ -30,6 +32,11 @@ class KeySchedule
 
     public function addHandshakeMessage(string $message): void
     {
+        Logger::debug('Adding to handshake message transcript', [
+            'wire_length' => strlen($message),
+            'wire_prefix' => bin2hex(substr($message, 0, 20)),
+            'transcript_length_before' => strlen($this->handshakeMessages),
+        ]);
         $this->handshakeMessages .= $message;
     }
 
