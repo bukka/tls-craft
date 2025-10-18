@@ -3,6 +3,7 @@
 namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
+use Php\TlsCraft\Exceptions\OpenSslException;
 
 class X448KeyExchange implements OpenSslKeyExchange
 {
@@ -14,7 +15,7 @@ class X448KeyExchange implements OpenSslKeyExchange
         ]);
 
         if (!$keyResource) {
-            throw new CryptoException('Failed to generate X448 key pair');
+            throw new OpenSslException('Failed to generate X448 key pair');
         }
 
         // Get raw public key
@@ -46,7 +47,7 @@ class X448KeyExchange implements OpenSslKeyExchange
 
         $peerKeyResource = openssl_pkey_get_public($peerPem);
         if (!$peerKeyResource) {
-            throw new CryptoException('Failed to create peer public key resource');
+            throw new OpenSslException('Failed to create peer public key resource');
         }
         return $peerKeyResource;
     }

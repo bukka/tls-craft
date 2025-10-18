@@ -2,7 +2,7 @@
 
 namespace Php\TlsCraft\Crypto;
 
-use Php\TlsCraft\Exceptions\CryptoException;
+use Php\TlsCraft\Exceptions\OpenSslException;
 
 class OpenSslKeyPair implements KeyPair
 {
@@ -24,7 +24,7 @@ class OpenSslKeyPair implements KeyPair
         $sharedSecret = openssl_pkey_derive($peerPublicKeyResource, $this->privateKeyResource);
 
         if ($sharedSecret === false) {
-            throw new CryptoException('Failed to compute shared secret: '.openssl_error_string());
+            throw new OpenSslException('Failed to compute shared secret');
         }
 
         return $sharedSecret;

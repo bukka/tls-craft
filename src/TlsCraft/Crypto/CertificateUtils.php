@@ -4,6 +4,7 @@ namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
 
+use Php\TlsCraft\Exceptions\OpenSslException;
 use const OPENSSL_ALGO_SHA256;
 use const OPENSSL_ALGO_SHA384;
 use const OPENSSL_ALGO_SHA512;
@@ -14,7 +15,7 @@ class CertificateUtils
     {
         $cert = openssl_x509_parse($certData);
         if ($cert === false) {
-            throw new CryptoException('Failed to parse certificate');
+            throw new OpenSslException('Failed to parse certificate');
         }
 
         return $cert;
@@ -24,7 +25,7 @@ class CertificateUtils
     {
         $publicKey = openssl_pkey_get_public($certData);
         if ($publicKey === false) {
-            throw new CryptoException('Failed to extract public key from certificate');
+            throw new OpenSslException('Failed to extract public key from certificate');
         }
 
         return $publicKey;
@@ -88,7 +89,7 @@ class CertificateUtils
             };
 
             if (!openssl_sign($data, $signature, $privateKey, $algorithm)) {
-                throw new CryptoException('Failed to create ECDSA signature');
+                throw new OpenSslException('Failed to create ECDSA signature');
             }
         } else {
             throw new CryptoException("Unsupported signature scheme: {$scheme->name}");

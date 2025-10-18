@@ -4,6 +4,7 @@ namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
 
+use Php\TlsCraft\Exceptions\OpenSslException;
 use const OPENSSL_RAW_DATA;
 
 class Aead
@@ -34,7 +35,7 @@ class Aead
         );
 
         if ($encrypted === false) {
-            throw new CryptoException('AEAD encryption failed');
+            throw new OpenSslException('AEAD encryption failed');
         }
 
         return $encrypted.$tag;
@@ -64,7 +65,7 @@ class Aead
         );
 
         if ($decrypted === false) {
-            throw new CryptoException('AEAD decryption failed');
+            throw new OpenSslException('AEAD decryption failed');
         }
 
         return $decrypted;

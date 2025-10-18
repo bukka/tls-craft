@@ -4,6 +4,7 @@ namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
 
+use Php\TlsCraft\Exceptions\OpenSslException;
 use const OPENSSL_KEYTYPE_EC;
 
 class EcdhKeyExchange implements OpenSslKeyExchange
@@ -30,7 +31,7 @@ class EcdhKeyExchange implements OpenSslKeyExchange
         ]);
 
         if (!$keyResource) {
-            throw new CryptoException("Failed to generate ECDH key pair for {$this->curveName} (OpenSSL: {$this->opensslCurveName})");
+            throw new OpenSslException("Failed to generate ECDH key pair for {$this->curveName} (OpenSSL: {$this->opensslCurveName})");
         }
 
         $details = openssl_pkey_get_details($keyResource);
@@ -87,7 +88,7 @@ class EcdhKeyExchange implements OpenSslKeyExchange
         ]);
 
         if (!$peerKeyResource) {
-            throw new CryptoException('Failed to create peer public key resource');
+            throw new OpenSslException('Failed to create peer public key resource');
         }
 
         return $peerKeyResource;
