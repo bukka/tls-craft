@@ -6,6 +6,7 @@ use Php\TlsCraft\Context;
 use Php\TlsCraft\Crypto\Aead;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Protocol\ContentType;
+use Php\TlsCraft\Protocol\Version;
 
 class RecordCrypto
 {
@@ -248,6 +249,10 @@ class RecordCrypto
 
     private function createAAD(ContentType $contentType, int $length): string
     {
-        return pack('Cnn', $contentType->value, $this->context->getNegotiatedVersion()->value, $length);
+        $version = $this->context->getNegotiatedVersion();
+        if ($version == Version::TLS_1_3) {
+            $version = Version::TLS_1_2;
+        }
+        return pack('Cnn', $contentType->value, $version->value, $length);
     }
 }
