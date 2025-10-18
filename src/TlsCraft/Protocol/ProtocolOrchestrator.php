@@ -27,6 +27,7 @@ class ProtocolOrchestrator
     private RecordFactory $recordFactory;
     private ?FlowController $flowController;
     private Connection $connection;
+    private string $handshakeBuffer = '';
 
     public function __construct(
         StateTracker $stateTracker,
@@ -181,31 +182,6 @@ class ProtocolOrchestrator
         $this->recordLayer->sendRecord($record);
     }
 
-    private function processServerHandshakeMessages(): void
-    {
-        $expectedMessages = [
-            HandshakeType::SERVER_HELLO,
-            HandshakeType::ENCRYPTED_EXTENSIONS,
-            HandshakeType::CERTIFICATE,
-            HandshakeType::CERTIFICATE_VERIFY,
-            HandshakeType::FINISHED,
-        ];
-
-        $receivedCount = 0;
-
-        while ($receivedCount < count($expectedMessages)) {
-            $record = $this->recordLayer->receiveRecord();
-            if (!$record) {
-                throw new CraftException('Connection closed during handshake');
-            }
-
-            if ($record->isHandshake()) {
-                $this->processHandshakeRecord($record);
-                ++$receivedCount;
-            }
-        }
-    }
-
     private function waitForClientHello(): void
     {
         while ($this->stateTracker->getHandshakeState() === HandshakeState::WAIT_CLIENT_HELLO) {
@@ -261,73 +237,157 @@ class ProtocolOrchestrator
 
     // === Enhanced Message Processing with Processors ===
 
+    private function processServerHandshakeMessages(): void
+    {
+        $expectedMessages = [
+            HandshakeType::SERVER_HELLO,
+            HandshakeType::ENCRYPTED_EXTENSIONS,
+            HandshakeType::CERTIFICATE,
+            HandshakeType::CERTIFICATE_VERIFY,
+            HandshakeType::FINISHED,
+        ];
+
+        $messageIndex = 0;
+        $expectedCount = count($expectedMessages);
+
+        while ($messageIndex < $expectedCount) {
+            // Try to process any buffered messages first
+            $startIndex = $messageIndex;
+            while ($this->handshakeBuffer !== '' && $messageIndex < $expectedCount) {
+                $message = $this->parseNextHandshakeMessage($this->handshakeBuffer);
+                if ($message === null) {
+                    break; // Need more data
+                }
+
+                $this->processHandshakeMessage($message['type'], $message['data']);
+                $messageIndex++;
+            }
+
+            // If we processed messages from buffer, continue
+            if ($messageIndex > $startIndex) {
+                continue;
+            }
+
+            // Need more data - receive another record
+            $record = $this->recordLayer->receiveRecord();
+            if (!$record) {
+                throw new CraftException('Connection closed during handshake');
+            }
+
+            // Handle ChangeCipherSpec
+            if ($record->contentType === ContentType::CHANGE_CIPHER_SPEC) {
+                continue; // Ignore for TLS 1.3
+            }
+
+            if ($record->isHandshake()) {
+                $this->processHandshakeRecord($record);
+                // The messageIndex will be incremented when messages are processed
+            } elseif ($record->isAlert()) {
+                $this->handleAlertRecord($record);
+            }
+        }
+    }
+
     private function processHandshakeRecord(Record $record): void
     {
-        try {
-            $handshakeType = $record->getHandshakeType();
+        if (!$record->isHandshake()) {
+            throw new CraftException('Expected handshake record');
+        }
 
-            // Validate message type for current state
-            if (!$this->validator->validateHandshakeMessage(
-                $handshakeType,
-                $this->stateTracker->getHandshakeState(),
-                $this->stateTracker->isClient(),
-            )) {
-                $handshakeState = $this->stateTracker->getHandshakeState()->value;
-                throw new ProtocolViolationException(
-                    "Unexpected handshake message {$handshakeType->name} in state {$handshakeState}");
+        // Add to buffer
+        $this->handshakeBuffer .= $record->payload;
+
+        // Try to parse and process all complete messages in the buffer
+        while ($this->handshakeBuffer !== '') {
+            $message = $this->parseNextHandshakeMessage($this->handshakeBuffer);
+            if ($message === null) {
+                break; // No complete message available
             }
 
-            // Parse to specific type and handle with processors
-            switch ($handshakeType) {
-                case HandshakeType::CLIENT_HELLO:
-                    $clientHello = $this->messageFactory->createClientHelloFromWire($record->payload);
-                    $this->processorManager->processClientHello($clientHello);
-                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FLIGHT2);
-                    break;
+            $this->processHandshakeMessage($message['type'], $message['data']);
+        }
+    }
 
-                case HandshakeType::SERVER_HELLO:
-                    $serverHello = $this->messageFactory->createServerHelloFromWire($record->payload);
-                    $this->processorManager->processServerHello($serverHello);
-                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_ENCRYPTED_EXTENSIONS);
-                    break;
+    private function parseNextHandshakeMessage(string &$buffer): ?array
+    {
+        if (strlen($buffer) < 4) {
+            return null; // Need at least 4 bytes for header
+        }
 
-                case HandshakeType::ENCRYPTED_EXTENSIONS:
-                    $encryptedExtensions = $this->messageFactory->createEncryptedExtensionsFromWire($record->payload);
-                    $this->processorManager->processEncryptedExtensions($encryptedExtensions);
-                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE);
-                    break;
+        // Parse handshake message header
+        $type = HandshakeType::fromByte($buffer[0]);
+        $length = unpack('N', "\x00" . substr($buffer, 1, 3))[1];
 
-                case HandshakeType::CERTIFICATE:
-                    $certificate = $this->messageFactory->createCertificateFromWire($record->payload);
-                    $this->processorManager->processCertificate($certificate);
-                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE_VERIFY);
-                    break;
+        if (strlen($buffer) < 4 + $length) {
+            return null; // Complete message not yet available
+        }
 
-                case HandshakeType::CERTIFICATE_VERIFY:
-                    $certificateVerify = $this->messageFactory->createCertificateVerifyFromWire($record->payload);
-                    $this->processorManager->processCertificateVerify($certificateVerify);
-                    $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FINISHED);
-                    break;
+        // Extract complete message (including header)
+        $messageData = substr($buffer, 0, 4 + $length);
+        $buffer = substr($buffer, 4 + $length); // Remove from buffer
 
-                case HandshakeType::FINISHED:
-                    $finished = $this->messageFactory->createFinishedFromWire($record->payload);
-                    $this->processorManager->processFinished($finished);
-                    $this->stateTracker->completeHandshake();
-                    break;
+        return ['type' => $type, 'data' => $messageData];
+    }
 
-                case HandshakeType::KEY_UPDATE:
-                    $keyUpdate = $this->messageFactory->createKeyUpdateFromWire($record->payload);
-                    $this->processorManager->processKeyUpdate($keyUpdate);
-                    // KeyUpdate doesn't change handshake state (post-handshake message)
-                    break;
+    private function processHandshakeMessage(HandshakeType $type, string $data): void
+    {
+        // Validate message type for current state
+        if (!$this->validator->validateHandshakeMessage(
+            $type,
+            $this->stateTracker->getHandshakeState(),
+            $this->stateTracker->isClient()
+        )) {
+            $handshakeState = $this->stateTracker->getHandshakeState()->value;
+            throw new ProtocolViolationException(
+                "Unexpected handshake message {$type->name} in state {$handshakeState}"
+            );
+        }
 
-                default:
-                    throw new ProtocolViolationException("Unsupported handshake message: {$handshakeType->name}");
-            }
+        // Parse to specific type and handle with processors
+        switch ($type) {
+            case HandshakeType::CLIENT_HELLO:
+                $clientHello = $this->messageFactory->createClientHelloFromWire($data);
+                $this->processorManager->processClientHello($clientHello);
+                $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FLIGHT2);
+                break;
 
-        } catch (CraftException $e) {
-            $this->stateTracker->error('handshake_parse_error: '.$e->getMessage());
-            throw $e;
+            case HandshakeType::SERVER_HELLO:
+                $serverHello = $this->messageFactory->createServerHelloFromWire($data);
+                $this->processorManager->processServerHello($serverHello);
+                $this->stateTracker->transitionHandshake(HandshakeState::WAIT_ENCRYPTED_EXTENSIONS);
+                break;
+
+            case HandshakeType::ENCRYPTED_EXTENSIONS:
+                $encryptedExtensions = $this->messageFactory->createEncryptedExtensionsFromWire($data);
+                $this->processorManager->processEncryptedExtensions($encryptedExtensions);
+                $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE);
+                break;
+
+            case HandshakeType::CERTIFICATE:
+                $certificate = $this->messageFactory->createCertificateFromWire($data);
+                $this->processorManager->processCertificate($certificate);
+                $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE_VERIFY);
+                break;
+
+            case HandshakeType::CERTIFICATE_VERIFY:
+                $certificateVerify = $this->messageFactory->createCertificateVerifyFromWire($data);
+                $this->processorManager->processCertificateVerify($certificateVerify);
+                $this->stateTracker->transitionHandshake(HandshakeState::WAIT_FINISHED);
+                break;
+
+            case HandshakeType::FINISHED:
+                $finished = $this->messageFactory->createFinishedFromWire($data);
+                $this->processorManager->processFinished($finished);
+                $this->stateTracker->completeHandshake();
+                break;
+
+            case HandshakeType::KEY_UPDATE:
+                $keyUpdate = $this->messageFactory->createKeyUpdateFromWire($data);
+                $this->processorManager->processKeyUpdate($keyUpdate);
+                break;
+
+            default:
+                throw new ProtocolViolationException("Unsupported handshake message: {$type->name}");
         }
     }
 

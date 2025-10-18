@@ -110,22 +110,6 @@ class Record
     }
 
     /**
-     * Get handshake message type from payload
-     */
-    public function getHandshakeType(): HandshakeType
-    {
-        if ($this->contentType !== ContentType::HANDSHAKE) {
-            throw new CraftException('Not a handshake record');
-        }
-
-        if ($this->payload === '') {
-            throw new CraftException('Invalid handshake record: empty payload');
-        }
-
-        return HandshakeType::fromByte($this->payload[0]);
-    }
-
-    /**
      * Check if this is a handshake record
      */
     public function isHandshake(): bool
