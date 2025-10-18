@@ -83,8 +83,8 @@ test-server: ## Start OpenSSL s_server (TLS 1.3)
 
 test-server-verbose: ## Start OpenSSL s_server (TLS 1.3) with verbose output
 	@echo "$(GREEN)Starting OpenSSL s_server (TLS 1.3 verbose) on port $(PORT)...$(NC)"
-	@echo "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server.crt -key $(CERT_DIR)/server.key -tls1_3 -debug  -tlsextdebug  -security_debug_verbose -msg -state"
-	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server.crt -key $(CERT_DIR)/server.key -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -state
+	@echo "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server.crt -key $(CERT_DIR)/server.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug  -tlsextdebug  -security_debug_verbose -msg -state"
+	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server.crt -key $(CERT_DIR)/server.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -state
 
 test-server-groups: ## Start OpenSSL s_server (TLS 1.3) with specific groups
 	@echo "$(GREEN)Starting OpenSSL s_server (TLS 1.3 with groups) on port $(PORT)...$(NC)"
