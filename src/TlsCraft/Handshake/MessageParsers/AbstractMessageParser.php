@@ -5,6 +5,7 @@ namespace Php\TlsCraft\Handshake\MessageParsers;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\ExtensionFactory;
+use Php\TlsCraft\Logger;
 use Php\TlsCraft\Protocol\HandshakeType;
 
 abstract class AbstractMessageParser
@@ -21,6 +22,11 @@ abstract class AbstractMessageParser
 
         $type = HandshakeType::fromByte($data[0]);
         $length = unpack('N', "\x00".substr($data, 1, 3))[1];
+
+        Logger::debug('Parse handshake', [
+            'data' => bin2hex($data),
+            'type' => $type->name,
+        ]);
 
         if (strlen($data) < 4 + $length) {
             throw new CraftException('Insufficient data for handshake payload');

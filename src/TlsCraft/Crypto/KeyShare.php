@@ -30,7 +30,7 @@ class KeyShare
         Logger::debug('KeyShare constructed', [
             'Group' => $this->group->getName(),
             'Key length' => strlen($this->keyExchange),
-            'Key (prefix)' => substr($this->keyExchange, 0, 16),
+            'Key (prefix)' => $this->keyExchange,
         ]);
     }
 

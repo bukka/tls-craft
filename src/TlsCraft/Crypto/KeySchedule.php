@@ -34,7 +34,7 @@ class KeySchedule
     {
         Logger::debug('Adding to handshake message transcript', [
             'wire_length' => strlen($message),
-            'wire_prefix' => bin2hex(substr($message, 0, 20)),
+            'wire_message' => bin2hex($message),
             'transcript_length_before' => strlen($this->handshakeMessages),
         ]);
         $this->handshakeMessages .= $message;
