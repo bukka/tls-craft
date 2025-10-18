@@ -3,7 +3,6 @@
 namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
-use PhpCsFixer\Cache\Signature;
 
 class CryptoFactory
 {

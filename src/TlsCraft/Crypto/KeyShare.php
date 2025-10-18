@@ -3,24 +3,35 @@
 namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Logger;
 use ValueError;
 
-/**
- * Key Share entry for TLS 1.3 key exchange
- */
 class KeyShare
 {
     public function __construct(
         private NamedGroup $group,
         private string $keyExchange,
     ) {
-        // Validate key exchange length
         $expectedLength = $this->group->getKeySize();
         if ($expectedLength > 0 && strlen($this->keyExchange) !== $expectedLength) {
+            Logger::warn('KeyShare length mismatch', [
+                'Group' => $this->group->getName(),
+                'Expected length' => $expectedLength,
+                'Actual length' => strlen($this->keyExchange),
+                'Key (prefix)' => substr($this->keyExchange, 0, 16),
+            ]);
             throw new CraftException(
-                "Invalid key exchange length for {$this->group->getName()}: expected {$expectedLength}, got " . strlen($this->keyExchange)
+                "Invalid key exchange length for {$this->group->getName()}: expected {$expectedLength}, got ".strlen(
+                    $this->keyExchange
+                )
             );
         }
+
+        Logger::debug('KeyShare constructed', [
+            'Group' => $this->group->getName(),
+            'Key length' => strlen($this->keyExchange),
+            'Key (prefix)' => substr($this->keyExchange, 0, 16),
+        ]);
     }
 
     public function getGroup(): NamedGroup
@@ -45,7 +56,13 @@ class KeyShare
 
     public function encode(): string
     {
-        return pack('nn', $this->group->value, strlen($this->keyExchange)) . $this->keyExchange;
+        $enc = pack('nn', $this->group->value, strlen($this->keyExchange)).$this->keyExchange;
+        Logger::debug('KeyShare encode', [
+            'Group' => $this->group->getName(),
+            'Key length' => strlen($this->keyExchange),
+        ]);
+
+        return $enc;
     }
 
     public static function decode(string $data, int &$offset): self
@@ -68,25 +85,34 @@ class KeyShare
         try {
             $group = NamedGroup::from($groupValue);
         } catch (ValueError $e) {
+            Logger::warn('KeyShare decode: unknown group', ['Group value' => $groupValue]);
             throw new CraftException("Unknown named group: {$groupValue}");
         }
+
+        Logger::debug('KeyShare decode', [
+            'Group' => $group->getName(),
+            'Key length' => $keyLength,
+            'Key (prefix)' => substr($keyExchange, 0, 16),
+        ]);
 
         return new self($group, $keyExchange);
     }
 
-    /**
-     * Validate key exchange data format
-     */
     public function validate(): bool
     {
         $expectedLength = $this->group->getKeySize();
 
         if ($expectedLength > 0 && strlen($this->keyExchange) !== $expectedLength) {
+            Logger::warn('KeyShare validate: length mismatch', [
+                'Group' => $this->group->getName(),
+                'Expected' => $expectedLength,
+                'Actual' => strlen($this->keyExchange),
+            ]);
+
             return false;
         }
 
-        // Additional validation for specific groups
-        return match($this->group) {
+        $ok = match ($this->group) {
             NamedGroup::SECP256R1,
             NamedGroup::SECP384R1,
             NamedGroup::SECP521R1 => $this->validateECPoint(),
@@ -94,43 +120,34 @@ class KeyShare
             NamedGroup::X448 => strlen($this->keyExchange) === 56,
             default => true,
         };
+
+        Logger::debug('KeyShare validate', [
+            'Group' => $this->group->getName(),
+            'OK' => $ok ? 'true' : 'false',
+        ]);
+
+        return $ok;
     }
 
     private function validateECPoint(): bool
     {
-        // For ECDH, check if it's a valid uncompressed point (starts with 0x04)
         if ($this->keyExchange === '') {
             return false;
         }
-
-        // Check for uncompressed point format
         if (ord($this->keyExchange[0]) !== 0x04) {
             return false;
         }
 
-        // Verify correct length for uncompressed point: 1 + 2 * coordinate_length
         $expectedLengths = [
-            NamedGroup::SECP256R1->value => 65,  // 1 + 32 + 32
-            NamedGroup::SECP384R1->value => 97,  // 1 + 48 + 48
-            NamedGroup::SECP521R1->value => 133, // 1 + 66 + 66
+            NamedGroup::SECP256R1->value => 65,
+            NamedGroup::SECP384R1->value => 97,
+            NamedGroup::SECP521R1->value => 133,
         ];
 
         return isset($expectedLengths[$this->group->value])
             && strlen($this->keyExchange) === $expectedLengths[$this->group->value];
     }
 
-    /**
-     * Create a KeyShare from a NamedGroup and KeyPair
-     * This is a convenience method for use with the CryptoFactory
-     */
-    public static function fromKeyPair(NamedGroup $group, KeyPair $keyPair): self
-    {
-        return new self($group, $keyPair->getPublicKey());
-    }
-
-    /**
-     * Get a debug-friendly representation
-     */
     public function __toString(): string
     {
         return sprintf(
