@@ -30,18 +30,21 @@ class ServerHelloProcessor extends MessageProcessor
             throw new ProtocolViolationException('ServerHello compression method must be null (0) for TLS 1.3');
         }
 
+        // Process mandatory extensions
+        $this->parseSupportedVersions($message);
+        $this->parseKeyShare($message);
+
         // Set server random
         $this->context->setServerRandom($message->random);
 
         // Set negotiated cipher suite
         $this->context->setNegotiatedCipherSuite($message->cipherSuite);
 
+        // First, derive early secret
+        $this->context->deriveEarlySecret();
+
         // Store the ServerHello message for transcript hash
         $this->context->addHandshakeMessage($message);
-
-        // Process mandatory extensions
-        $this->parseSupportedVersions($message);
-        $this->parseKeyShare($message);
 
         // Derive handshake secrets now that we have server key share
         $this->deriveHandshakeSecrets();

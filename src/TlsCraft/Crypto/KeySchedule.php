@@ -41,33 +41,39 @@ class KeySchedule
 
     public function deriveHandshakeSecret(string $sharedSecret): void
     {
-        $derivedSecret = $this->keyDerivation->deriveSecret(
+        // derived_secret = Expand-Label(early_secret, "derived", "", HashLen)
+        $derivedSecret = $this->keyDerivation->expandLabel(
             $this->earlySecret,
             'derived',
             '',
-            $this->cipherSuite,
+            $this->hashLength,
+            $this->cipherSuite
         );
 
+        // handshake_secret = HKDF-Extract(derived_secret, ECDHE)
         $this->handshakeSecret = $this->keyDerivation->hkdfExtract(
             $derivedSecret,
             $sharedSecret,
-            $this->hashAlgorithm,
+            $this->hashAlgorithm
         );
     }
 
     public function deriveMasterSecret(): void
     {
-        $derivedSecret = $this->keyDerivation->deriveSecret(
+        // derived_secret2 = Expand-Label(handshake_secret, "derived", "", HashLen)
+        $derivedSecret = $this->keyDerivation->expandLabel(
             $this->handshakeSecret,
             'derived',
             '',
-            $this->cipherSuite,
+            $this->hashLength,
+            $this->cipherSuite
         );
 
+        // master_secret = HKDF-Extract(derived_secret2, 0^HashLen)
         $this->masterSecret = $this->keyDerivation->hkdfExtract(
             $derivedSecret,
             str_repeat("\x00", $this->hashLength),
-            $this->hashAlgorithm,
+            $this->hashAlgorithm
         );
     }
 

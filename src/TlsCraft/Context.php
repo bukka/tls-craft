@@ -200,6 +200,14 @@ class Context
 
     // === Key Derivation ===
 
+    public function deriveEarlySecret(?string $psk = null): void
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException('Cannot derive early secret: missing key schedule');
+        }
+        $this->keySchedule->deriveEarlySecret($psk);
+    }
+
     public function deriveHandshakeSecrets(): void
     {
         if (!$this->keySchedule || !$this->sharedSecret) {
