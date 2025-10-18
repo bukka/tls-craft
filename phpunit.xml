@@ -5,7 +5,6 @@
          cacheDirectory=".phpunit.cache"
          executionOrder="depends,defects"
          beStrictAboutOutputDuringTests="true"
-         beStrictAboutTodoAnnotatedTests="true"
          failOnRisky="true"
          failOnWarning="true"
          stopOnFailure="false"
@@ -38,10 +37,4 @@
         <ini name="default_socket_timeout" value="30"/>
         <ini name="max_execution_time" value="60"/>
     </php>
-
-    <logging>
-        <log type="coverage-html" target="build/coverage"/>
-        <log type="coverage-clover" target="build/logs/clover.xml"/>
-        <log type="junit" target="build/logs/junit.xml"/>
-    </logging>
 </phpunit>
