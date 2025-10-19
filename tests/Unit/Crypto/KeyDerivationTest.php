@@ -11,8 +11,8 @@ class KeyDerivationTest extends TestCase
     /** RFC 5869 — Test Case 1 (SHA-256): hkdfExtract */
     public function testHkdfExtractMatchesRfc5869Case1(): void
     {
-        $ikm  = hex2bin(str_repeat('0b', 22));                 // 22 bytes of 0x0b
-        $salt = hex2bin('000102030405060708090a0b0c');          // 13 bytes
+        $ikm  = hex2bin(str_repeat('0b', 22)); // 22 bytes of 0x0b
+        $salt = hex2bin('000102030405060708090a0b0c'); // 13 bytes
         $expPrk = hex2bin('077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5');
 
         $kd = new KeyDerivation();
@@ -120,5 +120,71 @@ class KeyDerivationTest extends TestCase
         $iv256 = $kd->expandLabel($sec256, 'iv', '', $c256->getIVLength(), $c256);
         $this->assertSame($c256->getKeyLength(), strlen($k256));
         $this->assertSame($c256->getIVLength(),  strlen($iv256));
+    }
+
+    /**
+     * RFC 8448 Section 3 - Test "derived" label expansion
+     * This tests the intermediate derived secret used in handshake secret derivation
+     */
+    public function testRfc8448Section3DerivedLabelExpansion(): void
+    {
+        $cipher = CipherSuite::TLS_AES_128_GCM_SHA256;
+        $earlySecret = hex2bin('33ad0a1c607ec03b09e6cd9893680ce210adf300aa1f2660e1b22e10f170f92a');
+        $expected = hex2bin('6f2615a108c702c5678f54fc9dbab69716c076189c48250cebeac3576c3611ba');
+
+        $kd = new KeyDerivation();
+        $actual = $kd->deriveSecret($earlySecret, 'derived', /* Messages = "" */ '', $cipher);
+
+        $this->assertSame(bin2hex($expected), bin2hex($actual));
+    }
+
+    /**
+     * Test HKDF-Label encoding for "derived"
+     * This is the exact format needed for TLS 1.3
+     */
+    public function testBuildHkdfLabelForDerived(): void
+    {
+        $kd = new KeyDerivation();
+
+        // Access private method using reflection
+        $reflection = new \ReflectionClass($kd);
+        $method = $reflection->getMethod('buildHkdfLabel');
+
+        // Build label for "tls13 derived" with empty context
+        $label = $method->invoke($kd, 32, 'tls13 derived', '');
+
+        $expected = '00200d746c7331332064657269766564' . '00';
+
+        $this->assertSame(
+            $expected,
+            bin2hex($label),
+            'HKDF-Label encoding must match TLS 1.3 specification'
+        );
+    }
+
+    /**
+     * Test HKDF-Label encoding for "key"
+     */
+    public function testBuildHkdfLabelForKey(): void
+    {
+        $kd = new KeyDerivation();
+
+        $reflection = new \ReflectionClass($kd);
+        $method = $reflection->getMethod('buildHkdfLabel');
+
+        // Build label for "tls13 key" with empty context
+        $label = $method->invoke($kd, 16, 'tls13 key', '');
+
+        // 0010 = 16 in big-endian
+        // 08 = length of "tls13 key"
+        // 746c73313320 6b6579 = "tls13 key"
+        // 00 = empty context
+        $expected = '001009746c733133206b657900';
+
+        $this->assertSame(
+            $expected,
+            bin2hex($label),
+            'HKDF-Label for key must be correctly encoded'
+        );
     }
 }

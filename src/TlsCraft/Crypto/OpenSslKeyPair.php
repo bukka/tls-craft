@@ -23,10 +23,16 @@ class OpenSslKeyPair implements KeyPair
     {
         Logger::debug('ECDH derive (pre)', [
             'Peer pub len' => strlen($peerPublicKey),
-            'Peer pub (pref)' => substr($peerPublicKey, 0, 16),
+            'Peer pub' => $peerPublicKey,
         ]);
 
         $peerPublicKeyResource = $this->keyExchange->getPeerPublicKey($peerPublicKey);
+
+        Logger::debug('Peer key resource details', [
+            'Input peer key' => bin2hex($peerPublicKey),
+            'Resource type' => get_class($peerPublicKeyResource),
+        ]);
+
         $sharedSecret = openssl_pkey_derive($peerPublicKeyResource, $this->privateKeyResource);
 
         if ($sharedSecret === false) {
@@ -36,7 +42,7 @@ class OpenSslKeyPair implements KeyPair
 
         Logger::debug('ECDH derive (ok)', [
             'Shared len' => strlen($sharedSecret),
-            'Shared (pref)' => substr($sharedSecret, 0, 16),
+            'Shared secret' => $sharedSecret,
         ]);
 
         return $sharedSecret;

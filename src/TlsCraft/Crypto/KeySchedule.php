@@ -44,16 +44,19 @@ class KeySchedule
     {
         $ikm = $psk ?? str_repeat("\x00", $this->hashLength);
         $this->earlySecret = $this->keyDerivation->hkdfExtract('', $ikm, $this->hashAlgorithm);
+
+        Logger::debug('EARLY SECRET', [
+            'IKM' => $ikm,
+            'Early Secret' => $this->earlySecret,
+        ]);
     }
 
     public function deriveHandshakeSecret(string $sharedSecret): void
     {
-        // derived_secret = Expand-Label(early_secret, "derived", "", HashLen)
-        $derivedSecret = $this->keyDerivation->expandLabel(
+        $derivedSecret = $this->keyDerivation->deriveSecret(
             $this->earlySecret,
             'derived',
             '',
-            $this->hashLength,
             $this->cipherSuite
         );
 
@@ -63,16 +66,19 @@ class KeySchedule
             $sharedSecret,
             $this->hashAlgorithm
         );
+
+        Logger::debug('HANDSHAKE SECRET', [
+            'Derived Secret' => $derivedSecret,
+            'Handshake Secret' => $this->handshakeSecret,
+        ]);
     }
 
     public function deriveMasterSecret(): void
     {
-        // derived_secret2 = Expand-Label(handshake_secret, "derived", "", HashLen)
-        $derivedSecret = $this->keyDerivation->expandLabel(
+        $derivedSecret = $this->keyDerivation->deriveSecret(
             $this->handshakeSecret,
             'derived',
             '',
-            $this->hashLength,
             $this->cipherSuite
         );
 
@@ -82,6 +88,11 @@ class KeySchedule
             str_repeat("\x00", $this->hashLength),
             $this->hashAlgorithm
         );
+
+        Logger::debug('MASTER SECRET', [
+            'Derived Secret' => $derivedSecret,
+            'Handshake Secret' => $this->masterSecret,
+        ]);
     }
 
     public function getClientHandshakeTrafficSecret(): string
