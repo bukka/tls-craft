@@ -27,17 +27,21 @@ class CertificateParser extends AbstractMessageParser
         $endOffset = $offset + $listLength;
 
         while ($offset < $endOffset) {
-            $certLength = unpack('N', "\x00".substr($payload, $offset, 3))[1];
+            $certLength = unpack('N', "\x00" . substr($payload, $offset, 3))[1];
             $offset += 3;
 
             $certificate = substr($payload, $offset, $certLength);
             $offset += $certLength;
 
-            // Skip extensions
             $extLength = unpack('n', substr($payload, $offset, 2))[1];
-            $offset += 2 + $extLength;
+            $offset += 2;
+            $extBytes = substr($payload, $offset, $extLength);
+            $offset += $extLength;
 
-            $certificates[] = $certificate;
+            $certificates[] = [
+                'certificate' => $certificate,   // raw DER
+                'extensions'  => $extBytes,      // TLS-level extensions for this cert
+            ];
         }
 
         return new Certificate($context, $certificates);
