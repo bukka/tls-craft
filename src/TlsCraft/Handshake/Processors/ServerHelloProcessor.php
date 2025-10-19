@@ -43,9 +43,6 @@ class ServerHelloProcessor extends MessageProcessor
         // First, derive early secret
         $this->context->deriveEarlySecret();
 
-        // Store the ServerHello message for transcript hash
-        $this->context->addHandshakeMessage($message);
-
         // Derive handshake secrets now that we have server key share
         $this->deriveHandshakeSecrets();
     }

@@ -17,9 +17,6 @@ class CertificateVerifyProcessor extends MessageProcessor
 {
     public function process(CertificateVerify $message): void
     {
-        // Store the message for transcript hash
-        $this->context->addHandshakeMessage($message);
-
         // Validate signature algorithm
         $this->validateSignatureAlgorithm($message->algorithm);
 

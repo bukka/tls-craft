@@ -34,9 +34,6 @@ class ClientHelloProcessor extends MessageProcessor
         // Set client random
         $this->context->setClientRandom($message->random);
 
-        // Store the ClientHello message for signature generation
-        $this->context->addHandshakeMessage($message);
-
         // Select a cipher suite
         foreach ($message->cipherSuites as $cipher) {
             if (in_array($cipher, $this->context->getConfig()->getCipherSuites())) {

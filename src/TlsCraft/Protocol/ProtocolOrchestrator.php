@@ -174,11 +174,14 @@ class ProtocolOrchestrator
 
     private function sendHandshakeMessage(Message $message, bool $encrypted = true): void
     {
+        // Serialize message
+        $serializedMessage = $message->toWire();
+
         // Add to context transcript
-        $this->context->addHandshakeMessage($message);
+        $this->context->addHandshakeMessage($serializedMessage);
 
         // Send record
-        $record = $this->recordFactory->createHandshake($message->toWire(), $encrypted);
+        $record = $this->recordFactory->createHandshake($serializedMessage, $encrypted);
         $this->recordLayer->sendRecord($record);
     }
 
@@ -331,7 +334,7 @@ class ProtocolOrchestrator
 
     private function processHandshakeMessage(HandshakeType $type, string $data): void
     {
-        // Validate message type for current state
+        // Validate message type for the current state
         if (!$this->validator->validateHandshakeMessage(
             $type,
             $this->stateTracker->getHandshakeState(),
@@ -342,6 +345,9 @@ class ProtocolOrchestrator
                 "Unexpected handshake message {$type->name} in state {$handshakeState}"
             );
         }
+
+        // Add to context transcript
+        $this->context->addHandshakeMessage($data);
 
         // Parse to specific type and handle with processors
         switch ($type) {

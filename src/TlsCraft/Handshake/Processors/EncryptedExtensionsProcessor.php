@@ -17,11 +17,7 @@ class EncryptedExtensionsProcessor extends MessageProcessor
     {
         // EncryptedExtensions can be empty - that's valid
         // Just validate that any extensions present are allowed in EncryptedExtensions
-
         $this->validateAllowedExtensions($message);
-
-        // Store the message for transcript hash
-        $this->context->addHandshakeMessage($message);
 
         // Process extensions that might be present
         $this->parseServerNameExtension($message);

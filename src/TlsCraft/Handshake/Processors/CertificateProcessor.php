@@ -10,9 +10,6 @@ class CertificateProcessor extends MessageProcessor
 {
     public function process(Certificate $message): void
     {
-        // Store the message for transcript hash
-        $this->context->addHandshakeMessage($message);
-
         // Validate certificate request context (should be empty for server cert)
         if (!empty($message->certificateRequestContext)) {
             if (!$this->context->isClient()) {

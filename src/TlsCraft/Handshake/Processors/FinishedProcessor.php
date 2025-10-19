@@ -12,9 +12,6 @@ class FinishedProcessor extends MessageProcessor
         // Verify the Finished message HMAC
         $this->verifyFinishedData($message->verifyData);
 
-        // Add to transcript AFTER verification (important for TLS 1.3)
-        $this->context->addHandshakeMessage($message);
-
         // Derive application traffic secrets if not already done
         if (!$this->context->hasApplicationSecrets()) {
             $this->context->deriveApplicationSecrets();

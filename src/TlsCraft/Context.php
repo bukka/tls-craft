@@ -188,10 +188,8 @@ class Context
 
     // === Handshake Transcript ===
 
-    public function addHandshakeMessage(Message $message): void
+    public function addHandshakeMessage(string $wireFormat): void
     {
-        $wireFormat = $message->toWire();
-
         $this->handshakeMessages[] = $wireFormat;
 
         if ($this->keySchedule) {
