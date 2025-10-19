@@ -20,9 +20,4 @@ class CustomExtension extends Extension
     {
         return $this->rawData;
     }
-
-    public function encode(): string
-    {
-        return $this->rawData;
-    }
 }

@@ -25,14 +25,4 @@ class SignatureAlgorithmsExtension extends Extension
     {
         return in_array($algorithm, $this->signatureAlgorithms);
     }
-
-    public function encode(): string
-    {
-        $algorithmsData = '';
-        foreach ($this->signatureAlgorithms as $algorithm) {
-            $algorithmsData .= pack('n', $algorithm->value);
-        }
-
-        return pack('n', strlen($algorithmsData)).$algorithmsData;
-    }
 }

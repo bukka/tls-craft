@@ -23,24 +23,4 @@ class SupportedGroupsExtension extends Extension
     {
         return $this->groups;
     }
-
-    public function encode(): string
-    {
-        // Build the groups list
-        $groupsData = '';
-        foreach ($this->groups as $group) {
-            $groupsData .= pack('n', $group->value);
-        }
-
-        // Groups list length (2 bytes)
-        $groupsLength = strlen($groupsData);
-
-        // Extension data: groups list length (2) + groups
-        $extensionData = pack('n', $groupsLength) . $groupsData;
-
-        // Extension length (2 bytes) and data
-        $data = pack('n', strlen($extensionData)) . $extensionData;
-
-        return $data;
-    }
 }

@@ -12,9 +12,4 @@ class KeyUpdate extends Message
     ) {
         parent::__construct(HandshakeType::KEY_UPDATE);
     }
-
-    public function encode(): string
-    {
-        return chr($this->requestUpdate ? 1 : 0);
-    }
 }

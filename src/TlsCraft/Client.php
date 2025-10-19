@@ -38,12 +38,13 @@ class Client
 
         $connection = $this->connectionFactory->connect($this->hostname, $this->port, $timeout);
 
-        $stateTracker     = $this->dependencyContainer->getStateTracker();
-        $validator        = $this->dependencyContainer->getValidator();
-        $context          = $this->dependencyContainer->getContext();
-        $layerFactory     = $this->dependencyContainer->getLayerFactory();
-        $recordFactory    = $this->dependencyContainer->getRecordFactory();
-        $messageFactory   = $this->dependencyContainer->getMessageFactory();
+        $stateTracker = $this->dependencyContainer->getStateTracker();
+        $validator = $this->dependencyContainer->getValidator();
+        $context = $this->dependencyContainer->getContext();
+        $layerFactory = $this->dependencyContainer->getLayerFactory();
+        $recordFactory = $this->dependencyContainer->getRecordFactory();
+        $messageFactory = $this->dependencyContainer->getMessageFactory();
+        $messageSerializer = $this->dependencyContainer->getMessageSerializer();
         $processorManager = $this->dependencyContainer->getProcessorManager();
 
         $orchestrator = new ProtocolOrchestrator(
@@ -54,11 +55,13 @@ class Client
             $layerFactory,
             $recordFactory,
             $messageFactory,
+            $messageSerializer,
             $connection,
             $flowController,
         );
 
         $orchestrator->performClientHandshake();
+
         return new Session($connection, $orchestrator);
     }
 }

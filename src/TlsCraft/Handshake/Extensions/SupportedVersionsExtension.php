@@ -27,14 +27,4 @@ class SupportedVersionsExtension extends Extension
     {
         return in_array($version, $this->versions);
     }
-
-    public function encode(): string
-    {
-        $versionsData = '';
-        foreach ($this->versions as $version) {
-            $versionsData .= $version->toBytes();
-        }
-
-        return chr(strlen($versionsData)).$versionsData;
-    }
 }

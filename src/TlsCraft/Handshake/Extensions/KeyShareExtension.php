@@ -36,14 +36,4 @@ class KeyShareExtension extends Extension
 
         return null;
     }
-
-    public function encode(): string
-    {
-        $keySharesData = '';
-        foreach ($this->keyShares as $keyShare) {
-            $keySharesData .= $keyShare->encode();
-        }
-
-        return pack('n', strlen($keySharesData)).$keySharesData;
-    }
 }

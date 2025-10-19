@@ -19,14 +19,4 @@ class AlpnExtension extends Extension
     {
         return $this->protocols;
     }
-
-    public function encode(): string
-    {
-        $protocolsData = '';
-        foreach ($this->protocols as $protocol) {
-            $protocolsData .= chr(strlen($protocol)).$protocol;
-        }
-
-        return pack('n', strlen($protocolsData)).$protocolsData;
-    }
 }

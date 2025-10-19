@@ -13,6 +13,15 @@ use Php\TlsCraft\Handshake\ExtensionParsers\{
     SupportedGroupsExtensionParser,
     SupportedVersionsExtensionParser
 };
+use Php\TlsCraft\Handshake\ExtensionSerializers\{
+    AlpnExtensionSerializer,
+    CustomExtensionSerializer,
+    KeyShareExtensionSerializer,
+    ServerNameExtensionSerializer,
+    SignatureAlgorithmsExtensionSerializer,
+    SupportedGroupsExtensionSerializer,
+    SupportedVersionsExtensionSerializer
+};
 use Php\TlsCraft\Handshake\Extensions\{
     AlpnExtension,
     CustomExtension,
@@ -26,7 +35,7 @@ use Php\TlsCraft\Handshake\Extensions\{
 
 class ExtensionFactory
 {
-    // Cached parser instances
+    /** ------------------------------- PARSERS -------------------------------- */
     private ?AlpnExtensionParser $alpnExtensionParser = null;
     private ?KeyShareExtensionParser $keyShareExtensionParser = null;
     private ?ServerNameExtensionParser $serverNameExtensionParser = null;
@@ -34,66 +43,82 @@ class ExtensionFactory
     private ?SupportedGroupsExtensionParser $supportedGroupsExtensionParser = null;
     private ?SupportedVersionsExtensionParser $supportedVersionsExtensionParser = null;
 
-    public function __construct(private Context $context)
-    {
-    }
+    /** ----------------------------- SERIALIZERS ------------------------------ */
+    private ?AlpnExtensionSerializer $alpnExtensionSerializer = null;
+    private ?KeyShareExtensionSerializer $keyShareExtensionSerializer = null;
+    private ?ServerNameExtensionSerializer $serverNameExtensionSerializer = null;
+    private ?SignatureAlgorithmsExtensionSerializer $signatureAlgorithmsExtensionSerializer = null;
+    private ?SupportedGroupsExtensionSerializer $supportedGroupsExtensionSerializer = null;
+    private ?SupportedVersionsExtensionSerializer $supportedVersionsExtensionSerializer = null;
+
+    public function __construct(private Context $context) {}
+
+    /* ============================== Parsers ============================== */
 
     private function getAlpnExtensionParser(): AlpnExtensionParser
     {
-        if (!$this->alpnExtensionParser) {
-            $this->alpnExtensionParser = new AlpnExtensionParser($this->context);
-        }
-        return $this->alpnExtensionParser;
+        return $this->alpnExtensionParser ??= new AlpnExtensionParser($this->context);
     }
 
     private function getKeyShareExtensionParser(): KeyShareExtensionParser
     {
-        if (!$this->keyShareExtensionParser) {
-            $this->keyShareExtensionParser = new KeyShareExtensionParser($this->context);
-        }
-        return $this->keyShareExtensionParser;
+        return $this->keyShareExtensionParser ??= new KeyShareExtensionParser($this->context);
     }
 
     private function getServerNameExtensionParser(): ServerNameExtensionParser
     {
-        if (!$this->serverNameExtensionParser) {
-            $this->serverNameExtensionParser = new ServerNameExtensionParser($this->context);
-        }
-        return $this->serverNameExtensionParser;
+        return $this->serverNameExtensionParser ??= new ServerNameExtensionParser($this->context);
     }
 
     private function getSignatureAlgorithmsExtensionParser(): SignatureAlgorithmsExtensionParser
     {
-        if (!$this->signatureAlgorithmsExtensionParser) {
-            $this->signatureAlgorithmsExtensionParser = new SignatureAlgorithmsExtensionParser($this->context);
-        }
-        return $this->signatureAlgorithmsExtensionParser;
+        return $this->signatureAlgorithmsExtensionParser ??= new SignatureAlgorithmsExtensionParser($this->context);
     }
 
     private function getSupportedGroupsExtensionParser(): SupportedGroupsExtensionParser
     {
-        if (!$this->supportedGroupsExtensionParser) {
-            $this->supportedGroupsExtensionParser = new SupportedGroupsExtensionParser($this->context);
-        }
-        return $this->supportedGroupsExtensionParser;
+        return $this->supportedGroupsExtensionParser ??= new SupportedGroupsExtensionParser($this->context);
     }
 
     private function getSupportedVersionsExtensionParser(): SupportedVersionsExtensionParser
     {
-        if (!$this->supportedVersionsExtensionParser) {
-            $this->supportedVersionsExtensionParser = new SupportedVersionsExtensionParser($this->context);
-        }
-        return $this->supportedVersionsExtensionParser;
+        return $this->supportedVersionsExtensionParser ??= new SupportedVersionsExtensionParser($this->context);
     }
 
-    /**
-     * Decode a single extension from wire format
-     *
-     * @param string $data The raw data
-     * @param int &$offset Current position in data
-     * @return Extension The parsed extension
-     * @throws CraftException If insufficient data
-     */
+    /* ============================ Serializers ============================ */
+
+    private function getAlpnExtensionSerializer(): AlpnExtensionSerializer
+    {
+        return $this->alpnExtensionSerializer ??= new AlpnExtensionSerializer($this->context);
+    }
+
+    private function getKeyShareExtensionSerializer(): KeyShareExtensionSerializer
+    {
+        return $this->keyShareExtensionSerializer ??= new KeyShareExtensionSerializer($this->context);
+    }
+
+    private function getServerNameExtensionSerializer(): ServerNameExtensionSerializer
+    {
+        return $this->serverNameExtensionSerializer ??= new ServerNameExtensionSerializer($this->context);
+    }
+
+    private function getSignatureAlgorithmsExtensionSerializer(): SignatureAlgorithmsExtensionSerializer
+    {
+        return $this->signatureAlgorithmsExtensionSerializer ??= new SignatureAlgorithmsExtensionSerializer($this->context);
+    }
+
+    private function getSupportedGroupsExtensionSerializer(): SupportedGroupsExtensionSerializer
+    {
+        return $this->supportedGroupsExtensionSerializer ??= new SupportedGroupsExtensionSerializer($this->context);
+    }
+
+    private function getSupportedVersionsExtensionSerializer(): SupportedVersionsExtensionSerializer
+    {
+        return $this->supportedVersionsExtensionSerializer ??= new SupportedVersionsExtensionSerializer($this->context);
+    }
+
+    /** ============================ Decoding path ============================ */
+
     public function decodeExtensionFromWire(string $data, int &$offset = 0): Extension
     {
         if (strlen($data) - $offset < 4) {
@@ -101,7 +126,7 @@ class ExtensionFactory
         }
 
         $typeValue = unpack('n', substr($data, $offset, 2))[1];
-        $length = unpack('n', substr($data, $offset + 2, 2))[1];
+        $length    = unpack('n', substr($data, $offset + 2, 2))[1];
         $offset += 4;
 
         if (strlen($data) - $offset < $length) {
@@ -117,32 +142,8 @@ class ExtensionFactory
     }
 
     /**
-     * Create a specific extension from parsed data
-     *
-     * @param ExtensionType $type The extension type
-     * @param string $data The extension data
-     * @return Extension The created extension
-     */
-    private function createExtension(ExtensionType $type, string $data): Extension
-    {
-        return match ($type) {
-            ExtensionType::SERVER_NAME => $this->createServerNameExtensionFromWire($data),
-            ExtensionType::SUPPORTED_GROUPS => $this->createSupportedGroupsExtensionFromWire($data),
-            ExtensionType::SIGNATURE_ALGORITHMS => $this->createSignatureAlgorithmsExtensionFromWire($data),
-            ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION => $this->createAlpnExtensionFromWire($data),
-            ExtensionType::SUPPORTED_VERSIONS => $this->createSupportedVersionsExtensionFromWire($data),
-            ExtensionType::KEY_SHARE => $this->createKeyShareExtensionFromWire($data),
-            default => $this->createCustomExtensionFromWire($data, $type),
-        };
-    }
-
-    /**
-     * Decode a list of extensions from wire format
-     *
-     * @param string $data The raw data
-     * @param int &$offset Current position in data
-     * @return Extension[] Array of parsed extensions
-     * @throws CraftException If insufficient data
+     * @return Extension[]
+     * @throws CraftException
      */
     public function decodeExtensionList(string $data, int &$offset = 0): array
     {
@@ -167,40 +168,59 @@ class ExtensionFactory
         return $extensions;
     }
 
-    // Individual extension parsing methods
-    public function createAlpnExtensionFromWire(string $data): AlpnExtension
+    private function createExtension(ExtensionType $type, string $data): Extension
     {
-        return $this->getAlpnExtensionParser()->parse($data);
+        return match ($type) {
+            ExtensionType::SERVER_NAME                   => $this->getServerNameExtensionParser()->parse($data),
+            ExtensionType::SUPPORTED_GROUPS              => $this->getSupportedGroupsExtensionParser()->parse($data),
+            ExtensionType::SIGNATURE_ALGORITHMS          => $this->getSignatureAlgorithmsExtensionParser()->parse($data),
+            ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION
+            => $this->getAlpnExtensionParser()->parse($data),
+            ExtensionType::SUPPORTED_VERSIONS            => $this->getSupportedVersionsExtensionParser()->parse($data),
+            ExtensionType::KEY_SHARE                     => $this->getKeyShareExtensionParser()->parse($data),
+            default                                      => CustomExtensionParser::parse($data, $type),
+        };
     }
 
-    public function createKeyShareExtensionFromWire(string $data): KeyShareExtension
+    /** ============================ Encoding path ============================ */
+    /**
+     * Encode a list of extensions with the proper length prefix (RFC 8446 §4.2).
+     * Uses per-type, strongly-typed serializers.
+     *
+     * @param Extension[] $extensions
+     */
+    public function encodeExtensionList(array $extensions): string
     {
-        return $this->getKeyShareExtensionParser()->parse($data);
+        $blob = '';
+        foreach ($extensions as $ext) {
+            $blob .= $this->encodeExtensionWithHeader($ext);
+        }
+        return pack('n', strlen($blob)) . $blob;
     }
 
-    public function createServerNameExtensionFromWire(string $data): ServerNameExtension
+    /**
+     * Encode a single extension including its 4-byte header (type + length).
+     */
+    public function encodeExtensionWithHeader(Extension $ext): string
     {
-        return $this->getServerNameExtensionParser()->parse($data);
+        $body = $this->serializeExtensionBody($ext);
+        return pack('nn', $ext->type->value, strlen($body)) . $body;
     }
 
-    public function createSignatureAlgorithmsExtensionFromWire(string $data): SignatureAlgorithmsExtension
+    /**
+     * Serialize only the extension body (no header) via a strongly-typed serializer.
+     */
+    public function serializeExtensionBody(Extension $ext): string
     {
-        return $this->getSignatureAlgorithmsExtensionParser()->parse($data);
-    }
-
-    public function createSupportedGroupsExtensionFromWire(string $data): SupportedGroupsExtension
-    {
-        return $this->getSupportedGroupsExtensionParser()->parse($data);
-    }
-
-    public function createSupportedVersionsExtensionFromWire(string $data): SupportedVersionsExtension
-    {
-        return $this->getSupportedVersionsExtensionParser()->parse($data);
-    }
-
-    // Custom extension parser (static method, no caching needed)
-    public function createCustomExtensionFromWire(string $data, ExtensionType $type): CustomExtension
-    {
-        return CustomExtensionParser::parse($data, $type);
+        return match (true) {
+            $ext instanceof AlpnExtension                => $this->getAlpnExtensionSerializer()->serialize($ext),
+            $ext instanceof KeyShareExtension            => $this->getKeyShareExtensionSerializer()->serialize($ext),
+            $ext instanceof ServerNameExtension          => $this->getServerNameExtensionSerializer()->serialize($ext),
+            $ext instanceof SignatureAlgorithmsExtension => $this->getSignatureAlgorithmsExtensionSerializer()->serialize($ext),
+            $ext instanceof SupportedGroupsExtension     => $this->getSupportedGroupsExtensionSerializer()->serialize($ext),
+            $ext instanceof SupportedVersionsExtension   => $this->getSupportedVersionsExtensionSerializer()->serialize($ext),
+            $ext instanceof CustomExtension              => (new CustomExtensionSerializer($this->context))->serialize($ext),
+            default => throw new CraftException('No serializer available for extension type: ' . $ext::class),
+        };
     }
 }

@@ -13,11 +13,4 @@ class CertificateVerify extends Message
     ) {
         parent::__construct(HandshakeType::CERTIFICATE_VERIFY);
     }
-
-    public function encode(): string
-    {
-        return pack('n', $this->algorithm->value).
-            pack('n', strlen($this->signature)).
-            $this->signature;
-    }
 }

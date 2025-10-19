@@ -9,6 +9,7 @@ use Php\TlsCraft\Crypto\CertificateUtils;
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\Messages\{KeyUpdate, Message};
+use Php\TlsCraft\Handshake\MessageSerializer;
 use Php\TlsCraft\Handshake\ProcessorManager;
 use Php\TlsCraft\Record\{EncryptedLayer, LayerFactory, Record, RecordFactory};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
@@ -18,37 +19,22 @@ use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
  */
 class ProtocolOrchestrator
 {
-    private StateTracker $stateTracker;
-    private ProtocolValidator $validator;
-    private Context $context;
-    private ProcessorManager $processorManager;
-    private MessageFactory $messageFactory;
     private EncryptedLayer $recordLayer;
-    private RecordFactory $recordFactory;
-    private ?FlowController $flowController;
-    private Connection $connection;
     private string $handshakeBuffer = '';
 
     public function __construct(
-        StateTracker $stateTracker,
-        ProtocolValidator $validator,
-        Context $context,
-        ProcessorManager $processorManager,
-        LayerFactory $layerFactory,
-        RecordFactory $recordFactory,
-        MessageFactory $messageFactory,
-        Connection $connection,
-        ?FlowController $flowController,
+        private readonly StateTracker $stateTracker,
+        private readonly ProtocolValidator $validator,
+        private readonly Context $context,
+        private readonly ProcessorManager $processorManager,
+        private readonly LayerFactory $layerFactory,
+        private readonly RecordFactory $recordFactory,
+        private readonly MessageFactory $messageFactory,
+        private readonly MessageSerializer $messageSerializer,
+        private readonly Connection $connection,
+        private readonly ?FlowController $flowController,
     ) {
-        $this->stateTracker = $stateTracker;
-        $this->validator = $validator;
-        $this->context = $context;
-        $this->processorManager = $processorManager;
-        $this->messageFactory = $messageFactory;
-        $this->connection = $connection;
-        $this->flowController = $flowController;
-        $this->recordFactory = $recordFactory;
-        $this->recordLayer = $layerFactory->createEncryptedLayer($connection, $context, $this->flowController);
+        $this->recordLayer = $this->layerFactory->createEncryptedLayer($connection, $context, $this->flowController);
     }
 
     public function isConnected(): bool
@@ -175,7 +161,7 @@ class ProtocolOrchestrator
     private function sendHandshakeMessage(Message $message, bool $encrypted = true): void
     {
         // Serialize message
-        $serializedMessage = $message->toWire();
+        $serializedMessage = $this->messageSerializer->serialize($message);
 
         // Add to context transcript
         $this->context->addHandshakeMessage($serializedMessage);

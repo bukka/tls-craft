@@ -67,6 +67,7 @@ class Server
         $layerFactory     = $this->dependencyContainer->getLayerFactory();
         $recordFactory    = $this->dependencyContainer->getRecordFactory();
         $messageFactory   = $this->dependencyContainer->getMessageFactory();
+        $messageSerializer = $this->dependencyContainer->getMessageSerializer();
         $processorManager = $this->dependencyContainer->getProcessorManager();
 
         $orchestrator = new ProtocolOrchestrator(
@@ -77,6 +78,7 @@ class Server
             $layerFactory,
             $recordFactory,
             $messageFactory,
+            $messageSerializer,
             $clientConnection,
             $flowController,
         );

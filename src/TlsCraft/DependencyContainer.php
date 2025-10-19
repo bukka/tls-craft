@@ -5,6 +5,7 @@ use Php\TlsCraft\Connection\ConnectionFactory;
 use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Handshake\ExtensionFactory;
 use Php\TlsCraft\Handshake\MessageFactory;
+use Php\TlsCraft\Handshake\MessageSerializer;
 use Php\TlsCraft\Handshake\ProcessorFactory;
 use Php\TlsCraft\Handshake\ProcessorManager;
 use Php\TlsCraft\Record\LayerFactory;
@@ -19,8 +20,6 @@ final class DependencyContainer
         private ?Config $config = null,
         private ?ConnectionFactory $connectionFactory = null,
     ) {}
-
-    // --- Core singletons (lazy) ---
     private ?Config $cfg = null;
     private ?ConnectionFactory $connFactory = null;
     private ?CryptoFactory $cryptoFactory = null;
@@ -29,14 +28,11 @@ final class DependencyContainer
     private ?Context $context = null;
     private ?ProtocolValidator $validator = null;
     private ?StateTracker $stateTracker = null;
-
-    // --- Handshake stack (lazy, composed) ---
     private ?ExtensionFactory $extensionFactory = null;
     private ?MessageFactory $messageFactory = null;
+    private ?MessageSerializer $messageSerializer = null;
     private ?ProcessorFactory $processorFactory = null;
     private ?ProcessorManager $processorManager = null;
-
-    // ----- Getters -----
 
     public function getConfig(): Config
     {
@@ -80,8 +76,6 @@ final class DependencyContainer
         return $this->stateTracker ??= new StateTracker($this->isClient);
     }
 
-    // --- Handshake factories composed top→down ---
-
     public function getExtensionFactory(): ExtensionFactory
     {
         return $this->extensionFactory ??= new ExtensionFactory($this->getContext());
@@ -90,6 +84,11 @@ final class DependencyContainer
     public function getMessageFactory(): MessageFactory
     {
         return $this->messageFactory ??= new MessageFactory($this->getContext(), $this->getExtensionFactory());
+    }
+
+    public function getMessageSerializer(): MessageSerializer
+    {
+        return $this->messageSerializer ??= new MessageSerializer($this->getContext(), $this->getExtensionFactory());
     }
 
     public function getProcessorFactory(): ProcessorFactory

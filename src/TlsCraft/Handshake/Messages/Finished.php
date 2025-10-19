@@ -11,9 +11,4 @@ class Finished extends Message
     ) {
         parent::__construct(HandshakeType::FINISHED);
     }
-
-    public function encode(): string
-    {
-        return $this->verifyData;
-    }
 }

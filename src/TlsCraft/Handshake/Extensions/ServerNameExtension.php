@@ -17,15 +17,4 @@ class ServerNameExtension extends Extension
     {
         return $this->serverName;
     }
-
-    public function encode(): string
-    {
-        // Server name list length (2 bytes)
-        // Name type (1 byte) - 0 for hostname
-        // Name length (2 bytes)
-        // Name data
-        $nameData = chr(0).pack('n', strlen($this->serverName)).$this->serverName;
-
-        return pack('n', strlen($nameData)).$nameData;
-    }
 }
