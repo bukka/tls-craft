@@ -228,32 +228,22 @@ class ProtocolOrchestrator
 
     private function processServerHandshakeMessages(): void
     {
-        $expectedMessages = [
-            HandshakeType::SERVER_HELLO,
-            HandshakeType::ENCRYPTED_EXTENSIONS,
-            HandshakeType::CERTIFICATE,
-            HandshakeType::CERTIFICATE_VERIFY,
-            HandshakeType::FINISHED,
-        ];
-
-        $messageIndex = 0;
-        $expectedCount = count($expectedMessages);
-
-        while ($messageIndex < $expectedCount) {
+        // Process messages until handshake is complete
+        while (!$this->stateTracker->isHandshakeComplete()) {
             // Try to process any buffered messages first
-            $startIndex = $messageIndex;
-            while ($this->handshakeBuffer !== '' && $messageIndex < $expectedCount) {
+            $processedAny = false;
+            while ($this->handshakeBuffer !== '') {
                 $message = $this->parseNextHandshakeMessage($this->handshakeBuffer);
                 if ($message === null) {
                     break; // Need more data
                 }
 
                 $this->processHandshakeMessage($message['type'], $message['data']);
-                $messageIndex++;
+                $processedAny = true;
             }
 
-            // If we processed messages from buffer, continue
-            if ($messageIndex > $startIndex) {
+            // If we processed messages from buffer, continue the loop
+            if ($processedAny) {
                 continue;
             }
 
@@ -270,7 +260,6 @@ class ProtocolOrchestrator
 
             if ($record->isHandshake()) {
                 $this->processHandshakeRecord($record);
-                // The messageIndex will be incremented when messages are processed
             } elseif ($record->isAlert()) {
                 $this->handleAlertRecord($record);
             }
