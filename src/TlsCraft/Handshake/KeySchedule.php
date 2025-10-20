@@ -1,43 +1,32 @@
 <?php
 
-namespace Php\TlsCraft\Crypto;
+namespace Php\TlsCraft\Handshake;
 
+use Php\TlsCraft\Crypto\CipherSuite;
+use Php\TlsCraft\Crypto\KeyDerivation;
 use Php\TlsCraft\Logger;
+use Php\TlsCraft\Protocol\HandshakeType;
 
 class KeySchedule
 {
-    private CipherSuite $cipherSuite;
-
-    private KeyDerivation $keyDerivation;
     private string $hashAlgorithm;
     private int $hashLength;
-
     private string $earlySecret;
     private string $handshakeSecret;
     private string $masterSecret;
     private ?string $currentClientApplicationTrafficSecret = null;
     private ?string $currentServerApplicationTrafficSecret = null;
-    private string $handshakeMessages = '';
 
-    public function __construct(CipherSuite $cipherSuite, KeyDerivation $keyDerivation)
-    {
-        $this->cipherSuite = $cipherSuite;
+    public function __construct(
+        private CipherSuite $cipherSuite,
+        private KeyDerivation $keyDerivation,
+        private HandshakeTranscript $transcript
+    ) {
         $this->hashAlgorithm = $cipherSuite->getHashAlgorithm();
         $this->hashLength = $cipherSuite->getHashLength();
-        $this->keyDerivation = $keyDerivation;
 
         // Initialize with zeros
         $this->earlySecret = str_repeat("\x00", $this->hashLength);
-    }
-
-    public function addHandshakeMessage(string $message): void
-    {
-        Logger::debug('Adding to handshake message transcript', [
-            'wire_length' => strlen($message),
-            'wire_message' => bin2hex($message),
-            'transcript_length_before' => strlen($this->handshakeMessages),
-        ]);
-        $this->handshakeMessages .= $message;
     }
 
     public function deriveEarlySecret(?string $psk = null): void
@@ -100,7 +89,7 @@ class KeySchedule
         return $this->keyDerivation->deriveSecret(
             $this->handshakeSecret,
             'c hs traffic',
-            $this->handshakeMessages,
+            $this->transcript->getThrough(HandshakeType::SERVER_HELLO),
             $this->cipherSuite,
         );
     }
@@ -110,7 +99,7 @@ class KeySchedule
         return $this->keyDerivation->deriveSecret(
             $this->handshakeSecret,
             's hs traffic',
-            $this->handshakeMessages,
+            $this->transcript->getThrough(HandshakeType::SERVER_HELLO),
             $this->cipherSuite,
         );
     }
@@ -125,7 +114,7 @@ class KeySchedule
         $secret = $this->keyDerivation->deriveSecret(
             $this->masterSecret,
             'c ap traffic',
-            $this->handshakeMessages,
+            $this->transcript->getAll(),
             $this->cipherSuite,
         );
 
@@ -145,7 +134,7 @@ class KeySchedule
         $secret = $this->keyDerivation->deriveSecret(
             $this->masterSecret,
             's ap traffic',
-            $this->handshakeMessages,
+            $this->transcript->getAll(),
             $this->cipherSuite,
         );
 
@@ -178,7 +167,7 @@ class KeySchedule
 
     public function calculateFinishedData(string $finishedKey): string
     {
-        $transcript = hash($this->hashAlgorithm, $this->handshakeMessages, true);
+        $transcript = hash($this->hashAlgorithm, $this->transcript->getThrough(HandshakeType::CERTIFICATE_VERIFY), true);
 
         return hash_hmac($this->hashAlgorithm, $transcript, $finishedKey, true);
     }

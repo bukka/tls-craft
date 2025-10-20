@@ -1,10 +1,11 @@
 <?php
 
-namespace Php\TlsCraft\Tests\Unit\Crypto;
+namespace Php\TlsCraft\Tests\Unit\Handshake;
 
 use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Crypto\KeyDerivation;
-use Php\TlsCraft\Crypto\KeySchedule;
+use Php\TlsCraft\Handshake\HandshakeTranscript;
+use Php\TlsCraft\Handshake\KeySchedule;
 use PHPUnit\Framework\TestCase;
 
 class KeyScheduleTest extends TestCase
@@ -22,10 +23,11 @@ class KeyScheduleTest extends TestCase
         $expectedHandshakeSecret = hex2bin('1dc826e93606aa6fdc0aadc12f741b01046aa6b99f691ed221a9f0ca043fbeac');
         $expectedMasterSecret = hex2bin('18df06843d13a08bf2a449844c5f8a478001bc4d4c627984d5a41da8d0402919');
 
-        // Initialize KeySchedule
+        // Initialize KeySchedule with transcript
         $cipher = CipherSuite::TLS_AES_128_GCM_SHA256;
         $kd = new KeyDerivation();
-        $ks = new KeySchedule($cipher, $kd);
+        $transcript = new HandshakeTranscript();
+        $ks = new KeySchedule($cipher, $kd, $transcript);
 
         // Derive early secret (with no PSK)
         $ks->deriveEarlySecret(null);
@@ -103,17 +105,18 @@ class KeyScheduleTest extends TestCase
         $expectedServerHsTraffic = hex2bin('b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38');
         $expectedClientHsTraffic = hex2bin('b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21');
 
-        // Initialize and derive secrets
+        // Initialize with transcript
         $cipher = CipherSuite::TLS_AES_128_GCM_SHA256;
         $kd = new KeyDerivation();
-        $ks = new KeySchedule($cipher, $kd);
+        $handshakeTranscript = new HandshakeTranscript();
+        $ks = new KeySchedule($cipher, $kd, $handshakeTranscript);
 
         $ks->deriveEarlySecret(null);
         $ks->deriveHandshakeSecret($ecdhSecret);
 
         // Add handshake messages to transcript
-        $ks->addHandshakeMessage($clientHello);
-        $ks->addHandshakeMessage($serverHello);
+        $handshakeTranscript->addMessage($clientHello);
+        $handshakeTranscript->addMessage($serverHello);
 
         // Derive traffic secrets
         $actualServerHsTraffic = $ks->getServerHandshakeTrafficSecret();
@@ -143,7 +146,8 @@ class KeyScheduleTest extends TestCase
         $kd = new KeyDerivation();
 
         // First derivation
-        $ks1 = new KeySchedule($cipher, $kd);
+        $transcript1 = new HandshakeTranscript();
+        $ks1 = new KeySchedule($cipher, $kd, $transcript1);
         $ks1->deriveEarlySecret(null);
         $ks1->deriveHandshakeSecret($ecdhSecret);
 
@@ -152,7 +156,8 @@ class KeyScheduleTest extends TestCase
         $secret1 = $prop->getValue($ks1);
 
         // Second derivation with same inputs
-        $ks2 = new KeySchedule($cipher, $kd);
+        $transcript2 = new HandshakeTranscript();
+        $ks2 = new KeySchedule($cipher, $kd, $transcript2);
         $ks2->deriveEarlySecret(null);
         $ks2->deriveHandshakeSecret($ecdhSecret);
 
@@ -176,11 +181,13 @@ class KeyScheduleTest extends TestCase
         $cipher = CipherSuite::TLS_AES_128_GCM_SHA256;
         $kd = new KeyDerivation();
 
-        $ks1 = new KeySchedule($cipher, $kd);
+        $transcript1 = new HandshakeTranscript();
+        $ks1 = new KeySchedule($cipher, $kd, $transcript1);
         $ks1->deriveEarlySecret(null);
         $ks1->deriveHandshakeSecret($ecdhSecret1);
 
-        $ks2 = new KeySchedule($cipher, $kd);
+        $transcript2 = new HandshakeTranscript();
+        $ks2 = new KeySchedule($cipher, $kd, $transcript2);
         $ks2->deriveEarlySecret(null);
         $ks2->deriveHandshakeSecret($ecdhSecret2);
 
@@ -204,7 +211,8 @@ class KeyScheduleTest extends TestCase
     {
         $cipher = CipherSuite::TLS_AES_128_GCM_SHA256;
         $kd = new KeyDerivation();
-        $ks = new KeySchedule($cipher, $kd);
+        $transcript = new HandshakeTranscript();
+        $ks = new KeySchedule($cipher, $kd, $transcript);
 
         // Use a known traffic secret
         $trafficSecret = hex2bin('b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21');
@@ -225,7 +233,8 @@ class KeyScheduleTest extends TestCase
     {
         $cipher = CipherSuite::TLS_AES_128_GCM_SHA256;
         $kd = new KeyDerivation();
-        $ks = new KeySchedule($cipher, $kd);
+        $transcript = new HandshakeTranscript();
+        $ks = new KeySchedule($cipher, $kd, $transcript);
 
         $trafficSecret = hex2bin('b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21');
 

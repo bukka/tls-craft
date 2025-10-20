@@ -6,6 +6,7 @@ use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\{CryptoException, ProtocolViolationException};
 use Php\TlsCraft\Handshake\Messages\CertificateVerify;
 
+use Php\TlsCraft\Protocol\HandshakeType;
 use const OPENSSL_ALGO_SHA256;
 use const OPENSSL_ALGO_SHA384;
 use const OPENSSL_ALGO_SHA512;
@@ -116,7 +117,10 @@ class CertificateVerifyProcessor extends MessageProcessor
         // - Transcript hash
 
         $contextString = $this->getContextString();
-        $transcriptHash = $this->context->getTranscriptHash($algorithm->getHashAlgorithm(), 0, -1);
+        $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
+            $algorithm->getHashAlgorithm(),
+            HandshakeType::CERTIFICATE
+        );
 
         return str_repeat("\x20", 64) .
             $contextString .

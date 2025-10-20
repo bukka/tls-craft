@@ -3,16 +3,10 @@
 namespace Php\TlsCraft;
 
 use OpenSSLAsymmetricKey;
-use Php\TlsCraft\Crypto\{CipherSuite,
-    CryptoFactory,
-    KeyPair,
-    KeySchedule,
-    KeyShare,
-    NamedGroup,
-    RandomGenerator,
-    SignatureScheme};
+use Php\TlsCraft\Crypto\{CipherSuite, CryptoFactory, KeyPair, KeyShare, NamedGroup, RandomGenerator, SignatureScheme};
 use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
-use Php\TlsCraft\Handshake\Messages\Message;
+use Php\TlsCraft\Handshake\HandshakeTranscript;
+use Php\TlsCraft\Handshake\KeySchedule;
 use Php\TlsCraft\Protocol\Version;
 
 /**
@@ -63,6 +57,7 @@ class Context
         private bool $isClient,
         private Config $config,
         private CryptoFactory $cryptoFactory,
+        private HandshakeTranscript $handshakeTranscript,
     ) {
         $this->randomGenerator = $this->cryptoFactory->createRandomGenerator();
     }
@@ -147,12 +142,7 @@ class Context
     public function setNegotiatedCipherSuite(CipherSuite $cipherSuite): void
     {
         $this->negotiatedCipherSuite = $cipherSuite;
-        $this->keySchedule = $this->cryptoFactory->createKeySchedule($cipherSuite);
-        if (!empty($this->handshakeMessages)) {
-            foreach ($this->handshakeMessages as $message) {
-                $this->keySchedule->addHandshakeMessage($message);
-            }
-        }
+        $this->keySchedule = $this->cryptoFactory->createKeySchedule($cipherSuite, $this->handshakeTranscript);
     }
 
     public function setNegotiatedSignatureScheme(SignatureScheme $scheme): void
@@ -190,73 +180,12 @@ class Context
 
     public function addHandshakeMessage(string $wireFormat): void
     {
-        $this->handshakeMessages[] = $wireFormat;
-
-        if ($this->keySchedule) {
-            $this->keySchedule->addHandshakeMessage($wireFormat);
-        }
+        $this->handshakeTranscript->addMessage($wireFormat);
     }
 
-    /**
-     * Get handshake transcript with optional message range
-     *
-     * @param int $start Starting index (0-based, negative values count from end)
-     * @param int|null $end Ending index (exclusive, null for all, negative values count from end)
-     * @return string The concatenated handshake messages
-     */
-    public function getHandshakeTranscript(int $start = 0, ?int $end = null): string
+    public function getHandshakeTranscript(): HandshakeTranscript
     {
-        // Fast path: return all messages when using defaults
-        if ($start === 0 && $end === null) {
-            return implode('', $this->handshakeMessages);
-        }
-
-        $messages = $this->handshakeMessages;
-        $count = count($messages);
-
-        // Handle negative indices and slicing
-        if ($end === null) {
-            $end = $count;
-        }
-
-        // Normalize negative indices
-        if ($start < 0) {
-            $start = max(0, $count + $start);
-        }
-        if ($end < 0) {
-            $end = max(0, $count + $end);
-        }
-
-        // Ensure valid range
-        $start = max(0, min($start, $count));
-        $end = max($start, min($end, $count));
-
-        // If the range covers all messages after normalization, return all
-        if ($start === 0 && $end === $count) {
-            return implode('', $messages);
-        }
-
-        // Extract the slice
-        $slice = array_slice($messages, $start, $end - $start);
-
-        return implode('', $slice);
-    }
-
-    /**
-     * Get transcript hash with optional message range
-     *
-     * @param string $hashAlgorithm Hash algorithm to use
-     * @param int $start Starting index (0-based, negative values count from end)
-     * @param int|null $end Ending index (exclusive, null for all, negative values count from end)
-     * @return string The transcript hash
-     */
-    public function getTranscriptHash(string $hashAlgorithm, int $start = 0, ?int $end = null): string
-    {
-        if (!$this->keySchedule) {
-            throw new CraftException('Key schedule not initialized');
-        }
-        $transcriptData = $this->getHandshakeTranscript($start, $end);
-        return hash($hashAlgorithm, $transcriptData, true);
+        return $this->handshakeTranscript;
     }
 
     // === Key Derivation ===

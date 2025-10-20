@@ -3,6 +3,8 @@
 namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
+use Php\TlsCraft\Handshake\HandshakeTranscript;
+use Php\TlsCraft\Handshake\KeySchedule;
 
 class CryptoFactory
 {
@@ -23,9 +25,9 @@ class CryptoFactory
         };
     }
 
-    public function createKeySchedule(CipherSuite $cipherSuite): KeySchedule
+    public function createKeySchedule(CipherSuite $cipherSuite, HandshakeTranscript $transcript): KeySchedule
     {
-        return new KeySchedule($cipherSuite, new KeyDerivation());
+        return new KeySchedule($cipherSuite, new KeyDerivation(), $transcript);
     }
 
     public function createRandomGenerator(): RandomGenerator

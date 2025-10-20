@@ -4,6 +4,7 @@ namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Messages\Finished;
+use Php\TlsCraft\Protocol\HandshakeType;
 
 class FinishedProcessor extends MessageProcessor
 {
@@ -32,7 +33,10 @@ class FinishedProcessor extends MessageProcessor
         }
 
         // Get transcript hash excluding the Finished message itself
-        $transcriptHash = $this->context->getTranscriptHash($hashAlgorithm, 0, -1);
+        $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
+            $cipherSuite->getHashAlgorithm(),
+            HandshakeType::CERTIFICATE_VERIFY
+        );
 
         // Get the appropriate handshake traffic secret
         if ($this->context->isClient()) {

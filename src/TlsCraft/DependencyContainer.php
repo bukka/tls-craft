@@ -4,6 +4,7 @@ namespace Php\TlsCraft;
 use Php\TlsCraft\Connection\ConnectionFactory;
 use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Handshake\ExtensionFactory;
+use Php\TlsCraft\Handshake\HandshakeTranscript;
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\MessageSerializer;
 use Php\TlsCraft\Handshake\ProcessorFactory;
@@ -61,7 +62,12 @@ final class DependencyContainer
 
     public function getContext(): Context
     {
-        return $this->context ??= new Context($this->isClient, $this->getConfig(), $this->getCryptoFactory());
+        return $this->context ??= new Context(
+            $this->isClient,
+            $this->getConfig(),
+            $this->getCryptoFactory(),
+            new HandshakeTranscript()
+        );
     }
 
     public function getValidator(): ProtocolValidator
