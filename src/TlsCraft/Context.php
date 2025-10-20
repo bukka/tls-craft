@@ -245,6 +245,7 @@ class Context
     /**
      * Get transcript hash with optional message range
      *
+     * @param string $hashAlgorithm Hash algorithm to use
      * @param int $start Starting index (0-based, negative values count from end)
      * @param int|null $end Ending index (exclusive, null for all, negative values count from end)
      * @return string The transcript hash
