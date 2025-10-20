@@ -40,7 +40,7 @@ class Context
     // Handshake transcript
     private array $handshakeMessages = [];
     private ?KeyShare $keyShare;
-    private string $requestedServerName;
+    private ?string $requestedServerName = null;
     private array $clientOfferedProtocols;
     private ?string $selectedProtocol = null;
     private ?KeyShare $serverKeyShare = null;
@@ -309,7 +309,7 @@ class Context
         $this->requestedServerName = $serverName;
     }
 
-    public function getRequestedServerName(): string
+    public function getRequestedServerName(): ?string
     {
         return $this->requestedServerName;
     }

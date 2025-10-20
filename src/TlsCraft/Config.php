@@ -38,8 +38,15 @@ class Config
     private bool $allowProtocolViolations = false;
     private ?ProtocolValidator $customValidator = null;
     private array $connectionOptions = [];
+
+    // Certificate validation options
     private bool $requireTrustedCertificates = false;
     private bool $allowSelfSignedCertificates = true;
+    private bool $validateCertificateExpiry = true;
+    private bool $validateCertificatePurpose = true;
+    private bool $validateHostname = true;
+    private ?string $customCaPath = null;
+    private ?string $customCaFile = null;
 
     public function __construct(
         ?array $supportedVersions = null,
@@ -204,6 +211,7 @@ class Config
         return $this;
     }
 
+    // Certificate validation getters/setters
     public function isRequireTrustedCertificates(): bool
     {
         return $this->requireTrustedCertificates;
@@ -228,11 +236,96 @@ class Config
         return $this;
     }
 
+    public function isValidateCertificateExpiry(): bool
+    {
+        return $this->validateCertificateExpiry;
+    }
+
+    public function setValidateCertificateExpiry(bool $validate): self
+    {
+        $this->validateCertificateExpiry = $validate;
+
+        return $this;
+    }
+
+    public function isValidateCertificatePurpose(): bool
+    {
+        return $this->validateCertificatePurpose;
+    }
+
+    public function setValidateCertificatePurpose(bool $validate): self
+    {
+        $this->validateCertificatePurpose = $validate;
+
+        return $this;
+    }
+
+    public function isValidateHostname(): bool
+    {
+        return $this->validateHostname;
+    }
+
+    public function setValidateHostname(bool $validate): self
+    {
+        $this->validateHostname = $validate;
+
+        return $this;
+    }
+
+    public function getCustomCaPath(): ?string
+    {
+        return $this->customCaPath;
+    }
+
+    public function setCustomCaPath(?string $path): self
+    {
+        $this->customCaPath = $path;
+
+        return $this;
+    }
+
+    public function getCustomCaFile(): ?string
+    {
+        return $this->customCaFile;
+    }
+
+    public function setCustomCaFile(?string $file): self
+    {
+        $this->customCaFile = $file;
+
+        return $this;
+    }
+
     // Convenience methods for testing
     public function forTesting(): self
     {
         return $this->setAllowSelfSignedCertificates(true)
-            ->setRequireTrustedCertificates(false);
+            ->setRequireTrustedCertificates(false)
+            ->setValidateCertificateExpiry(false)
+            ->setValidateCertificatePurpose(false)
+            ->setValidateHostname(false);
+    }
+
+    public function forProduction(): self
+    {
+        return $this->setAllowSelfSignedCertificates(false)
+            ->setRequireTrustedCertificates(true)
+            ->setValidateCertificateExpiry(true)
+            ->setValidateCertificatePurpose(true)
+            ->setValidateHostname(true);
+    }
+
+    public function withCustomCa(string $caPath = null, string $caFile = null): self
+    {
+        if ($caPath !== null) {
+            $this->setCustomCaPath($caPath);
+        }
+        if ($caFile !== null) {
+            $this->setCustomCaFile($caFile);
+        }
+
+        return $this->setRequireTrustedCertificates(true)
+            ->setAllowSelfSignedCertificates(false);
     }
 
     // Original extension setup methods - kept intact

@@ -148,11 +148,16 @@ class CertificateProcessor extends MessageProcessor
 
     private function validateCertificatePurpose(array $certInfo): void
     {
+        // Skip validation if disabled or for self-signed certificates
+        if (!$this->config->isValidateCertificatePurpose() || $this->config->isAllowSelfSignedCertificates()) {
+            return;
+        }
+
         // Check if certificate has the required key usage
         $keyUsage = $certInfo['extensions']['keyUsage'] ?? '';
 
-        if (!$this->context->isClient()) {
-            // Server certificate validation
+        if ($this->context->isClient()) {
+            // We are client - validating server certificate
             if (!str_contains($keyUsage, 'Digital Signature')
                 && !str_contains($keyUsage, 'Key Agreement')) {
                 throw new ProtocolViolationException('Server certificate missing required key usage');
@@ -164,7 +169,7 @@ class CertificateProcessor extends MessageProcessor
                 throw new ProtocolViolationException('Server certificate missing serverAuth extended key usage');
             }
         } else {
-            // Client certificate validation
+            // We are server - validating client certificate
             if (!str_contains($keyUsage, 'Digital Signature')) {
                 throw new ProtocolViolationException('Client certificate missing Digital Signature key usage');
             }
@@ -178,6 +183,11 @@ class CertificateProcessor extends MessageProcessor
 
     private function validateCertificateValidity(array $certInfo): void
     {
+        // Skip validation if disabled
+        if (!$this->config->isValidateCertificateExpiry()) {
+            return;
+        }
+
         $now = time();
         $validFrom = $certInfo['validFrom_time_t'];
         $validTo = $certInfo['validTo_time_t'];
@@ -193,8 +203,13 @@ class CertificateProcessor extends MessageProcessor
 
     private function validateSubjectAlternativeName(array $certInfo): void
     {
-        if (!$this->context->isClient()) {
-            // Server certificate - validate against requested server name
+        // Skip validation if disabled
+        if (!$this->config->isValidateHostname()) {
+            return;
+        }
+
+        if ($this->context->isClient()) {
+            // We are client - validate server certificate against requested server name
             $requestedServerName = $this->context->getRequestedServerName();
             if ($requestedServerName) {
                 $this->validateServerName($certInfo, $requestedServerName);
@@ -448,12 +463,59 @@ class CertificateProcessor extends MessageProcessor
 
     private function verifyAgainstTrustStore(string $certificate): void
     {
-        // This would verify the certificate against a trusted CA store
-        // For testing framework, we might skip this or use a test CA store
+        // Skip trust store validation if disabled
+        if (!$this->config->isRequireTrustedCertificates()) {
+            return;
+        }
 
-        if ($this->config->isRequireTrustedCertificates()) {
-            // Implement trust store verification
-            throw new ProtocolViolationException('Certificate trust store verification not implemented');
+        $caPath = $this->config->getCustomCaPath();
+        $caFile = $this->config->getCustomCaFile();
+
+        if ($caPath === null && $caFile === null) {
+            // Use system default CA bundle
+            $this->verifyWithSystemCaBundle($certificate);
+        } else {
+            // Use custom CA path/file
+            $this->verifyWithCustomCa($certificate, $caPath, $caFile);
+        }
+    }
+
+    private function verifyWithSystemCaBundle(string $certificate): void
+    {
+        $cert = openssl_x509_read($this->derToPemIfNeeded($certificate));
+        if ($cert === false) {
+            throw new ProtocolViolationException('Failed to parse certificate for trust store verification');
+        }
+
+        // Verify against system CA bundle
+        $result = openssl_x509_checkpurpose($cert, X509_PURPOSE_SSL_CLIENT, []);
+        if ($result !== true) {
+            throw new ProtocolViolationException('Certificate verification failed: not trusted by system CA bundle');
+        }
+    }
+
+    private function verifyWithCustomCa(string $certificate, ?string $caPath, ?string $caFile): void
+    {
+        $cert = openssl_x509_read($this->derToPemIfNeeded($certificate));
+        if ($cert === false) {
+            throw new ProtocolViolationException('Failed to parse certificate for trust store verification');
+        }
+
+        $caList = [];
+        if ($caPath !== null) {
+            $caList[] = $caPath;
+        }
+        if ($caFile !== null) {
+            // For file-based CA, we need to verify differently
+            $caList[] = $caFile;
+        }
+
+        // Verify certificate against custom CA
+        $purpose = $this->context->isClient() ? X509_PURPOSE_SSL_SERVER : X509_PURPOSE_SSL_CLIENT;
+        $result = openssl_x509_checkpurpose($cert, $purpose, $caList);
+
+        if ($result !== true) {
+            throw new ProtocolViolationException('Certificate verification failed: not trusted by custom CA');
         }
     }
 }
