@@ -197,9 +197,65 @@ class Context
         }
     }
 
-    public function getHandshakeTranscript(): string
+    /**
+     * Get handshake transcript with optional message range
+     *
+     * @param int $start Starting index (0-based, negative values count from end)
+     * @param int|null $end Ending index (exclusive, null for all, negative values count from end)
+     * @return string The concatenated handshake messages
+     */
+    public function getHandshakeTranscript(int $start = 0, ?int $end = null): string
     {
-        return implode('', $this->handshakeMessages);
+        // Fast path: return all messages when using defaults
+        if ($start === 0 && $end === null) {
+            return implode('', $this->handshakeMessages);
+        }
+
+        $messages = $this->handshakeMessages;
+        $count = count($messages);
+
+        // Handle negative indices and slicing
+        if ($end === null) {
+            $end = $count;
+        }
+
+        // Normalize negative indices
+        if ($start < 0) {
+            $start = max(0, $count + $start);
+        }
+        if ($end < 0) {
+            $end = max(0, $count + $end);
+        }
+
+        // Ensure valid range
+        $start = max(0, min($start, $count));
+        $end = max($start, min($end, $count));
+
+        // If the range covers all messages after normalization, return all
+        if ($start === 0 && $end === $count) {
+            return implode('', $messages);
+        }
+
+        // Extract the slice
+        $slice = array_slice($messages, $start, $end - $start);
+
+        return implode('', $slice);
+    }
+
+    /**
+     * Get transcript hash with optional message range
+     *
+     * @param int $start Starting index (0-based, negative values count from end)
+     * @param int|null $end Ending index (exclusive, null for all, negative values count from end)
+     * @return string The transcript hash
+     */
+    public function getTranscriptHash(string $hashAlgorithm, int $start = 0, ?int $end = null): string
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException('Key schedule not initialized');
+        }
+        $transcriptData = $this->getHandshakeTranscript($start, $end);
+        return hash($hashAlgorithm, $transcriptData, true);
     }
 
     // === Key Derivation ===
@@ -402,18 +458,6 @@ class Context
     public function isCertificateVerified(): bool
     {
         return $this->certificateVerified;
-    }
-
-    public function getTranscriptHash(): string
-    {
-        if (!$this->keySchedule) {
-            throw new CraftException('Key schedule not initialized');
-        }
-
-        $transcriptData = $this->getHandshakeTranscript();
-        $hashAlgorithm = $this->negotiatedCipherSuite?->getHashAlgorithm() ?? 'sha256';
-
-        return hash($hashAlgorithm, $transcriptData, true);
     }
 
     public function hasApplicationSecrets(): bool

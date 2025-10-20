@@ -86,7 +86,7 @@ class CertificateVerifyProcessor extends MessageProcessor
     private function verifySignature(SignatureScheme $algorithm, string $signature): void
     {
         // Build the signature context according to TLS 1.3 spec
-        $signatureContext = $this->buildSignatureContext();
+        $signatureContext = $this->buildSignatureContext($algorithm);
 
         // Get the peer's public key
         $peerPublicKey = $this->context->getPeerPublicKey();
@@ -107,7 +107,7 @@ class CertificateVerifyProcessor extends MessageProcessor
         }
     }
 
-    private function buildSignatureContext(): string
+    private function buildSignatureContext(SignatureScheme $algorithm): string
     {
         // TLS 1.3 signature context format:
         // - 64 spaces (0x20)
@@ -116,7 +116,7 @@ class CertificateVerifyProcessor extends MessageProcessor
         // - Transcript hash
 
         $contextString = $this->getContextString();
-        $transcriptHash = $this->context->getTranscriptHash();
+        $transcriptHash = $this->context->getTranscriptHash($algorithm->getHashAlgorithm(), 0, -1);
 
         return str_repeat("\x20", 64) .
             $contextString .

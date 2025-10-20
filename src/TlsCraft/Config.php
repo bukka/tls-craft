@@ -315,7 +315,7 @@ class Config
             ->setValidateHostname(true);
     }
 
-    public function withCustomCa(string $caPath = null, string $caFile = null): self
+    public function withCustomCa(?string $caPath = null, ?string $caFile = null): self
     {
         if ($caPath !== null) {
             $this->setCustomCaPath($caPath);
