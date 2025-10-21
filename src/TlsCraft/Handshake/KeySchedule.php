@@ -167,7 +167,8 @@ class KeySchedule
 
     public function calculateFinishedData(string $finishedKey): string
     {
-        $transcript = hash($this->hashAlgorithm, $this->transcript->getThrough(HandshakeType::CERTIFICATE_VERIFY), true);
+        // Hash the transcript up to and including the FINISHED message (should be only called by the client when creating Finished)
+        $transcript = hash($this->hashAlgorithm, $this->transcript->getThrough(HandshakeType::FINISHED), true);
 
         return hash_hmac($this->hashAlgorithm, $transcript, $finishedKey, true);
     }
