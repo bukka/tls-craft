@@ -60,6 +60,11 @@ enum NamedGroup: int
     case FFDHE6144 = 259;
     case FFDHE8192 = 260;
 
+    // Post-Quantum Hybrid Groups (draft-ietf-tls-ecdhe-mlkem)
+    case SECP256R1MLKEM768 = 4587;      // 0x11EB
+    case X25519MLKEM768 = 4588;         // 0x11EC
+    case SECP384R1MLKEM1024 = 4589;     // 0x11ED
+
     // Arbitrary explicit prime curves (deprecated)
     case ARBITRARY_EXPLICIT_PRIME_CURVES = 65281;
     case ARBITRARY_EXPLICIT_CHAR2_CURVES = 65282;
@@ -109,6 +114,9 @@ enum NamedGroup: int
             'ffdhe4096' => self::FFDHE4096,
             'ffdhe6144' => self::FFDHE6144,
             'ffdhe8192' => self::FFDHE8192,
+            'SecP256r1MLKEM768', 'secp256r1mlkem768' => self::SECP256R1MLKEM768,
+            'X25519MLKEM768', 'x25519mlkem768' => self::X25519MLKEM768,
+            'SecP384r1MLKEM1024', 'secp384r1mlkem1024' => self::SECP384R1MLKEM1024,
             default => throw new InvalidArgumentException("Unknown named group: {$name}"),
         };
     }
@@ -154,6 +162,9 @@ enum NamedGroup: int
             self::FFDHE4096 => 'ffdhe4096',
             self::FFDHE6144 => 'ffdhe6144',
             self::FFDHE8192 => 'ffdhe8192',
+            self::SECP256R1MLKEM768 => 'SecP256r1MLKEM768',
+            self::X25519MLKEM768 => 'X25519MLKEM768',
+            self::SECP384R1MLKEM1024 => 'SecP384r1MLKEM1024',
             self::ARBITRARY_EXPLICIT_PRIME_CURVES => 'arbitrary_explicit_prime_curves',
             self::ARBITRARY_EXPLICIT_CHAR2_CURVES => 'arbitrary_explicit_char2_curves',
             default => 'unknown_'.$this->value,
@@ -173,6 +184,15 @@ enum NamedGroup: int
             self::FFDHE4096,
             self::FFDHE6144,
             self::FFDHE8192
+        ], true);
+    }
+
+    public function isPostQuantum(): bool
+    {
+        return in_array($this, [
+            self::SECP256R1MLKEM768,
+            self::X25519MLKEM768,
+            self::SECP384R1MLKEM1024,
         ], true);
     }
 
@@ -197,7 +217,10 @@ enum NamedGroup: int
             self::FFDHE3072,
             self::FFDHE4096,
             self::FFDHE6144,
-            self::FFDHE8192 => true,
+            self::FFDHE8192,
+            self::SECP256R1MLKEM768,
+            self::X25519MLKEM768,
+            self::SECP384R1MLKEM1024 => true,
             default => false,
         };
     }
@@ -207,6 +230,7 @@ enum NamedGroup: int
      * For ECDH curves, this is the uncompressed point format (0x04 + x + y)
      * For X25519/X448, this is the raw public key
      * For FFDHE groups, this is the size of the public value
+     * For PQC hybrids, this is the concatenated size
      */
     public function getKeySize(): int
     {
@@ -227,6 +251,9 @@ enum NamedGroup: int
             self::FFDHE4096 => 512,                                     // 4096 bits / 8
             self::FFDHE6144 => 768,                                     // 6144 bits / 8
             self::FFDHE8192 => 1024,                                    // 8192 bits / 8
+            self::X25519MLKEM768 => 1216,                               // 1184 (MLKEM) + 32 (X25519)
+            self::SECP256R1MLKEM768 => 1249,                            // 65 (P-256) + 1184 (MLKEM)
+            self::SECP384R1MLKEM1024 => 1665,                           // 97 (P-384) + 1568 (MLKEM-1024)
             default => 0,
         };
     }
