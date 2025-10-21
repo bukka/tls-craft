@@ -373,6 +373,11 @@ class ProtocolOrchestrator
                 $this->processorManager->processKeyUpdate($keyUpdate);
                 break;
 
+            case HandshakeType::NEW_SESSION_TICKET:
+                // For now, just acknowledge and ignore
+                // In the future; it can store the ticket for session resumption.
+                break;
+
             default:
                 throw new ProtocolViolationException("Unsupported handshake message: {$type->name}");
         }

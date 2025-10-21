@@ -72,7 +72,7 @@ class ProtocolValidator
                 HandshakeType::CERTIFICATE_VERIFY,
                 HandshakeType::FINISHED,
             ],
-            HandshakeState::CONNECTED => [HandshakeType::KEY_UPDATE],
+            HandshakeState::CONNECTED => [HandshakeType::KEY_UPDATE, HandshakeType::NEW_SESSION_TICKET],
         };
     }
 
