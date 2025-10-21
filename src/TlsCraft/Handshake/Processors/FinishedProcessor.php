@@ -15,6 +15,9 @@ class FinishedProcessor extends MessageProcessor
 
         // Update state to indicate handshake is complete
         $this->context->setHandshakeComplete(true);
+
+        // Derive application traffic secrets
+        $this->context->deriveApplicationSecrets();
     }
 
     private function verifyFinishedData(string $receivedVerifyData): void
