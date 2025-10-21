@@ -86,22 +86,42 @@ class KeySchedule
 
     public function getClientHandshakeTrafficSecret(): string
     {
-        return $this->keyDerivation->deriveSecret(
+        $transcript = $this->transcript->getThrough(HandshakeType::SERVER_HELLO);
+
+        $derivedSecret = $this->keyDerivation->deriveSecret(
             $this->handshakeSecret,
             'c hs traffic',
-            $this->transcript->getThrough(HandshakeType::SERVER_HELLO),
+            $transcript,
             $this->cipherSuite,
         );
+
+        Logger::debug('HANDSHAKE CLIENT SECRET', [
+            'Derived Secret' => $derivedSecret,
+            'Transcript' => $transcript,
+            'Types' => $this->transcript->getTypesThrough(HandshakeType::SERVER_HELLO),
+        ]);
+
+        return $derivedSecret;
     }
 
     public function getServerHandshakeTrafficSecret(): string
     {
-        return $this->keyDerivation->deriveSecret(
+        $transcript = $this->transcript->getThrough(HandshakeType::SERVER_HELLO);
+
+        $derivedSecret = $this->keyDerivation->deriveSecret(
             $this->handshakeSecret,
             's hs traffic',
             $this->transcript->getThrough(HandshakeType::SERVER_HELLO),
             $this->cipherSuite,
         );
+
+        Logger::debug('HANDSHAKE SERVER SECRET', [
+            'Derived Secret' => $derivedSecret,
+            'Transcript' => $transcript,
+            'Types' => $this->transcript->getTypesThrough(HandshakeType::SERVER_HELLO),
+        ]);
+
+        return $derivedSecret;
     }
 
     public function getClientApplicationTrafficSecret(): string
@@ -111,12 +131,20 @@ class KeySchedule
             return $this->currentClientApplicationTrafficSecret;
         }
 
+        $transcript = $this->transcript->getThrough(HandshakeType::FINISHED);
+
         $secret = $this->keyDerivation->deriveSecret(
             $this->masterSecret,
             'c ap traffic',
-            $this->transcript->getAll(),
+            $transcript,
             $this->cipherSuite,
         );
+
+        Logger::debug('APPLICATION CLIENT SECRET', [
+            'Derived Secret' => $secret,
+            'Transcript' => $transcript,
+            'Types' => $this->transcript->getTypesThrough(HandshakeType::FINISHED),
+        ]);
 
         // Store for future updates
         $this->currentClientApplicationTrafficSecret = $secret;
@@ -131,12 +159,20 @@ class KeySchedule
             return $this->currentServerApplicationTrafficSecret;
         }
 
+        $transcript = $this->transcript->getThrough(HandshakeType::FINISHED);
+
         $secret = $this->keyDerivation->deriveSecret(
             $this->masterSecret,
             's ap traffic',
-            $this->transcript->getAll(),
+            $transcript,
             $this->cipherSuite,
         );
+
+        Logger::debug('APPLICATION SERVER SECRET', [
+            'Derived Secret' => $secret,
+            'Transcript' => $transcript,
+            'Types' => $this->transcript->getTypesThrough(HandshakeType::FINISHED),
+        ]);
 
         // Store for future updates
         $this->currentServerApplicationTrafficSecret = $secret;
@@ -191,18 +227,33 @@ class KeySchedule
             $this->cipherSuite,
         );
 
+        Logger::debug('DERIVE APPLICATION KEYS', [
+            'Traffic secret' => $trafficSecret,
+            'Key' => $key,
+            'IV' => $iv,
+            'Cipher suite' => $this->cipherSuite->name,
+        ]);
+
         return ['key' => $key, 'iv' => $iv];
     }
 
     public function updateTrafficSecret(string $trafficSecret): string
     {
-        return $this->keyDerivation->expandLabel(
+        $trafficSecret = $this->keyDerivation->expandLabel(
             $trafficSecret,
             'traffic upd',
             '',
             $this->hashLength,
             $this->cipherSuite,
         );
+
+        Logger::debug('DERIVE APPLICATION KEYS', [
+            'Traffic secret' => $trafficSecret,
+            'Hash length' => $this->hashLength,
+            'Cipher suite' => $this->cipherSuite->name,
+        ]);
+
+        return $trafficSecret;
     }
 
     public function hasApplicationSecrets(): bool

@@ -39,13 +39,61 @@ class HandshakeTranscript
     /**
      * Get all messages as concatenated wire format
      */
-    public function getAll(): string
+    private function getMessagesData(array $messages): string
     {
         $result = '';
-        foreach ($this->messages as $message) {
+        foreach ($messages as $message) {
             $result .= $message['data'];
         }
         return $result;
+    }
+
+    /**
+     * Get all message types as a comma-separated string
+     */
+    private function getMessagesTypes(array $messages): string
+    {
+        $types = [];
+        foreach ($messages as $message) {
+            $types[] = $message['type']->name;
+        }
+        return implode(',', $types);
+    }
+
+    /**
+     * Get all messages as concatenated wire format
+     */
+    public function getAll(): string
+    {
+        return $this->getMessagesData($this->messages);
+    }
+
+    /**
+     * Get all message types as a comma-separated string
+     */
+    public function getAllTypes(): string
+    {
+        return $this->getMessagesTypes($this->messages);
+    }
+
+    /**
+     * Get messages through (and including) a specific message type
+     * @return array<array{type: HandshakeType, data: string}>
+     */
+    private function getMessagesThrough(HandshakeType $throughType): array
+    {
+        $messages = [];
+
+        foreach ($this->messages as $message) {
+            $messages[] = $message;
+
+            // Stop after including this type
+            if ($message['type'] === $throughType) {
+                break;
+            }
+        }
+
+        return $messages;
     }
 
     /**
@@ -56,18 +104,18 @@ class HandshakeTranscript
      */
     public function getThrough(HandshakeType $throughType): string
     {
-        $result = '';
+        return $this->getMessagesData($this->getMessagesThrough($throughType));
+    }
 
-        foreach ($this->messages as $message) {
-            $result .= $message['data'];
-
-            // Stop after including this type
-            if ($message['type'] === $throughType) {
-                break;
-            }
-        }
-
-        return $result;
+    /**
+     * Get types through (and including) a specific message type
+     *
+     * @param HandshakeType $throughType The last type to include
+     * @return string Concatenated types
+     */
+    public function getTypesThrough(HandshakeType $throughType): string
+    {
+        return $this->getMessagesTypes($this->getMessagesThrough($throughType));
     }
 
     /**
@@ -84,18 +132,6 @@ class HandshakeTranscript
     public function getHashThrough(string $hashAlgorithm, HandshakeType $throughType): string
     {
         return hash($hashAlgorithm, $this->getThrough($throughType), true);
-    }
-
-    /**
-     * Get the last message type, or null if no messages
-     */
-    public function getLastMessageType(): ?HandshakeType
-    {
-        if (empty($this->messages)) {
-            return null;
-        }
-
-        return $this->messages[count($this->messages) - 1]['type'];
     }
 
     /**

@@ -68,6 +68,9 @@ class ProtocolOrchestrator
         // Send client Finished
         $finished = $this->messageFactory->createFinished(true);
         $this->sendHandshakeMessage($finished);
+
+        // Derive application traffic secrets
+        $this->context->deriveApplicationSecrets();
     }
 
     public function performServerHandshake(): void
@@ -82,6 +85,9 @@ class ProtocolOrchestrator
 
         // Wait for client Finished
         $this->waitForClientFinished();
+
+        // Derive application traffic secrets
+        $this->context->deriveApplicationSecrets();
     }
 
     // === Application Data Operations ===
