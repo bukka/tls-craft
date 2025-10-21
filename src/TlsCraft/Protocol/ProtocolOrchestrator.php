@@ -108,19 +108,30 @@ class ProtocolOrchestrator
             throw new CraftException('Cannot receive application data: not connected');
         }
 
-        $record = $this->recordLayer->receiveRecord();
-        if (!$record) {
-            return null;
+        // Keep reading until we get application data
+        while (true) {
+            $record = $this->recordLayer->receiveRecord();
+            if (!$record) {
+                return null; // Connection closed or no data available
+            }
+
+            if ($record->isApplicationData()) {
+                return $record->payload;
+            }
+
+            // Handle post-handshake messages (NewSessionTicket, KeyUpdate, etc.)
+            if ($record->isHandshake()) {
+                $this->processHandshakeRecord($record);
+                continue; // Keep looking for application data
+            }
+
+            if ($record->isAlert()) {
+                $this->handleAlertRecord($record);
+                return null;
+            }
+
+            // Ignore other types (e.g., ChangeCipherSpec)
         }
-
-        if ($record->isApplicationData()) {
-            return $record->payload;
-        }
-
-        // Handle non-application data records
-        $this->handleNonApplicationRecord($record);
-
-        return null;
     }
 
     // === Post-Handshake Operations ===
