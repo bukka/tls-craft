@@ -69,6 +69,9 @@ enum ExtensionType: int
     // RFC 8449
     case RECORD_SIZE_LIMIT = 28;
 
+    // RFC 5077
+    case SESSION_TICKET = 35;
+
     // RFC 8446 (TLS 1.3)
     case SUPPORTED_VERSIONS = 43;
     case COOKIE = 44;
@@ -85,6 +88,9 @@ enum ExtensionType: int
     // Draft extensions (commonly used)
     case QUIC_TRANSPORT_PARAMETERS = 57;
     case ENCRYPTED_CLIENT_HELLO = 65037;
+
+    // RFC 7507
+    case RENEGOTIATION_INFO = 65281;
 
     // Reserved for Private Use
     case PRIVATE_USE_START = 65280;
@@ -121,6 +127,7 @@ enum ExtensionType: int
             self::ENCRYPT_THEN_MAC => 'encrypt_then_mac',
             self::EXTENDED_MASTER_SECRET => 'extended_master_secret',
             self::RECORD_SIZE_LIMIT => 'record_size_limit',
+            self::SESSION_TICKET => 'session_ticket',
             self::COMPRESS_CERTIFICATE => 'compress_certificate',
             self::SUPPORTED_VERSIONS => 'supported_versions',
             self::COOKIE => 'cookie',
@@ -132,6 +139,7 @@ enum ExtensionType: int
             self::KEY_SHARE => 'key_share',
             self::QUIC_TRANSPORT_PARAMETERS => 'quic_transport_parameters',
             self::ENCRYPTED_CLIENT_HELLO => 'encrypted_client_hello',
+            self::RENEGOTIATION_INFO => 'renegotiation_info',
             default => 'unknown_'.$this->value,
         };
     }
