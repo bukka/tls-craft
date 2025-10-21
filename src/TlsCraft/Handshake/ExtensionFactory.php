@@ -37,6 +37,7 @@ class ExtensionFactory
 {
     /** ------------------------------- PARSERS -------------------------------- */
     private ?AlpnExtensionParser $alpnExtensionParser = null;
+    private ?CustomExtensionParser $customExtensionParser = null;
     private ?KeyShareExtensionParser $keyShareExtensionParser = null;
     private ?ServerNameExtensionParser $serverNameExtensionParser = null;
     private ?SignatureAlgorithmsExtensionParser $signatureAlgorithmsExtensionParser = null;
@@ -45,6 +46,7 @@ class ExtensionFactory
 
     /** ----------------------------- SERIALIZERS ------------------------------ */
     private ?AlpnExtensionSerializer $alpnExtensionSerializer = null;
+    private ?CustomExtensionSerializer $customExtensionSerializer = null;
     private ?KeyShareExtensionSerializer $keyShareExtensionSerializer = null;
     private ?ServerNameExtensionSerializer $serverNameExtensionSerializer = null;
     private ?SignatureAlgorithmsExtensionSerializer $signatureAlgorithmsExtensionSerializer = null;
@@ -58,6 +60,12 @@ class ExtensionFactory
     private function getAlpnExtensionParser(): AlpnExtensionParser
     {
         return $this->alpnExtensionParser ??= new AlpnExtensionParser($this->context);
+    }
+
+
+    private function getCustomExtensionParser(): CustomExtensionParser
+    {
+        return $this->customExtensionParser ??= new CustomExtensionParser($this->context);
     }
 
     private function getKeyShareExtensionParser(): KeyShareExtensionParser
@@ -90,6 +98,11 @@ class ExtensionFactory
     private function getAlpnExtensionSerializer(): AlpnExtensionSerializer
     {
         return $this->alpnExtensionSerializer ??= new AlpnExtensionSerializer($this->context);
+    }
+
+    private function getCustomExtensionSerializer(): CustomExtensionSerializer
+    {
+        return $this->customExtensionSerializer ??= new CustomExtensionSerializer($this->context);
     }
 
     private function getKeyShareExtensionSerializer(): KeyShareExtensionSerializer
@@ -178,7 +191,7 @@ class ExtensionFactory
             => $this->getAlpnExtensionParser()->parse($data),
             ExtensionType::SUPPORTED_VERSIONS            => $this->getSupportedVersionsExtensionParser()->parse($data),
             ExtensionType::KEY_SHARE                     => $this->getKeyShareExtensionParser()->parse($data),
-            default                                      => CustomExtensionParser::parse($data, $type),
+            default                                      => $this->getCustomExtensionParser()->parse($data, $type),
         };
     }
 
@@ -219,7 +232,7 @@ class ExtensionFactory
             $ext instanceof SignatureAlgorithmsExtension => $this->getSignatureAlgorithmsExtensionSerializer()->serialize($ext),
             $ext instanceof SupportedGroupsExtension     => $this->getSupportedGroupsExtensionSerializer()->serialize($ext),
             $ext instanceof SupportedVersionsExtension   => $this->getSupportedVersionsExtensionSerializer()->serialize($ext),
-            $ext instanceof CustomExtension              => (new CustomExtensionSerializer($this->context))->serialize($ext),
+            $ext instanceof CustomExtension              => $this->getCustomExtensionSerializer()->serialize($ext),
             default => throw new CraftException('No serializer available for extension type: ' . $ext::class),
         };
     }
