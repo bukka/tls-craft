@@ -1,5 +1,4 @@
 <?php
-// openssl_server.php
 
 // Configuration matching your OpenSSL s_server setup
 $certFile = __DIR__ . '/certs/server.crt';
