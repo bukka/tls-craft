@@ -27,9 +27,10 @@ class Record
     public function serialize(): string
     {
         $length = strlen($this->payload);
+        $version = $this->version === Version::TLS_1_3 ? Version::TLS_1_2 : $this->version;
 
         return $this->contentType->toByte().
-            $this->version->toBytes().
+            $version->toBytes().
             pack('n', $length).
             $this->payload;
     }
