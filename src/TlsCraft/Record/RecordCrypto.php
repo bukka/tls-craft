@@ -5,6 +5,7 @@ namespace Php\TlsCraft\Record;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Crypto\Aead;
 use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Logger;
 use Php\TlsCraft\Protocol\ContentType;
 use Php\TlsCraft\Protocol\Version;
 
@@ -134,6 +135,16 @@ class RecordCrypto
             $this->handshakeWriteSequence++,
         );
 
+        Logger::debug('Encrypt record with handshake keys', [
+            'Ciphertext length' => strlen($ciphertext),
+            'Ciphertext' => $ciphertext,
+            'Plaintext length' => strlen($innerPlaintext),
+            'Plaintext' => $innerPlaintext,
+            'Additional data length' => strlen($additionalData),
+            'Additional data' => $additionalData,
+            'Seq' => $this->handshakeWriteSequence,
+        ]);
+
         return new Record(
             ContentType::APPLICATION_DATA, // TLS 1.3 hides real content type
             $record->version,
@@ -156,6 +167,16 @@ class RecordCrypto
             $this->applicationWriteSequence++,
         );
 
+        Logger::debug('Encrypt record with application keys', [
+            'Ciphertext length' => strlen($ciphertext),
+            'Ciphertext' => $ciphertext,
+            'Plaintext length' => strlen($innerPlaintext),
+            'Plaintext' => $innerPlaintext,
+            'Additional data length' => strlen($additionalData),
+            'Additional data' => $additionalData,
+            'Seq' => $this->applicationWriteSequence,
+        ]);
+
         return new Record(
             ContentType::APPLICATION_DATA,
             $record->version,
@@ -177,6 +198,16 @@ class RecordCrypto
             $this->handshakeReadSequence++,
         );
 
+        Logger::debug('Decrypt record with handshake keys', [
+            'Ciphertext length' => strlen($record->payload),
+            'Ciphertext' => $record->payload,
+            'Plaintext length' => strlen($plaintext),
+            'Plaintext' => $plaintext,
+            'Additional data length' => strlen($additionalData),
+            'Additional data' => $additionalData,
+            'Seq' => $this->handshakeReadSequence,
+        ]);
+
         return $this->extractInnerRecord($plaintext, $record->version);
     }
 
@@ -194,6 +225,16 @@ class RecordCrypto
             $this->applicationReadSequence++,
         );
 
+        Logger::debug('Decrypt record with application keys', [
+            'Ciphertext length' => strlen($record->payload),
+            'Ciphertext' => $record->payload,
+            'Plaintext length' => strlen($plaintext),
+            'Plaintext' => $plaintext,
+            'Additional data length' => strlen($additionalData),
+            'Additional data' => $additionalData,
+            'Seq' => $this->applicationReadSequence,
+        ]);
+
         return $this->extractInnerRecord($plaintext, $record->version);
     }
 
@@ -210,9 +251,7 @@ class RecordCrypto
     {
         $keySchedule = $this->context->getKeySchedule();
 
-        return $keySchedule && method_exists($keySchedule, 'hasHandshakeKeys')
-            ? $keySchedule->hasHandshakeKeys()
-            : false;
+        return $keySchedule && $keySchedule->hasHandshakeKeys();
     }
 
     private function initializeHandshakeWriteCipher(): void
