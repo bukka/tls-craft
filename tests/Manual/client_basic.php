@@ -8,9 +8,9 @@ use Php\TlsCraft\Logger;
 Logger::enable();
 
 $client = AppFactory::createClient('localhost', 4433);
-$conn = $client->connect(30000)->getConnection();
+$session = $client->connect(30000);
 
-$conn->write("ctest");
-var_dump($conn->read(5));
+$session->send("ctest");
+var_dump($session->receive(5));
 
-$conn->close();
+$session->close();
