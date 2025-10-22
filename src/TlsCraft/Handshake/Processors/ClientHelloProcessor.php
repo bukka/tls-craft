@@ -16,8 +16,8 @@ class ClientHelloProcessor extends MessageProcessor
 {
     public function process(ClientHello $message): void
     {
-        // Validate version
-        if (!$message->version->isSupported()) {
+        // Validate version (should be always legacy TLS 1.2)
+        if ($message->version != Version::TLS_1_2) {
             throw new ProtocolViolationException('Unsupported TLS version');
         }
 
