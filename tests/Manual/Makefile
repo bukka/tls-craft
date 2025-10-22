@@ -104,8 +104,8 @@ test-client: ## Connect with OpenSSL s_client (TLS 1.3)
 
 test-client-verbose: ## Connect with OpenSSL s_client (TLS 1.3) with verbose output
 	@echo "$(GREEN)Connecting with OpenSSL s_client (TLS 1.3 verbose) to $(HOST):$(PORT)...$(NC)"
-	@echo "$(YELLOW)Command:$(NC) $(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -debug -msg"
-	@$(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -debug -msg
+	@echo "$(YELLOW)Command:$(NC) $(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -debug -msg -groups P-256 -keylogfile $(CERT_DIR)/client.keylog"
+	@$(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -debug -msg -groups P-256 -keylogfile $(CERT_DIR)/client.keylog
 
 test-client-groups: ## Connect with OpenSSL s_client (TLS 1.3) with specific groups
 	@echo "$(GREEN)Connecting with OpenSSL s_client (TLS 1.3 with groups) to $(HOST):$(PORT)...$(NC)"
