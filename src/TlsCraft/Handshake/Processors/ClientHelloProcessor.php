@@ -52,9 +52,6 @@ class ClientHelloProcessor extends MessageProcessor
         $this->parseSignatureAlgorithms($message);
         $this->parseServerNameIndication($message);
         $this->parseAlpn($message);
-
-        // Derive handshake secrets
-        $this->deriveHandshakeSecrets();
     }
 
     private function parseSupportedVersions(ClientHello $message): void
@@ -170,24 +167,5 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         return null;
-    }
-
-    private function deriveHandshakeSecrets(): void
-    {
-        $clientKeyShare = $this->context->getClientKeyShare();
-        if (!$clientKeyShare) {
-            throw new ProtocolViolationException('Cannot derive handshake secrets: missing client key share');
-        }
-
-        // Get our key pair for the selected group
-        $keyExchange = $this->context->getCryptoFactory()->createKeyExchange($clientKeyShare->getGroup());
-        $serverKeyPair = $keyExchange->generateKeyPair();
-
-        // Compute shared secret using our key pair
-        $sharedSecret = $serverKeyPair->computeSharedSecret($clientKeyShare->getKeyExchange());
-        $this->context->setSharedSecret($sharedSecret);
-
-        // Derive handshake traffic secrets
-        $this->context->deriveHandshakeSecrets();
     }
 }

@@ -5,6 +5,7 @@ namespace Php\TlsCraft\Handshake\ExtensionProviders;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Crypto\{KeyShare, NamedGroup};
 use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
@@ -57,6 +58,13 @@ class KeyShareExtensionProvider implements ExtensionProvider
 
         // Store server's key pair
         $context->setKeyPairForGroup($selectedGroup, $serverKeyPair);
+
+        // Compute shared secret using our key pair
+        $sharedSecret = $serverKeyPair->computeSharedSecret($clientKeyShare->getKeyExchange());
+        $context->setSharedSecret($sharedSecret);
+
+        // Derive handshake traffic secrets
+        $context->deriveHandshakeSecrets();
 
         // Server sends only one key share (for the selected group)
         return new KeyShareExtension([
