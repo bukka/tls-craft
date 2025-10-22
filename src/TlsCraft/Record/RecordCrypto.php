@@ -62,6 +62,11 @@ class RecordCrypto
             return $record;
         }
 
+        // Any outer Alert (0x15) is plaintext in TLS 1.3. Encrypted alerts would have outer type APPLICATION_DATA.
+        if ($record->contentType === ContentType::ALERT) {
+            return $record;
+        }
+
         // Don't decrypt plaintext handshake records (before encryption starts)
         if ($record->contentType === ContentType::HANDSHAKE && !$this->hasHandshakeKeys()) {
             return $record;

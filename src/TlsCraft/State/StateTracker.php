@@ -53,6 +53,12 @@ class StateTracker
         return $this->connectionState === ConnectionState::CLOSED;
     }
 
+    public function isError(): bool
+    {
+        return $this->connectionState === ConnectionState::ERROR;
+    }
+
+
     public function canTransitionConnection(ConnectionState $newState): bool
     {
         return $this->connectionState->canTransitionTo($newState);

@@ -69,6 +69,7 @@ class Aead
             'Nonce'             => $nonce,
             'AAD'               => $additionalData,
             'Ciphertext length' => strlen($ciphertext),
+            'Ciphertext'        => $ciphertext,
         ]);
 
         $tagLength = 16;

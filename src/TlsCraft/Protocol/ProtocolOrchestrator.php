@@ -6,13 +6,14 @@ use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Control\{FlowController};
 use Php\TlsCraft\Crypto\CertificateUtils;
-use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
+use Php\TlsCraft\Exceptions\{AlertException, CraftException, ProtocolViolationException};
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\Messages\{KeyUpdate, Message};
 use Php\TlsCraft\Handshake\MessageSerializer;
 use Php\TlsCraft\Handshake\ProcessorManager;
 use Php\TlsCraft\Record\{EncryptedLayer, LayerFactory, Record, RecordFactory};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
+use Php\TlsCraft\Logger;
 
 /**
  * Updated ProtocolOrchestrator with clean typing and proper integration
@@ -127,7 +128,6 @@ class ProtocolOrchestrator
 
             if ($record->isAlert()) {
                 $this->handleAlertRecord($record);
-                return null;
             }
 
             // Ignore other types (e.g., ChangeCipherSpec)
@@ -237,6 +237,8 @@ class ProtocolOrchestrator
 
             if ($record->isHandshake()) {
                 $this->processHandshakeRecord($record);
+            } elseif ($record->isAlert()) {
+                $this->handleAlertRecord($record);
             }
         }
     }
@@ -410,6 +412,26 @@ class ProtocolOrchestrator
         }
     }
 
+    private function handleAlertRecord(Record $record): void
+    {
+        if (strlen($record->payload) >= 2) {
+            $level = AlertLevel::fromByte($record->payload[0]);
+            $description = AlertDescription::fromByte($record->payload[1]);
+
+            if ($description === AlertDescription::CLOSE_NOTIFY) {
+                Logger::error('Received close notify');
+                $this->stateTracker->close(false);
+            } elseif ($description->isFatal()) {
+                Logger::error('Received fatal alert', [
+                    'name' => $description->name,
+                    'level' => $level->name,
+                ]);
+                $this->stateTracker->error("received_fatal_alert_{$description->name}");
+                throw new AlertException("Received fatal alert: {$description->name}");
+            }
+        }
+    }
+
     private function handleNonApplicationRecord(Record $record): void
     {
         if ($record->isHandshake()) {
@@ -420,26 +442,13 @@ class ProtocolOrchestrator
         // Ignore other types (e.g., ChangeCipherSpec for compatibility)
     }
 
-    private function handleAlertRecord(Record $record): void
-    {
-        if (strlen($record->payload) >= 2) {
-            $level = AlertLevel::fromByte($record->payload[0]);
-            $description = AlertDescription::fromByte($record->payload[1]);
-
-            if ($description === AlertDescription::CLOSE_NOTIFY) {
-                $this->stateTracker->close(false);
-            } elseif ($description->isFatal()) {
-                $this->stateTracker->error("received_fatal_alert_{$description->name}");
-            }
-        }
-    }
 
     // === Proper Signature Creation ===
 
     private function createCertificateVerifySignature(): string
     {
         $transcript = $this->context->getHandshakeTranscript();
-        $signatureContext = $this->buildSignatureContext($transcript);
+        $signatureContext = $this->buildSignatureContext($transcript->getThrough(HandshakeType::CERTIFICATE));
 
         $privateKey = $this->context->getPrivateKey();
         $signatureScheme = $this->context->getNegotiatedSignatureScheme();
