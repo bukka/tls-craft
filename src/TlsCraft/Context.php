@@ -31,8 +31,8 @@ class Context
     private array $certificateChain = [];
     private $privateKey;
 
-    // Handshake transcript
-    private array $handshakeMessages = [];
+    // Handshake
+    private ?string $clientHelloSessionId = null;
     private ?KeyShare $keyShare;
     private ?string $requestedServerName = null;
     private array $clientOfferedProtocols;
@@ -122,6 +122,11 @@ class Context
         return $this->serverRandom;
     }
 
+    public function getClientHelloSessionId(): string
+    {
+        return $this->clientHelloSessionId ?? '';
+    }
+
     public function getSharedSecret(): ?string
     {
         return $this->sharedSecret;
@@ -156,6 +161,11 @@ class Context
             throw new ProtocolViolationException('Client random must be 32 bytes');
         }
         $this->clientRandom = $random;
+    }
+
+    public function setClientHelloSessionId(string $sessionId): void
+    {
+        $this->clientHelloSessionId = $sessionId;
     }
 
     public function setServerRandom(string $random): void

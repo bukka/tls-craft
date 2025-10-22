@@ -33,6 +33,9 @@ class ClientHelloProcessor extends MessageProcessor
             throw new ProtocolViolationException('Null compression method not supported');
         }
 
+        // Set session ID for ServerHello
+        $this->context->setClientHelloSessionId($message->sessionId);
+
         // Set client random
         $this->context->setClientRandom($message->random);
 
