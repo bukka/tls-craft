@@ -2,7 +2,7 @@
 
 namespace Php\TlsCraft\Crypto;
 
-enum CipherSuite: int
+enum CipherSuite: int implements \JsonSerializable
 {
     case TLS_AES_128_GCM_SHA256 = 0x1301;
     case TLS_AES_256_GCM_SHA384 = 0x1302;
@@ -63,5 +63,10 @@ enum CipherSuite: int
             self::TLS_AES_128_CCM_SHA256 => 'aes-128-ccm',
             self::TLS_AES_128_CCM_8_SHA256 => 'aes-128-ccm',
         };
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->name;
     }
 }

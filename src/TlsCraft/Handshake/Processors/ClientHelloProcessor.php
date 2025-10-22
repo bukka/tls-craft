@@ -11,6 +11,7 @@ use Php\TlsCraft\Handshake\Extensions\SignatureAlgorithmsExtension;
 use Php\TlsCraft\Handshake\Extensions\SupportedVersionsExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Handshake\Messages\ClientHello;
+use Php\TlsCraft\Logger;
 use Php\TlsCraft\Protocol\Version;
 
 class ClientHelloProcessor extends MessageProcessor
@@ -74,9 +75,16 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         $clientKeyShares = $ext->getKeyShares();
+        $supportedGroups = $this->context->getConfig()->getSupportedGroups();
+
+        Logger::debug('ClientHello key shares', [
+            'Client key shares' => $clientKeyShares,
+            'Supported groups' => $supportedGroups,
+        ]);
+
         $selectedGroup = null;
         foreach ($clientKeyShares as $keyShare) {
-            if (in_array($keyShare->getGroup(), $this->context->getConfig()->getSupportedGroups())) {
+            if (in_array($keyShare->getGroup()->getName(), $supportedGroups)) {
                 $selectedGroup = $keyShare->getGroup();
                 $this->context->setClientKeyShare($keyShare);
                 break;
@@ -97,9 +105,16 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         $clientSigAlgs = $ext->getSignatureAlgorithms();
+        $supportedSigAlgs = $this->context->getConfig()->getSignatureAlgorithms();
+
+        Logger::debug('ClientHello signature algorithms', [
+            'Client sig algs' => $clientSigAlgs,
+            'Supported sig algs' => $supportedSigAlgs,
+        ]);
+
         $selectedSigAlg = null;
         foreach ($clientSigAlgs as $sigAlg) {
-            if (in_array($sigAlg, $this->context->getConfig()->getSignatureAlgorithms())) {
+            if (in_array($sigAlg->getName(), $supportedSigAlgs)) {
                 $selectedSigAlg = $sigAlg;
                 break;
             }

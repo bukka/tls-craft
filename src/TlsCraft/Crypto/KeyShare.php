@@ -6,7 +6,7 @@ use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Logger;
 use ValueError;
 
-class KeyShare
+class KeyShare implements \JsonSerializable
 {
     public function __construct(
         private NamedGroup $group,
@@ -154,7 +154,16 @@ class KeyShare
             "KeyShare(group=%s, key_length=%d, key_hex=%s...)",
             $this->group->getName(),
             strlen($this->keyExchange),
-            substr(bin2hex($this->keyExchange), 0, 16)
+            bin2hex($this->keyExchan)
         );
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'group' => $this->group->getName(),
+            'key_exchange_length' => strlen($this->keyExchange),
+            'key_exchange' => bin2hex($this->keyExchange),
+        ];
     }
 }

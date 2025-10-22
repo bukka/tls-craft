@@ -16,6 +16,7 @@ class SignatureAlgorithmsExtension extends Extension
         parent::__construct(ExtensionType::SIGNATURE_ALGORITHMS);
     }
 
+    /** @return SignatureScheme[] */
     public function getSignatureAlgorithms(): array
     {
         return $this->signatureAlgorithms;

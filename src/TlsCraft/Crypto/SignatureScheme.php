@@ -5,7 +5,7 @@ namespace Php\TlsCraft\Crypto;
 use InvalidArgumentException;
 use ValueError;
 
-enum SignatureScheme: int
+enum SignatureScheme: int implements \JsonSerializable
 {
     // RSA PKCS1
     case RSA_PKCS1_SHA1 = 0x0201;
@@ -346,5 +346,10 @@ enum SignatureScheme: int
             self::ECDSA_SHA3_224 => false,
             default => true,
         };
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->getName();
     }
 }
