@@ -23,6 +23,7 @@ use Php\TlsCraft\Handshake\Messages\{
     KeyUpdate,
     ServerHello
 };
+use Php\TlsCraft\Logger;
 
 /**
  * Serialize messages to bytes.
@@ -117,6 +118,13 @@ class MessageSerializer
         // 3-byte length: take the last 3 bytes of the 4-byte BE int
         $len3 = substr(pack('N', $len), 1);
 
-        return $msg->type->toByte() . $len3 . $payload;
+        $data = $msg->type->toByte() . $len3 . $payload;
+
+        Logger::debug('Serialize Message', [
+            'type' => $msg->type->name,
+            'data' => $data,
+        ]);
+
+        return $data;
     }
 }

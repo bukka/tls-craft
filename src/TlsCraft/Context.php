@@ -201,7 +201,14 @@ class Context
     public function deriveHandshakeSecrets(): void
     {
         if (!$this->keySchedule || !$this->sharedSecret) {
-            throw new CraftException('Cannot derive handshake secrets: missing key schedule or shared secret');
+            $missing = [];
+            if (!$this->keySchedule) {
+                $missing[] = 'key schedule';
+            }
+            if (!$this->sharedSecret) {
+                $missing[] = 'shared secret';
+            }
+            throw new CraftException('Cannot derive handshake secrets: missing ' . implode(' and ', $missing));
         }
 
         $this->keySchedule->deriveHandshakeSecret($this->sharedSecret);

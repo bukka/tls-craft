@@ -11,7 +11,7 @@ class KeySchedule
 {
     private string $hashAlgorithm;
     private int $hashLength;
-    private string $earlySecret;
+    private ?string $earlySecret = null;
     private string $handshakeSecret;
     private string $masterSecret;
     private ?string $currentClientApplicationTrafficSecret = null;
@@ -24,9 +24,6 @@ class KeySchedule
     ) {
         $this->hashAlgorithm = $cipherSuite->getHashAlgorithm();
         $this->hashLength = $cipherSuite->getHashLength();
-
-        // Initialize with zeros
-        $this->earlySecret = str_repeat("\x00", $this->hashLength);
     }
 
     public function deriveEarlySecret(?string $psk = null): void
@@ -42,6 +39,10 @@ class KeySchedule
 
     public function deriveHandshakeSecret(string $sharedSecret): void
     {
+        if ($this->earlySecret === null) {
+            $this->deriveEarlySecret();
+        }
+
         $derivedSecret = $this->keyDerivation->deriveSecret(
             $this->earlySecret,
             'derived',
