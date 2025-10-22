@@ -2,6 +2,7 @@
 
 namespace Php\TlsCraft\Handshake\Processors;
 
+use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Extensions\AlpnExtension;
 use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
@@ -37,7 +38,7 @@ class ClientHelloProcessor extends MessageProcessor
         // Select a cipher suite
         foreach ($message->cipherSuites as $cipher) {
             if (in_array($cipher, $this->context->getConfig()->getCipherSuites())) {
-                $this->context->setNegotiatedCipherSuite($cipher);
+                $this->context->setNegotiatedCipherSuite(CipherSuite::from($cipher));
                 break;
             }
         }
