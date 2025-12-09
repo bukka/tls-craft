@@ -1,5 +1,7 @@
 <?php
 
+$port = 4433;
+
 // Create SSL context
 $context = stream_context_create([
     'ssl' => [

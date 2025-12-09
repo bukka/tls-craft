@@ -65,7 +65,7 @@ class Config
             CipherSuite::TLS_CHACHA20_POLY1305_SHA256->value,
         ];
 
-        $this->supportedGroups = $supportedGroups ?? ['P-256', 'P-384', 'P-521'];
+        $this->supportedGroups = $supportedGroups ?? ['P-256', 'P-384', 'P-521', 'X25519'];
 
         // Use signature algorithm names instead of values
         $this->signatureAlgorithms = $signatureAlgorithms ?? [
