@@ -69,15 +69,18 @@ class Config
 
         // Use signature algorithm names instead of values
         $this->signatureAlgorithms = $signatureAlgorithms ?? [
-            'rsa_pkcs1_sha256',
-            'rsa_pkcs1_sha384',
-            'rsa_pkcs1_sha512',
+            // ECDSA algorithms
             'ecdsa_secp256r1_sha256',
             'ecdsa_secp384r1_sha384',
             'ecdsa_secp521r1_sha512',
+            // TLS 1.3 prefers RSA-PSS
             'rsa_pss_rsae_sha256',
             'rsa_pss_rsae_sha384',
             'rsa_pss_rsae_sha512',
+            // PKCS1 is only for legacy/backward compatibility in TLS 1.2
+            'rsa_pkcs1_sha256',
+            'rsa_pkcs1_sha384',
+            'rsa_pkcs1_sha512',
         ];
 
         $this->serverName = $serverName;

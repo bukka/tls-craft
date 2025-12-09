@@ -34,4 +34,9 @@ class CryptoFactory
     {
         return new RandomGenerator();
     }
+
+    public function createCertificateSigner(): CertificateSigner
+    {
+        return new CertificateSigner();
+    }
 }

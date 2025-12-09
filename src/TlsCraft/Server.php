@@ -64,6 +64,7 @@ class Server
         $context->setCertificateChain($this->loadCertificateChain());
         $context->setPrivateKey($this->loadPrivateKey());
 
+        $cryptoFactory    = $this->dependencyContainer->getCryptoFactory();
         $layerFactory     = $this->dependencyContainer->getLayerFactory();
         $recordFactory    = $this->dependencyContainer->getRecordFactory();
         $messageFactory   = $this->dependencyContainer->getMessageFactory();
@@ -75,6 +76,7 @@ class Server
             $validator,
             $context,
             $processorManager,
+            $cryptoFactory,
             $layerFactory,
             $recordFactory,
             $messageFactory,

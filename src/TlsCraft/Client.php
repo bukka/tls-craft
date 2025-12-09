@@ -41,6 +41,7 @@ class Client
         $stateTracker = $this->dependencyContainer->getStateTracker();
         $validator = $this->dependencyContainer->getValidator();
         $context = $this->dependencyContainer->getContext();
+        $cryptoFactory    = $this->dependencyContainer->getCryptoFactory();
         $layerFactory = $this->dependencyContainer->getLayerFactory();
         $recordFactory = $this->dependencyContainer->getRecordFactory();
         $messageFactory = $this->dependencyContainer->getMessageFactory();
@@ -52,6 +53,7 @@ class Client
             $validator,
             $context,
             $processorManager,
+            $cryptoFactory,
             $layerFactory,
             $recordFactory,
             $messageFactory,

@@ -5,8 +5,11 @@ namespace Php\TlsCraft\Protocol;
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Control\{FlowController};
+use Php\TlsCraft\Crypto\CertificateSigner;
 use Php\TlsCraft\Crypto\CertificateUtils;
 use Php\TlsCraft\Exceptions\{AlertException, CraftException, ProtocolViolationException};
+use Php\TlsCraft\Crypto\CryptoFactory;
+use Php\TlsCraft\Handshake\MessageFactories\CertificateFactory;
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\Messages\{KeyUpdate, Message};
 use Php\TlsCraft\Handshake\MessageSerializer;
@@ -21,6 +24,9 @@ use Php\TlsCraft\Logger;
 class ProtocolOrchestrator
 {
     private EncryptedLayer $recordLayer;
+
+    private CertificateSigner $certificateSigner;
+
     private string $handshakeBuffer = '';
 
     public function __construct(
@@ -28,6 +34,7 @@ class ProtocolOrchestrator
         private readonly ProtocolValidator $validator,
         private readonly Context $context,
         private readonly ProcessorManager $processorManager,
+        private readonly CryptoFactory $cryptoFactory,
         private readonly LayerFactory $layerFactory,
         private readonly RecordFactory $recordFactory,
         private readonly MessageFactory $messageFactory,
@@ -36,6 +43,7 @@ class ProtocolOrchestrator
         private readonly ?FlowController $flowController,
     ) {
         $this->recordLayer = $this->layerFactory->createEncryptedLayer($connection, $context, $this->flowController);
+        $this->certificateSigner = $this->cryptoFactory->createCertificateSigner();
     }
 
     public function isConnected(): bool
@@ -457,7 +465,7 @@ class ProtocolOrchestrator
             throw new CraftException('Missing private key or signature scheme for CertificateVerify');
         }
 
-        return CertificateUtils::createSignature($signatureContext, $privateKey, $signatureScheme);
+        return $this->certificateSigner->createSignature($signatureContext, $privateKey, $signatureScheme);
     }
 
     private function buildSignatureContext(string $transcript): string

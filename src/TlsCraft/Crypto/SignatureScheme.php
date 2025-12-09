@@ -284,28 +284,30 @@ enum SignatureScheme: int implements \JsonSerializable
         };
     }
 
-    public function isRSA(): bool
+    public function isRSAPKCS1(): bool
     {
-        return match ($this) {
-            self::RSA_PKCS1_SHA1,
-            self::RSA_PKCS1_SHA224,
+        return in_array($this, [
             self::RSA_PKCS1_SHA256,
             self::RSA_PKCS1_SHA384,
             self::RSA_PKCS1_SHA512,
+        ]);
+    }
+
+    public function isRSAPSS(): bool
+    {
+        return in_array($this, [
             self::RSA_PSS_RSAE_SHA256,
             self::RSA_PSS_RSAE_SHA384,
             self::RSA_PSS_RSAE_SHA512,
             self::RSA_PSS_PSS_SHA256,
             self::RSA_PSS_PSS_SHA384,
             self::RSA_PSS_PSS_SHA512,
-            self::RSA_PSS_RSAE_SHA3_256,
-            self::RSA_PSS_RSAE_SHA3_384,
-            self::RSA_PSS_RSAE_SHA3_512,
-            self::RSA_PSS_PSS_SHA3_256,
-            self::RSA_PSS_PSS_SHA3_384,
-            self::RSA_PSS_PSS_SHA3_512 => true,
-            default => false,
-        };
+        ]);
+    }
+
+    public function isRSA(): bool
+    {
+        return $this->isRSAPKCS1() || $this->isRSAPSS();
     }
 
     public function isEdDSA(): bool
