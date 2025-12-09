@@ -108,16 +108,29 @@ class Server
             throw new CraftException('Failed to read certificate file');
         }
 
-        // Convert PEM to DER if needed
-        if (str_contains($certData, '-----BEGIN CERTIFICATE-----')) {
-            $cert = openssl_x509_read($certData);
-            if ($cert === false) {
-                throw new CraftException('Invalid certificate format');
-            }
-            openssl_x509_export($cert, $certData, false);
+        $cert = openssl_x509_read($certData);
+        if ($cert === false) {
+            throw new CraftException('Invalid certificate format');
         }
 
-        return [$certData];
+        // Export to PEM without text (use true or omit the parameter)
+        if (!openssl_x509_export($cert, $pemData, true)) {
+            throw new CraftException('Failed to export certificate');
+        }
+
+        // Convert PEM to DER by removing headers and decoding base64
+        $base64Data = preg_replace(
+            ['/-----BEGIN CERTIFICATE-----/', '/-----END CERTIFICATE-----/', '/\s+/'],
+            '',
+            $pemData
+        );
+
+        $derData = base64_decode($base64Data);
+        if ($derData === false || empty($derData)) {
+            throw new CraftException('Failed to decode certificate to DER format');
+        }
+
+        return [$derData];
     }
 
     private function loadPrivateKey()
