@@ -8,15 +8,30 @@ class CertificateSerializer extends AbstractMessageSerializer
 {
     public function serialize(Certificate $message): string
     {
-        $data = chr(strlen($message->certificateRequestContext)).$message->certificateRequestContext;
+        // Certificate request context (empty for server certificate)
+        $contextLength = strlen($message->certificateRequestContext);
+        $data = chr($contextLength) . $message->certificateRequestContext;
 
+        // Certificate list
         $certListData = '';
-        foreach ($message->certificateList as $cert) {
-            $certListData .= substr(pack('N', strlen($cert)), 1).$cert; // 3-byte length + cert
-            $certListData .= "\x00\x00"; // Empty extensions
+        $certificates = $message->certificateChain->toDERArray();
+
+        foreach ($certificates as $certDER) {
+            $certLength = strlen($certDER);
+
+            // 3-byte length prefix
+            $certListData .= substr(pack('N', $certLength), 1);
+
+            // Certificate DER data
+            $certListData .= $certDER;
+
+            // Extensions (empty for now)
+            $certListData .= "\x00\x00";
         }
 
-        $data .= substr(pack('N', strlen($certListData)), 1).$certListData;
+        // 3-byte length prefix for entire certificate list
+        $data .= substr(pack('N', strlen($certListData)), 1);
+        $data .= $certListData;
 
         return $data;
     }

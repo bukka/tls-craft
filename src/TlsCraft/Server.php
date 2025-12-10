@@ -58,18 +58,18 @@ class Server
 
         $clientConnection = $this->serverConnection->accept($timeout);
 
-        $stateTracker     = $this->dependencyContainer->getStateTracker();
-        $validator        = $this->dependencyContainer->getValidator(); // NOTE: fix your old '??' bug here (use the ternary like in Client)
-        $context          = $this->dependencyContainer->getContext();
-        $context->setCertificateChain($this->loadCertificateChain());
-        $context->setPrivateKey($this->loadPrivateKey());
-
-        $cryptoFactory    = $this->dependencyContainer->getCryptoFactory();
-        $layerFactory     = $this->dependencyContainer->getLayerFactory();
-        $recordFactory    = $this->dependencyContainer->getRecordFactory();
-        $messageFactory   = $this->dependencyContainer->getMessageFactory();
+        $stateTracker = $this->dependencyContainer->getStateTracker();
+        $validator = $this->dependencyContainer->getValidator();
+        $context = $this->dependencyContainer->getContext();
+        $cryptoFactory = $this->dependencyContainer->getCryptoFactory();
+        $layerFactory = $this->dependencyContainer->getLayerFactory();
+        $recordFactory = $this->dependencyContainer->getRecordFactory();
+        $messageFactory = $this->dependencyContainer->getMessageFactory();
         $messageSerializer = $this->dependencyContainer->getMessageSerializer();
         $processorManager = $this->dependencyContainer->getProcessorManager();
+
+        $context->setCertificateChainFromFile($this->certificatePath);
+        $context->setPrivateKeyFromFile($this->privateKeyPath);
 
         $orchestrator = new ProtocolOrchestrator(
             $stateTracker,
@@ -86,6 +86,7 @@ class Server
         );
 
         $orchestrator->performServerHandshake();
+
         return new Session($clientConnection, $orchestrator);
     }
 

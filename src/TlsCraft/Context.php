@@ -3,8 +3,16 @@
 namespace Php\TlsCraft;
 
 use OpenSSLAsymmetricKey;
-use Php\TlsCraft\Crypto\{CipherSuite, CryptoFactory, KeyPair, KeyShare, NamedGroup, RandomGenerator, SignatureScheme};
-use Php\TlsCraft\Exceptions\{CraftException, ProtocolViolationException};
+use Php\TlsCraft\Crypto\{CertificateChain,
+    CipherSuite,
+    CryptoFactory,
+    KeyPair,
+    KeyShare,
+    NamedGroup,
+    PrivateKey,
+    RandomGenerator,
+    SignatureScheme};
+use Php\TlsCraft\Exceptions\{CraftException, CryptoException, ProtocolViolationException};
 use Php\TlsCraft\Handshake\HandshakeTranscript;
 use Php\TlsCraft\Handshake\KeySchedule;
 use Php\TlsCraft\Protocol\Version;
@@ -28,8 +36,9 @@ class Context
     private ?string $serverRandom = null;
 
     // Certificate chain and private key
-    private array $certificateChain = [];
-    private $privateKey;
+    private ?CertificateChain $certificateChain = null;
+    private ?PrivateKey $privateKey = null;
+    private array $clientSignatureAlgorithms = [];
 
     // Handshake
     private ?string $clientHelloSessionId = null;
@@ -132,16 +141,6 @@ class Context
         return $this->sharedSecret;
     }
 
-    public function getCertificateChain(): array
-    {
-        return $this->certificateChain;
-    }
-
-    public function getPrivateKey()
-    {
-        return $this->privateKey;
-    }
-
     // === Setters ===
 
     public function setNegotiatedCipherSuite(CipherSuite $cipherSuite): void
@@ -174,16 +173,6 @@ class Context
             throw new ProtocolViolationException('Server random must be 32 bytes');
         }
         $this->serverRandom = $random;
-    }
-
-    public function setCertificateChain(array $chain): void
-    {
-        $this->certificateChain = $chain;
-    }
-
-    public function setPrivateKey($privateKey): void
-    {
-        $this->privateKey = $privateKey;
     }
 
     // === Handshake Transcript ===
@@ -417,6 +406,62 @@ class Context
         return $this->handshakeComplete;
     }
 
+    // === Certificate and keys ===
+
+    public function setCertificateChainFromPEM(string $pemData): void
+    {
+        $this->certificateChain = $this->cryptoFactory->createCertificateChainFromPEM($pemData);
+    }
+
+    public function setCertificateChainFromFile(string $path): void
+    {
+        $this->certificateChain = $this->cryptoFactory->createCertificateChainFromFile($path);
+    }
+
+    public function setPrivateKeyFromPEM(string $pemData, ?string $passphrase = null): void
+    {
+        $this->privateKey = $this->cryptoFactory->createPrivateKeyFromPEM($pemData, $passphrase);
+
+        // Validate that key matches certificate if both are set
+        if ($this->certificateChain &&
+            !$this->privateKey->matchesCertificate($this->certificateChain->getLeafCertificate())) {
+            throw new CryptoException('Private key does not match leaf certificate');
+        }
+    }
+
+    public function setPrivateKeyFromFile(string $path, ?string $passphrase = null): void
+    {
+        $this->privateKey = $this->cryptoFactory->createPrivateKeyFromFile($path, $passphrase);
+
+        // Validate that key matches certificate if both are set
+        if ($this->certificateChain &&
+            !$this->privateKey->matchesCertificate($this->certificateChain->getLeafCertificate())) {
+            throw new CryptoException('Private key does not match leaf certificate');
+        }
+    }
+
+    public function getCertificateChain(): CertificateChain
+    {
+        if (!$this->certificateChain) {
+            throw new CraftException('Certificate chain not set');
+        }
+        return $this->certificateChain;
+    }
+
+    public function getPrivateKey(): ?PrivateKey
+    {
+        return $this->privateKey;
+    }
+
+    public function setClientSignatureAlgorithms(array $algorithms): void
+    {
+        $this->clientSignatureAlgorithms = $algorithms;
+    }
+
+    public function getClientSignatureAlgorithms(): array
+    {
+        return $this->clientSignatureAlgorithms;
+    }
 
     // === Application Traffic Secret Management ===
 

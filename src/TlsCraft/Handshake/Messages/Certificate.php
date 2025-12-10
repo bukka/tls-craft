@@ -2,13 +2,14 @@
 
 namespace Php\TlsCraft\Handshake\Messages;
 
+use Php\TlsCraft\Crypto\CertificateChain;
 use Php\TlsCraft\Protocol\HandshakeType;
 
 class Certificate extends Message
 {
     public function __construct(
         public readonly string $certificateRequestContext,
-        public readonly array $certificateList, // array of certificate entries
+        public readonly CertificateChain $certificateChain,
     ) {
         parent::__construct(HandshakeType::CERTIFICATE);
     }

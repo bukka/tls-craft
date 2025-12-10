@@ -39,4 +39,24 @@ class CryptoFactory
     {
         return new CertificateSigner();
     }
+
+    public function createCertificateChainFromPEM(string $pemData): CertificateChain
+    {
+        return CertificateChain::fromPEM($pemData);
+    }
+
+    public function createCertificateChainFromFile(string $path): CertificateChain
+    {
+        return CertificateChain::fromFile($path);
+    }
+
+    public function createPrivateKeyFromPEM(string $pemData, ?string $passphrase = null): PrivateKey
+    {
+        return PrivateKey::fromPEM($pemData, $passphrase);
+    }
+
+    public function createPrivateKeyFromFile(string $path, ?string $passphrase = null): PrivateKey
+    {
+        return PrivateKey::fromFile($path, $passphrase);
+    }
 }

@@ -3,6 +3,7 @@
 namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Crypto\CipherSuite;
+use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Extensions\AlpnExtension;
 use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
@@ -108,25 +109,71 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         $clientSigAlgs = $ext->getSignatureAlgorithms();
-        $supportedSigAlgs = $this->context->getConfig()->getSignatureAlgorithms();
+
+        // Store client's signature algorithms for later use in CertificateVerify
+        $this->context->setClientSignatureAlgorithms($clientSigAlgs);
+
+        // Select signature scheme for CertificateVerify based on certificate
+        $selectedSigAlg = $this->selectSignatureScheme($clientSigAlgs);
+
+        if (!$selectedSigAlg) {
+            throw new ProtocolViolationException('No compatible signature algorithm found for certificate');
+        }
+
+        $this->context->setNegotiatedSignatureScheme($selectedSigAlg);
+    }
+
+    private function selectSignatureScheme(array $clientSigAlgs): ?SignatureScheme
+    {
+        $certificateChain = $this->context->getCertificateChain();
+        if (!$certificateChain) {
+            Logger::error('No certificate chain configured');
+            return null;
+        }
+
+        // Get algorithms supported by the leaf certificate
+        $certificateSchemes = $certificateChain->getSupportedSignatureSchemes();
+
+        // Get server's configured algorithms
+        $serverSchemes = $this->context->getConfig()->getSignatureAlgorithms();
 
         Logger::debug('ClientHello signature algorithms', [
-            'Client sig algs' => $clientSigAlgs,
-            'Supported sig algs' => $supportedSigAlgs,
+            'Certificate key type' => $certificateChain->getKeyTypeName(),
+            'Certificate schemes' => array_map(fn($s) => $s->name, $certificateSchemes),
+            'Client sig algs' => array_map(fn($s) => $s->name, $clientSigAlgs),
+            'Server config sig algs' => $serverSchemes,
         ]);
 
-        $selectedSigAlg = null;
-        foreach ($clientSigAlgs as $sigAlg) {
-            if (in_array($sigAlg->getName(), $supportedSigAlgs)) {
-                $selectedSigAlg = $sigAlg;
-                break;
+        // Find first match: must be supported by certificate, server config, and client
+        // Priority order: server config (our preference)
+        foreach ($serverSchemes as $serverSchemeName) {
+            // Convert string to SignatureScheme enum
+            $serverScheme = null;
+            foreach ($certificateSchemes as $certScheme) {
+                if ($certScheme->getName() === $serverSchemeName) {
+                    $serverScheme = $certScheme;
+                    break;
+                }
+            }
+
+            if (!$serverScheme) {
+                // Server config includes an algorithm not supported by our certificate
+                continue;
+            }
+
+            // Check if client supports this scheme
+            foreach ($clientSigAlgs as $clientScheme) {
+                if ($serverScheme === $clientScheme) {
+                    Logger::debug('Signature scheme selected', [
+                        'Scheme' => $serverScheme->name,
+                    ]);
+                    return $serverScheme;
+                }
             }
         }
 
-        if (!$selectedSigAlg) {
-            throw new ProtocolViolationException('No supported signature algorithm found');
-        }
-        $this->context->setNegotiatedSignatureScheme($selectedSigAlg);
+        Logger::error('No matching signature scheme found');
+        return null;
     }
 
     private function parseServerNameIndication(ClientHello $message): void

@@ -13,6 +13,7 @@ use Php\TlsCraft\Handshake\MessageFactories\{
     KeyUpdateFactory,
     ServerHelloFactory
 };
+use Php\TlsCraft\Crypto\CertificateChain;
 use Php\TlsCraft\Handshake\MessageParsers\CertificateParser;
 use Php\TlsCraft\Handshake\MessageParsers\CertificateVerifyParser;
 use Php\TlsCraft\Handshake\MessageParsers\ClientHelloParser;
@@ -182,7 +183,7 @@ class MessageFactory
         return $this->getEncryptedExtensionsFactory()->create();
     }
 
-    public function createCertificate(array $certificateChain): Certificate
+    public function createCertificate(CertificateChain $certificateChain): Certificate
     {
         return $this->getCertificateFactory()->create($certificateChain);
     }

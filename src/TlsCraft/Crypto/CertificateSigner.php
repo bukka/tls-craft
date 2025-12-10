@@ -9,7 +9,7 @@ class CertificateSigner
 {
     public function createSignature(
         string $data,
-        $privateKey,
+        PrivateKey $privateKey,
         SignatureScheme $scheme,
     ): string {
         Logger::debug('Creating signature', [
@@ -17,8 +17,6 @@ class CertificateSigner
             'Data length' => strlen($data),
             'Data (prefix)' => bin2hex(substr($data, 0, 32)),
         ]);
-
-        $signature = '';
 
         if ($scheme->isRSAPKCS1()) {
             $signature = $this->createRSAPKCS1Signature($data, $privateKey, $scheme);
@@ -39,39 +37,7 @@ class CertificateSigner
         return $signature;
     }
 
-    public function verifySignature(
-        string $data,
-        string $signature,
-        $publicKey,
-        SignatureScheme $scheme,
-    ): bool {
-        Logger::debug('Verifying signature', [
-            'Scheme' => $scheme->name,
-            'Data length' => strlen($data),
-            'Signature length' => strlen($signature),
-        ]);
-
-        $result = false;
-
-        if ($scheme->isRSAPKCS1()) {
-            $result = $this->verifyRSAPKCS1Signature($data, $signature, $publicKey, $scheme);
-        } elseif ($scheme->isRSAPSS()) {
-            $result = $this->verifyRSAPSSSignature($data, $signature, $publicKey, $scheme);
-        } elseif ($scheme->isECDSA()) {
-            $result = $this->verifyECDSASignature($data, $signature, $publicKey, $scheme);
-        } else {
-            throw new CryptoException("Unsupported signature scheme: {$scheme->name}");
-        }
-
-        Logger::debug('Signature verification', [
-            'Scheme' => $scheme->name,
-            'Result' => $result ? 'VALID' : 'INVALID',
-        ]);
-
-        return $result;
-    }
-
-    private function createRSAPKCS1Signature(string $data, $privateKey, SignatureScheme $scheme): string
+    private function createRSAPKCS1Signature(string $data, PrivateKey $privateKey, SignatureScheme $scheme): string
     {
         $algorithm = $this->getOpenSSLAlgorithm($scheme);
 
@@ -80,14 +46,14 @@ class CertificateSigner
         ]);
 
         $signature = '';
-        if (!openssl_sign($data, $signature, $privateKey, $algorithm)) {
+        if (!openssl_sign($data, $signature, $privateKey->getResource(), $algorithm)) {
             throw new CryptoException('Failed to create RSA PKCS1 signature: ' . openssl_error_string());
         }
 
         return $signature;
     }
 
-    private function createRSAPSSSignature(string $data, $privateKey, SignatureScheme $scheme): string
+    private function createRSAPSSSignature(string $data, PrivateKey $privateKey, SignatureScheme $scheme): string
     {
         $hashAlgo = $this->getHashAlgorithm($scheme);
 
@@ -99,10 +65,10 @@ class CertificateSigner
         $signature = '';
 
         // Try the array format first (PHP 7.2+)
-        $result = @openssl_sign(
+        $result = openssl_sign(
             $data,
             $signature,
-            $privateKey,
+            $privateKey->getResource(),
             [
                 'digest_alg' => $hashAlgo,
                 'padding' => OPENSSL_PKCS1_PSS_PADDING,
@@ -125,7 +91,7 @@ class CertificateSigner
         return $signature;
     }
 
-    private function createECDSASignature(string $data, $privateKey, SignatureScheme $scheme): string
+    private function createECDSASignature(string $data, PrivateKey $privateKey, SignatureScheme $scheme): string
     {
         $algorithm = $this->getOpenSSLAlgorithm($scheme);
 
@@ -134,33 +100,11 @@ class CertificateSigner
         ]);
 
         $signature = '';
-        if (!openssl_sign($data, $signature, $privateKey, $algorithm)) {
+        if (!openssl_sign($data, $signature, $privateKey->getResource(), $algorithm)) {
             throw new CryptoException('Failed to create ECDSA signature: ' . openssl_error_string());
         }
 
         return $signature;
-    }
-
-    private function verifyRSAPKCS1Signature(string $data, string $signature, $publicKey, SignatureScheme $scheme): bool
-    {
-        $algorithm = $this->getOpenSSLAlgorithm($scheme);
-        return openssl_verify($data, $signature, $publicKey, $algorithm) === 1;
-    }
-
-    private function verifyRSAPSSSignature(string $data, string $signature, $publicKey, SignatureScheme $scheme): bool
-    {
-        $algorithm = $this->getOpenSSLAlgorithm($scheme);
-
-        // PHP's openssl_verify handles PSS automatically when the key was created with PSS
-        $result = openssl_verify($data, $signature, $publicKey, $algorithm);
-
-        return $result === 1;
-    }
-
-    private function verifyECDSASignature(string $data, string $signature, $publicKey, SignatureScheme $scheme): bool
-    {
-        $algorithm = $this->getOpenSSLAlgorithm($scheme);
-        return openssl_verify($data, $signature, $publicKey, $algorithm) === 1;
     }
 
     private function getOpenSSLAlgorithm(SignatureScheme $scheme): int
