@@ -474,9 +474,11 @@ class ProtocolOrchestrator
             'TLS 1.3, client CertificateVerify' :
             'TLS 1.3, server CertificateVerify';
 
+        $hashAlgo = $this->context->getNegotiatedCipherSuite()->getHashAlgorithm();
+
         return str_repeat("\x20", 64).
             $contextString.
             "\x00".
-            hash('sha256', $transcript, true);
+            hash($hashAlgo, $transcript, true);
     }
 }
