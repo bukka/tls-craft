@@ -5,10 +5,10 @@ namespace Php\TlsCraft\Handshake\ExtensionProviders;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Crypto\{KeyShare, NamedGroup};
 use Php\TlsCraft\Exceptions\CraftException;
-use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Logger;
 
 class KeyShareExtensionProvider implements ExtensionProvider
 {
@@ -27,6 +27,10 @@ class KeyShareExtensionProvider implements ExtensionProvider
 
     private function createClientKeyShares(Context $context): Extension
     {
+        Logger::debug('KeyShareExtensionProvider: Creating client key shares', [
+            'supported_groups' => $this->supportedGroups,
+        ]);
+
         $cryptoFactory = $context->getCryptoFactory();
         $keyShares = [];
 
@@ -36,6 +40,11 @@ class KeyShareExtensionProvider implements ExtensionProvider
             $keyPair = $keyExchange->generateKeyPair();
             $context->setKeyPairForGroup($group, $keyPair);
             $keyShares[] = new KeyShare($group, $keyPair->getPublicKey());
+
+            Logger::debug('KeyShareExtensionProvider: Generated key pair', [
+                'group' => $groupName,
+                'public_key_length' => strlen($keyPair->getPublicKey()),
+            ]);
         }
 
         return new KeyShareExtension($keyShares);
@@ -51,6 +60,10 @@ class KeyShareExtensionProvider implements ExtensionProvider
 
         $selectedGroup = $clientKeyShare->getGroup();
 
+        Logger::debug('KeyShareExtensionProvider: Creating server key share', [
+            'selected_group' => $selectedGroup->getName(),
+        ]);
+
         // Generate server key pair for the selected group
         $cryptoFactory = $context->getCryptoFactory();
         $keyExchange = $cryptoFactory->createKeyExchange($selectedGroup);
@@ -62,6 +75,10 @@ class KeyShareExtensionProvider implements ExtensionProvider
         // Compute shared secret using our key pair
         $sharedSecret = $serverKeyPair->computeSharedSecret($clientKeyShare->getKeyExchange());
         $context->setSharedSecret($sharedSecret);
+
+        Logger::debug('KeyShareExtensionProvider: Shared secret computed', [
+            'shared_secret_length' => strlen($sharedSecret),
+        ]);
 
         // Derive handshake traffic secrets
         $context->deriveHandshakeSecrets();

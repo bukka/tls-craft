@@ -7,6 +7,7 @@ use Php\TlsCraft\Crypto\NamedGroup;
 use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Handshake\Extensions\SupportedGroupsExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Logger;
 
 class SupportedGroupsProvider implements ExtensionProvider
 {
@@ -16,6 +17,11 @@ class SupportedGroupsProvider implements ExtensionProvider
 
     public function create(Context $context): ?Extension
     {
+        Logger::debug('SupportedGroupsProvider: Creating extension', [
+            'groups' => $this->supportedGroups,
+            'is_client' => $context->isClient(),
+        ]);
+
         // Convert group names to NamedGroup enums
         $groups = array_map(
             fn($groupName) => NamedGroup::fromName($groupName),

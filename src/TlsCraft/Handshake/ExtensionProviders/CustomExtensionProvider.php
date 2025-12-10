@@ -6,6 +6,7 @@ use Php\TlsCraft\Context;
 use Php\TlsCraft\Handshake\Extensions\CustomExtension;
 use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Logger;
 
 class CustomExtensionProvider implements ExtensionProvider
 {
@@ -17,6 +18,12 @@ class CustomExtensionProvider implements ExtensionProvider
 
     public function create(Context $context): ?Extension
     {
+        Logger::debug('CustomExtensionProvider: Creating custom extension', [
+            'extension_type' => $this->extensionType,
+            'data_length' => strlen($this->extensionData),
+            'data_hex' => bin2hex($this->extensionData),
+        ]);
+
         return new CustomExtension(ExtensionType::from($this->extensionType), $this->extensionData);
     }
 
