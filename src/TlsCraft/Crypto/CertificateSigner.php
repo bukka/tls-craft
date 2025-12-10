@@ -55,6 +55,10 @@ class CertificateSigner
 
     private function createRSAPSSSignature(string $data, PrivateKey $privateKey, SignatureScheme $scheme): string
     {
+        if (!defined('OPENSSL_RSA_PSS_SALTLEN_DIGEST')) {
+            throw new CryptoException('OPENSSL_RSA_PSS_SALTLEN_DIGEST constant not defined - added in PHP 8.6');
+        }
+
         $hashAlgo = $this->getHashAlgorithm($scheme);
 
         Logger::debug('Creating RSA-PSS signature', [
@@ -64,12 +68,14 @@ class CertificateSigner
 
         $signature = '';
 
+        /** @noinspection PhpUndefinedConstantInspection */
         $result = openssl_sign(
             $data,
             $signature,
             $privateKey->getResource(),
             $hashAlgo,
-            OPENSSL_PKCS1_PSS_PADDING
+            OPENSSL_PKCS1_PSS_PADDING,
+            OPENSSL_RSA_PSS_SALTLEN_DIGEST
         );
 
         if (!$result) {
