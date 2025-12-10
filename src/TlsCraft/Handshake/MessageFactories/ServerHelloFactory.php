@@ -3,12 +3,12 @@
 namespace Php\TlsCraft\Handshake\MessageFactories;
 
 use Php\TlsCraft\Exceptions\CraftException;
-use Php\TlsCraft\Handshake\Messages\ServerHello;
+use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Protocol\Version;
 
 class ServerHelloFactory extends AbstractMessageFactory
 {
-    public function create(): ServerHello
+    public function create(): ServerHelloMessage
     {
         $extensions = $this->config->getServerHelloExtensions()->createExtensions($this->context);
 
@@ -17,7 +17,7 @@ class ServerHelloFactory extends AbstractMessageFactory
             throw new CraftException('No cipher suite negotiated');
         }
 
-        return new ServerHello(
+        return new ServerHelloMessage(
             Version::TLS_1_2, // Legacy version field
             $this->context->getServerRandom(),
             $this->context->getClientHelloSessionId(),

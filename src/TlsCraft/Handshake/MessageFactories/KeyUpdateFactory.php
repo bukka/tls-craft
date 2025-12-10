@@ -2,12 +2,12 @@
 
 namespace Php\TlsCraft\Handshake\MessageFactories;
 
-use Php\TlsCraft\Handshake\Messages\KeyUpdate;
+use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
 
 class KeyUpdateFactory extends AbstractMessageFactory
 {
-    public function create(bool $requestUpdate): KeyUpdate
+    public function create(bool $requestUpdate): KeyUpdateMessage
     {
-        return new KeyUpdate($requestUpdate);
+        return new KeyUpdateMessage($requestUpdate);
     }
 }

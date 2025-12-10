@@ -21,13 +21,13 @@ use Php\TlsCraft\Handshake\MessageParsers\EncryptedExtensionsParser;
 use Php\TlsCraft\Handshake\MessageParsers\FinishedParser;
 use Php\TlsCraft\Handshake\MessageParsers\KeyUpdateParser;
 use Php\TlsCraft\Handshake\MessageParsers\ServerHelloParser;
-use Php\TlsCraft\Handshake\Messages\Certificate;
-use Php\TlsCraft\Handshake\Messages\CertificateVerify;
-use Php\TlsCraft\Handshake\Messages\ClientHello;
-use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
-use Php\TlsCraft\Handshake\Messages\Finished;
-use Php\TlsCraft\Handshake\Messages\KeyUpdate;
-use Php\TlsCraft\Handshake\Messages\ServerHello;
+use Php\TlsCraft\Handshake\Messages\CertificateMessage;
+use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
+use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
+use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
+use Php\TlsCraft\Handshake\Messages\FinishedMessage;
+use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
+use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Protocol\{AlertDescription, AlertLevel};
 
 class MessageFactory
@@ -168,37 +168,37 @@ class MessageFactory
         return $this->keyUpdateParser;
     }
 
-    public function createClientHello(): ClientHello
+    public function createClientHello(): ClientHelloMessage
     {
         return $this->getClientHelloFactory()->create();
     }
 
-    public function createServerHello(): ServerHello
+    public function createServerHello(): ServerHelloMessage
     {
         return $this->getServerHelloFactory()->create();
     }
 
-    public function createEncryptedExtensions(): EncryptedExtensions
+    public function createEncryptedExtensions(): EncryptedExtensionsMessage
     {
         return $this->getEncryptedExtensionsFactory()->create();
     }
 
-    public function createCertificate(CertificateChain $certificateChain): Certificate
+    public function createCertificate(CertificateChain $certificateChain): CertificateMessage
     {
         return $this->getCertificateFactory()->create($certificateChain);
     }
 
-    public function createCertificateVerify(string $signature): CertificateVerify
+    public function createCertificateVerify(string $signature): CertificateVerifyMessage
     {
         return $this->getCertificateVerifyFactory()->create($signature);
     }
 
-    public function createFinished(bool $isClient): Finished
+    public function createFinished(bool $isClient): FinishedMessage
     {
         return $this->getFinishedFactory()->create($isClient);
     }
 
-    public function createKeyUpdate(bool $requestUpdate): KeyUpdate
+    public function createKeyUpdate(bool $requestUpdate): KeyUpdateMessage
     {
         return $this->getKeyUpdateFactory()->create($requestUpdate);
     }
@@ -209,37 +209,37 @@ class MessageFactory
     }
 
     // FromWire methods
-    public function createClientHelloFromWire(string $data, int &$offset = 0): ClientHello
+    public function createClientHelloFromWire(string $data, int &$offset = 0): ClientHelloMessage
     {
         return $this->getClientHelloParser()->parse($data, $offset);
     }
 
-    public function createServerHelloFromWire(string $data, int &$offset = 0): ServerHello
+    public function createServerHelloFromWire(string $data, int &$offset = 0): ServerHelloMessage
     {
         return $this->getServerHelloParser()->parse($data, $offset);
     }
 
-    public function createEncryptedExtensionsFromWire(string $data, int &$offset = 0): EncryptedExtensions
+    public function createEncryptedExtensionsFromWire(string $data, int &$offset = 0): EncryptedExtensionsMessage
     {
         return $this->getEncryptedExtensionsParser()->parse($data, $offset);
     }
 
-    public function createCertificateFromWire(string $data, int &$offset = 0): Certificate
+    public function createCertificateFromWire(string $data, int &$offset = 0): CertificateMessage
     {
         return $this->getCertificateParser()->parse($data, $offset);
     }
 
-    public function createCertificateVerifyFromWire(string $data, int &$offset = 0): CertificateVerify
+    public function createCertificateVerifyFromWire(string $data, int &$offset = 0): CertificateVerifyMessage
     {
         return $this->getCertificateVerifyParser()->parse($data, $offset);
     }
 
-    public function createFinishedFromWire(string $data, int &$offset = 0): Finished
+    public function createFinishedFromWire(string $data, int &$offset = 0): FinishedMessage
     {
         return $this->getFinishedParser()->parse($data, $offset);
     }
 
-    public function createKeyUpdateFromWire(string $data, int &$offset = 0): KeyUpdate
+    public function createKeyUpdateFromWire(string $data, int &$offset = 0): KeyUpdateMessage
     {
         return $this->getKeyUpdateParser()->parse($data, $offset);
     }

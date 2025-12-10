@@ -5,7 +5,7 @@ namespace Php\TlsCraft\Handshake\Messages;
 use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Protocol\HandshakeType;
 
-class CertificateVerify extends Message
+class CertificateVerifyMessage extends Message
 {
     public function __construct(
         public readonly SignatureScheme $algorithm,

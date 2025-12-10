@@ -3,19 +3,19 @@
 namespace Php\TlsCraft\Handshake\MessageParsers;
 
 use Php\TlsCraft\Exceptions\CraftException;
-use Php\TlsCraft\Handshake\Messages\KeyUpdate;
+use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
 use Php\TlsCraft\Protocol\HandshakeType;
 
 class KeyUpdateParser extends AbstractMessageParser
 {
-    public function parse(string $data): KeyUpdate
+    public function parse(string $data): KeyUpdateMessage
     {
         $payload = $this->parseHandshake($data, HandshakeType::KEY_UPDATE);
 
         if ($payload === '') {
-            throw new CraftException('Invalid KeyUpdate message length');
+            throw new CraftException('Invalid KeyUpdateMessage message length');
         }
 
-        return new KeyUpdate(ord($payload[0]) === 1);
+        return new KeyUpdateMessage(ord($payload[0]) === 1);
     }
 }

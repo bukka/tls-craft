@@ -2,11 +2,11 @@
 
 namespace Php\TlsCraft\Handshake\MessageSerializers;
 
-use Php\TlsCraft\Handshake\Messages\CertificateVerify;
+use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
 
 class CertificateVerifySerializer extends AbstractMessageSerializer
 {
-    public function serialize(CertificateVerify $message): string
+    public function serialize(CertificateVerifyMessage $message): string
     {
         return pack('n', $message->algorithm->value).
             pack('n', strlen($message->signature)).

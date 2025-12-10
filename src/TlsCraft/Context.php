@@ -408,6 +408,11 @@ class Context
 
     // === Certificate and keys ===
 
+    public function setCertificateChain(CertificateChain $certificateChain): void
+    {
+        $this->certificateChain = $certificateChain;
+    }
+
     public function setCertificateChainFromPEM(string $pemData): void
     {
         $this->certificateChain = $this->cryptoFactory->createCertificateChainFromPEM($pemData);
@@ -521,7 +526,7 @@ class Context
         $this->writeSequenceNumber = 0;
     }
 
-    // === KeyUpdate Response Flag ===
+    // === KeyUpdateMessage Response Flag ===
     private bool $keyUpdateResponseRequired = false;
 
     public function setKeyUpdateResponseRequired(bool $required): void

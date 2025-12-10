@@ -162,7 +162,7 @@ enum ExtensionType: int
      */
     public function isAllowedInClientHello(): bool
     {
-        // Most extensions are allowed in ClientHello
+        // Most extensions are allowed in ClientHelloMessage
         return !in_array($this, [
             // Extensions that are server-only or response-only
         ]);

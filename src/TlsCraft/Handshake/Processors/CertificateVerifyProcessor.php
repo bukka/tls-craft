@@ -4,7 +4,7 @@ namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\{CryptoException, ProtocolViolationException};
-use Php\TlsCraft\Handshake\Messages\CertificateVerify;
+use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
 
 use Php\TlsCraft\Protocol\HandshakeType;
 use const OPENSSL_ALGO_SHA256;
@@ -16,7 +16,7 @@ use const OPENSSL_PKCS1_PSS_PADDING;
 
 class CertificateVerifyProcessor extends MessageProcessor
 {
-    public function process(CertificateVerify $message): void
+    public function process(CertificateVerifyMessage $message): void
     {
         // Validate signature algorithm
         $this->validateSignatureAlgorithm($message->algorithm);

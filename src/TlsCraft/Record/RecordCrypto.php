@@ -97,7 +97,7 @@ class RecordCrypto
     }
 
     /**
-     * Update traffic keys after KeyUpdate message
+     * Update traffic keys after KeyUpdateMessage message
      */
     public function updateApplicationKeys(): void
     {

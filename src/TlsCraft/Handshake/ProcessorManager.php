@@ -3,14 +3,14 @@
 namespace Php\TlsCraft\Handshake;
 
 use InvalidArgumentException;
-use Php\TlsCraft\Handshake\Messages\Certificate;
-use Php\TlsCraft\Handshake\Messages\CertificateVerify;
-use Php\TlsCraft\Handshake\Messages\ClientHello;
-use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
-use Php\TlsCraft\Handshake\Messages\Finished;
-use Php\TlsCraft\Handshake\Messages\KeyUpdate;
+use Php\TlsCraft\Handshake\Messages\CertificateMessage;
+use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
+use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
+use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
+use Php\TlsCraft\Handshake\Messages\FinishedMessage;
+use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
 use Php\TlsCraft\Handshake\Messages\Message;
-use Php\TlsCraft\Handshake\Messages\ServerHello;
+use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Handshake\Processors\{CertificateProcessor,
     CertificateVerifyProcessor,
     ClientHelloProcessor,
@@ -37,7 +37,7 @@ class ProcessorManager
         $this->factory = $factory;
     }
 
-    public function processClientHello(ClientHello $message): void
+    public function processClientHello(ClientHelloMessage $message): void
     {
         if (!$this->clientHelloProcessor) {
             $this->clientHelloProcessor = $this->factory->createClientHelloProcessor();
@@ -45,7 +45,7 @@ class ProcessorManager
         $this->clientHelloProcessor->process($message);
     }
 
-    public function processServerHello(ServerHello $message): void
+    public function processServerHello(ServerHelloMessage $message): void
     {
         if (!$this->serverHelloProcessor) {
             $this->serverHelloProcessor = $this->factory->createServerHelloProcessor();
@@ -53,7 +53,7 @@ class ProcessorManager
         $this->serverHelloProcessor->process($message);
     }
 
-    public function processEncryptedExtensions(EncryptedExtensions $message): void
+    public function processEncryptedExtensions(EncryptedExtensionsMessage $message): void
     {
         if (!$this->encryptedExtensionsProcessor) {
             $this->encryptedExtensionsProcessor = $this->factory->createEncryptedExtensionsProcessor();
@@ -61,7 +61,7 @@ class ProcessorManager
         $this->encryptedExtensionsProcessor->process($message);
     }
 
-    public function processCertificate(Certificate $message): void
+    public function processCertificate(CertificateMessage $message): void
     {
         if (!$this->certificateProcessor) {
             $this->certificateProcessor = $this->factory->createCertificateProcessor();
@@ -69,7 +69,7 @@ class ProcessorManager
         $this->certificateProcessor->process($message);
     }
 
-    public function processCertificateVerify(CertificateVerify $message): void
+    public function processCertificateVerify(CertificateVerifyMessage $message): void
     {
         if (!$this->certificateVerifyProcessor) {
             $this->certificateVerifyProcessor = $this->factory->createCertificateVerifyProcessor();
@@ -77,7 +77,7 @@ class ProcessorManager
         $this->certificateVerifyProcessor->process($message);
     }
 
-    public function processFinished(Finished $message): void
+    public function processFinished(FinishedMessage $message): void
     {
         if (!$this->finishedProcessor) {
             $this->finishedProcessor = $this->factory->createFinishedProcessor();
@@ -85,7 +85,7 @@ class ProcessorManager
         $this->finishedProcessor->process($message);
     }
 
-    public function processKeyUpdate(KeyUpdate $message): void
+    public function processKeyUpdate(KeyUpdateMessage $message): void
     {
         if (!$this->keyUpdateProcessor) {
             $this->keyUpdateProcessor = $this->factory->createKeyUpdateProcessor();
@@ -99,13 +99,13 @@ class ProcessorManager
     public function processMessage(Message $message): void
     {
         match ($message::class) {
-            ClientHello::class => $this->processClientHello($message),
-            ServerHello::class => $this->processServerHello($message),
-            EncryptedExtensions::class => $this->processEncryptedExtensions($message),
-            Certificate::class => $this->processCertificate($message),
-            CertificateVerify::class => $this->processCertificateVerify($message),
-            Finished::class => $this->processFinished($message),
-            KeyUpdate::class => $this->processKeyUpdate($message),
+            ClientHelloMessage::class => $this->processClientHello($message),
+            ServerHelloMessage::class => $this->processServerHello($message),
+            EncryptedExtensionsMessage::class => $this->processEncryptedExtensions($message),
+            CertificateMessage::class => $this->processCertificate($message),
+            CertificateVerifyMessage::class => $this->processCertificateVerify($message),
+            FinishedMessage::class => $this->processFinished($message),
+            KeyUpdateMessage::class => $this->processKeyUpdate($message),
             default => throw new InvalidArgumentException('No processor available for message type: '.$message::class),
         };
     }

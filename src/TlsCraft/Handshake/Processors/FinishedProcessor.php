@@ -3,14 +3,14 @@
 namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Handshake\Messages\Finished;
+use Php\TlsCraft\Handshake\Messages\FinishedMessage;
 use Php\TlsCraft\Protocol\HandshakeType;
 
 class FinishedProcessor extends MessageProcessor
 {
-    public function process(Finished $message): void
+    public function process(FinishedMessage $message): void
     {
-        // Verify the Finished message
+        // Verify the FinishedMessage message
         $this->verifyFinishedData($message->verifyData);
 
         // Update state to indicate handshake is complete
@@ -32,7 +32,7 @@ class FinishedProcessor extends MessageProcessor
             throw new ProtocolViolationException('Key schedule not initialized');
         }
 
-        // Get transcript hash excluding the Finished message itself
+        // Get transcript hash excluding the FinishedMessage message itself
         $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
             $cipherSuite->getHashAlgorithm(),
             HandshakeType::CERTIFICATE_VERIFY
@@ -40,10 +40,10 @@ class FinishedProcessor extends MessageProcessor
 
         // Get the appropriate handshake traffic secret
         if ($this->context->isClient()) {
-            // We're client verifying server's Finished
+            // We're client verifying server's FinishedMessage
             $handshakeSecret = $keySchedule->getServerHandshakeTrafficSecret();
         } else {
-            // We're server verifying client's Finished
+            // We're server verifying client's FinishedMessage
             $handshakeSecret = $keySchedule->getClientHandshakeTrafficSecret();
         }
 
@@ -55,7 +55,7 @@ class FinishedProcessor extends MessageProcessor
 
         // Compare with received verify_data using constant-time comparison
         if (!hash_equals($expectedVerifyData, $receivedVerifyData)) {
-            throw new ProtocolViolationException('Finished message verification failed - HMAC mismatch');
+            throw new ProtocolViolationException('FinishedMessage message verification failed - HMAC mismatch');
         }
     }
 }

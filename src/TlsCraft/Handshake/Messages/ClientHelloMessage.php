@@ -6,7 +6,7 @@ use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Protocol\HandshakeType;
 use Php\TlsCraft\Protocol\Version;
 
-class ClientHello extends Message
+class ClientHelloMessage extends Message
 {
     public function __construct(
         public readonly Version $version,
@@ -19,7 +19,7 @@ class ClientHello extends Message
         parent::__construct(HandshakeType::CLIENT_HELLO, $extensions);
 
         if (strlen($random) !== 32) {
-            throw new ProtocolViolationException('ClientHello random must be 32 bytes');
+            throw new ProtocolViolationException('ClientHelloMessage random must be 32 bytes');
         }
     }
 }

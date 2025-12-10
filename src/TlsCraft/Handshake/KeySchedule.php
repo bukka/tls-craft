@@ -204,7 +204,7 @@ class KeySchedule
 
     public function calculateFinishedData(string $finishedKey): string
     {
-        // Hash the transcript up to and including the FINISHED message (should be only called by the client when creating Finished)
+        // Hash the transcript up to and including the FINISHED message (should be only called by the client when creating FinishedMessage)
         $transcript = hash($this->hashAlgorithm, $this->transcript->getThrough(HandshakeType::FINISHED), true);
 
         return hash_hmac($this->hashAlgorithm, $transcript, $finishedKey, true);

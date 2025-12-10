@@ -2,14 +2,21 @@
 
 namespace Php\TlsCraft\Handshake\Processors;
 
+use Php\TlsCraft\Crypto\Certificate;
+use Php\TlsCraft\Crypto\CertificateChain;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Handshake\ExtensionType;
-use Php\TlsCraft\Handshake\Messages\Certificate;
+use Php\TlsCraft\Handshake\Messages\CertificateMessage;
+use Php\TlsCraft\Logger;
 
 class CertificateProcessor extends MessageProcessor
 {
-    public function process(Certificate $message): void
+    public function process(CertificateMessage $message): void
     {
+        Logger::debug('Processing Certificate message', [
+            'Context length' => strlen($message->certificateRequestContext),
+            'Chain length' => $message->certificateChain->getLength(),
+        ]);
+
         // Validate certificate request context (should be empty for server cert)
         if (!empty($message->certificateRequestContext)) {
             if (!$this->context->isClient()) {
@@ -20,21 +27,18 @@ class CertificateProcessor extends MessageProcessor
         }
 
         // Validate certificate list
-        if (empty($message->certificateList)) {
+        if ($message->certificateChain->getLength() === 0) {
             throw new ProtocolViolationException('Certificate message must contain at least one certificate');
         }
 
-        // Process certificate chain
-        $this->processCertificateChain($message->certificateList);
-
         // Store certificate chain in context
-        $this->context->setCertificateChain($message->certificateList);
+        $this->context->setCertificateChain($message->certificateChain);
 
-        // Extract and validate certificate extensions
-        $this->processCertificateExtensions($message->certificateList);
+        // Process and validate certificate chain
+        $this->processCertificateChain($message->certificateChain);
 
         // Perform certificate validation
-        $this->validateCertificateChain($message->certificateList);
+        $this->validateCertificateChain($message->certificateChain);
     }
 
     private function validateCertificateRequestContext(string $context): void
@@ -45,105 +49,52 @@ class CertificateProcessor extends MessageProcessor
         }
     }
 
-    private function processCertificateChain(array $certificateList): void
+    private function processCertificateChain(CertificateChain $certificateChain): void
     {
-        foreach ($certificateList as $index => $entry) {
-            // Back-compat: allow plain string or the new structured entry
-            if (is_string($entry)) {
-                $certificateDer = $entry;
-                $extensionsRaw  = '';
-            } elseif (is_array($entry)) {
-                $certificateDer = $entry['certificate'] ?? '';
-                $extensionsRaw  = $entry['extensions']  ?? '';
-            } else {
-                throw new ProtocolViolationException('Invalid certificate list entry');
-            }
+        $certificates = $certificateChain->getCertificates();
 
-            if ($certificateDer === '') {
-                throw new ProtocolViolationException('Empty certificate in chain');
-            }
+        foreach ($certificates as $index => $certificate) {
+            $certResource = $certificate->getResource();
+            $certInfo = openssl_x509_parse($certResource);
 
-            $parsedCert = $this->parseX509Certificate($certificateDer);
+            if ($certInfo === false) {
+                throw new ProtocolViolationException('Failed to parse certificate information');
+            }
 
             if ($index === 0) {
-                $this->processEndEntityCertificate($parsedCert, $extensionsRaw);
+                $this->processEndEntityCertificate($certificate, $certInfo);
             } else {
-                $this->processIntermediateCertificate($parsedCert, $extensionsRaw);
+                $this->processIntermediateCertificate($certificate, $certInfo);
             }
         }
     }
 
-    private function parseX509Certificate(string $certificateDer): array
+    private function processEndEntityCertificate(Certificate $certificate, array $certInfo): void
     {
-        // Detect DER (first byte 0x30 and looks binary) and wrap as PEM
-        $isLikelyDer = isset($certificateDer[0]) && ord($certificateDer[0]) === 0x30;
-        $pem = $isLikelyDer
-            ? $this->derToPem($certificateDer)
-            : $certificateDer; // allow already-PEM input
-
-        $certResource = openssl_x509_read($pem);
-        if ($certResource === false) {
-            throw new ProtocolViolationException('Failed to parse X.509 certificate');
-        }
-
-        $certInfo = openssl_x509_parse($certResource);
-        if ($certInfo === false) {
-            throw new ProtocolViolationException('Failed to parse certificate information');
-        }
-
-        $exportedPem = null;
-        openssl_x509_export($certResource, $exportedPem);
-
-        return [
-            'resource' => $certResource,
-            'info'     => $certInfo,
-            'pem'      => $exportedPem,
-            'der'      => $certificateDer,
-        ];
-    }
-
-    private function derToPem(string $der): string
-    {
-        return "-----BEGIN CERTIFICATE-----\n"
-            . chunk_split(base64_encode($der), 64, "\n")
-            . "-----END CERTIFICATE-----\n";
-    }
-
-    private function processEndEntityCertificate(array $parsedCert, string $extensionsRaw): void
-    {
-        $certInfo = $parsedCert['info'];
-
-        $publicKey = openssl_pkey_get_public($parsedCert['resource']);
-        if ($publicKey === false) {
-            throw new ProtocolViolationException('Failed to extract public key from certificate');
-        }
+        $publicKey = $certificate->getPublicKey();
         $this->context->setPeerPublicKey($publicKey);
+
+        Logger::debug('Processing end-entity certificate', [
+            'Subject' => $certInfo['subject']['CN'] ?? 'unknown',
+            'Key type' => $certificate->getKeyTypeName(),
+        ]);
 
         $this->validateCertificatePurpose($certInfo);
         $this->validateCertificateValidity($certInfo);
         $this->validateSubjectAlternativeName($certInfo);
-
-        // Process CertificateEntry extensions if present
-        if ($extensionsRaw !== '') {
-            $this->processCertificateEntryExtensions($extensionsRaw);
-        }
     }
 
-    private function processIntermediateCertificate(array $parsedCert, string $extensionsRaw): void
+    private function processIntermediateCertificate(Certificate $certificate, array $certInfo): void
     {
-        $certInfo = $parsedCert['info'];
+        Logger::debug('Processing intermediate certificate', [
+            'Subject' => $certInfo['subject']['CN'] ?? 'unknown',
+        ]);
 
         if (!$this->isCACertificate($certInfo)) {
             throw new ProtocolViolationException('Intermediate certificate is not a valid CA certificate');
         }
 
         $this->validateCertificateValidity($certInfo);
-        $this->context->addIntermediateCertificate($parsedCert);
-
-        // Process CertificateEntry extensions if present
-        if ($extensionsRaw !== '') {
-            $this->processCertificateEntryExtensions($extensionsRaw);
-        }
     }
 
     private function validateCertificatePurpose(array $certInfo): void
@@ -259,7 +210,6 @@ class CertificateProcessor extends MessageProcessor
         // Wildcard matching (*.example.com)
         if (str_starts_with($pattern, '*.')) {
             $domain = substr($pattern, 2);
-
             return str_ends_with($hostname, '.'.$domain);
         }
 
@@ -269,201 +219,52 @@ class CertificateProcessor extends MessageProcessor
     private function isCACertificate(array $certInfo): bool
     {
         $basicConstraints = $certInfo['extensions']['basicConstraints'] ?? '';
-
         return str_contains($basicConstraints, 'CA:TRUE');
     }
 
-    private function processCertificateExtensions(array $certificateList): void
+    private function validateCertificateChain(CertificateChain $certificateChain): void
     {
-        // Process the TLS 1.3 CertificateEntry extensions
-        foreach ($certificateList as $certEntry) {
-            // Get extensions raw data from the certificate entry
-            if (is_array($certEntry) && isset($certEntry['extensions'])) {
-                $extensionsRaw = $certEntry['extensions'];
-                if ($extensionsRaw !== '') {
-                    $this->processCertificateEntryExtensions($extensionsRaw);
-                }
-            }
-        }
-    }
+        $certificates = $certificateChain->getCertificates();
 
-    private function processCertificateEntryExtensions(string $extensionsRaw): void
-    {
-        // Parse the raw extensions data
-        // In TLS 1.3, CertificateEntry extensions are encoded as:
-        // - 2 bytes: extensions length
-        // - For each extension:
-        //   - 2 bytes: extension type
-        //   - 2 bytes: extension data length
-        //   - N bytes: extension data
-
-        if (strlen($extensionsRaw) < 2) {
-            return; // No extensions
-        }
-
-        $offset = 0;
-        $extensionsLength = unpack('n', substr($extensionsRaw, $offset, 2))[1];
-        $offset += 2;
-
-        if ($extensionsLength === 0) {
-            return; // No extensions
-        }
-
-        while ($offset < strlen($extensionsRaw)) {
-            if ($offset + 4 > strlen($extensionsRaw)) {
-                break; // Not enough data for extension header
-            }
-
-            $extensionType = unpack('n', substr($extensionsRaw, $offset, 2))[1];
-            $offset += 2;
-
-            $extensionLength = unpack('n', substr($extensionsRaw, $offset, 2))[1];
-            $offset += 2;
-
-            if ($offset + $extensionLength > strlen($extensionsRaw)) {
-                throw new ProtocolViolationException('Invalid extension length in CertificateEntry');
-            }
-
-            $extensionData = substr($extensionsRaw, $offset, $extensionLength);
-            $offset += $extensionLength;
-
-            $this->processCertificateExtension($extensionType, $extensionData);
-        }
-    }
-
-    private function processCertificateExtension(int $extensionType, string $extensionData): void
-    {
-        // Process TLS certificate extensions (different from handshake extensions)
-        // These are extensions within the Certificate message itself
-
-        try {
-            $type = ExtensionType::from($extensionType);
-        } catch (\ValueError $e) {
-            // Unknown extension type - ignore
-            return;
-        }
-
-        switch ($type) {
-            case ExtensionType::STATUS_REQUEST:
-                // OCSP stapling
-                $this->processOCSPStatus($extensionData);
-                break;
-
-            case ExtensionType::SIGNED_CERTIFICATE_TIMESTAMP:
-                // Certificate Transparency
-                $this->processSCT($extensionData);
-                break;
-
-            default:
-                // Unknown or unhandled extension - ignore or log
-                break;
-        }
-    }
-
-    private function processOCSPStatus(string $extensionData): void
-    {
-        // Process OCSP stapled response
-        // This would validate the OCSP response to check certificate revocation status
-        // $this->context->setOCSPResponse($extensionData);
-    }
-
-    private function processSCT(string $extensionData): void
-    {
-        // Process Signed Certificate Timestamp for Certificate Transparency
-        // $this->context->addSCT($extensionData);
-    }
-
-    private function validateCertificateChain(array $certificateList): void
-    {
-        // This is a simplified chain validation
-        // In production, you'd want more thorough validation including:
-        // - Path building and validation
-        // - Revocation checking (CRL/OCSP)
-        // - Certificate Transparency verification
-        // - Policy constraints validation
-
-        if (count($certificateList) === 1) {
-            // Single certificate - might be self-signed or we trust it directly
-            $certDer = $this->normalizeCertificateEntry($certificateList[0]);
-            $this->validateSingleCertificate($certDer);
+        if (count($certificates) === 1) {
+            $this->validateSingleCertificate($certificateChain->getLeafCertificate());
         } else {
-            // Certificate chain validation
-            $this->validateChainSignatures($certificateList);
+            $this->validateChainSignatures($certificates);
         }
     }
 
-    private function validateSingleCertificate(string $certificate): void
+    private function validateSingleCertificate(Certificate $certificate): void
     {
-        // For testing purposes, we might accept self-signed certificates
-        // or certificates in a test trust store
-
         if (!$this->config->isAllowSelfSignedCertificates()) {
-            // In production, verify against trusted root CA store
             $this->verifyAgainstTrustStore($certificate);
         }
     }
 
-    private function validateChainSignatures(array $certificateList): void
+    private function validateChainSignatures(array $certificates): void
     {
-        for ($i = 0; $i < count($certificateList) - 1; ++$i) {
-            $certDer   = $this->normalizeCertificateEntry($certificateList[$i]);
-            $issuerDer = $this->normalizeCertificateEntry($certificateList[$i + 1]);
+        for ($i = 0; $i < count($certificates) - 1; ++$i) {
+            $cert = $certificates[$i];
+            $issuer = $certificates[$i + 1];
 
-            if (!$this->verifyCertificateSignature($certDer, $issuerDer)) {
+            if (!$this->verifyCertificateSignature($cert, $issuer)) {
                 throw new ProtocolViolationException("Certificate chain validation failed at position {$i}");
             }
         }
 
-        $rootDer = $this->normalizeCertificateEntry($certificateList[count($certificateList) - 1]);
-        $this->verifyAgainstTrustStore($rootDer);
+        $rootCert = $certificates[count($certificates) - 1];
+        $this->verifyAgainstTrustStore($rootCert);
     }
 
-    /**
-     * Normalize a certificate entry to extract the DER-encoded certificate.
-     *
-     * @param string|array $entry Certificate entry (either plain DER string or structured array)
-     * @return string DER-encoded certificate
-     * @throws ProtocolViolationException
-     */
-    private function normalizeCertificateEntry(string|array $entry): string
+    private function verifyCertificateSignature(Certificate $cert, Certificate $issuer): bool
     {
-        if (is_string($entry)) {
-            return $entry; // Plain DER format
-        }
+        $certResource = $cert->getResource();
+        $issuerPublicKey = $issuer->getPublicKey();
 
-        if (is_array($entry) && isset($entry['certificate'])) {
-            return $entry['certificate']; // Structured format with extensions
-        }
-
-        throw new ProtocolViolationException('Invalid certificate entry');
+        return openssl_x509_verify($certResource, $issuerPublicKey) === 1;
     }
 
-    private function verifyCertificateSignature(string $certDer, string $issuerDer): bool
+    private function verifyAgainstTrustStore(Certificate $certificate): void
     {
-        $cert  = openssl_x509_read($this->derToPemIfNeeded($certDer));
-        $issuer = openssl_x509_read($this->derToPemIfNeeded($issuerDer));
-        if ($cert === false || $issuer === false) {
-            return false;
-        }
-
-        $issuerPublicKey = openssl_pkey_get_public($issuer);
-        if ($issuerPublicKey === false) {
-            return false;
-        }
-
-        return openssl_x509_verify($cert, $issuerPublicKey) === 1;
-    }
-
-    private function derToPemIfNeeded(string $maybeDer): string
-    {
-        return (isset($maybeDer[0]) && ord($maybeDer[0]) === 0x30)
-            ? $this->derToPem($maybeDer)
-            : $maybeDer; // already PEM
-    }
-
-    private function verifyAgainstTrustStore(string $certificate): void
-    {
-        // Skip trust store validation if disabled
         if (!$this->config->isRequireTrustedCertificates()) {
             return;
         }
@@ -472,47 +273,36 @@ class CertificateProcessor extends MessageProcessor
         $caFile = $this->config->getCustomCaFile();
 
         if ($caPath === null && $caFile === null) {
-            // Use system default CA bundle
             $this->verifyWithSystemCaBundle($certificate);
         } else {
-            // Use custom CA path/file
             $this->verifyWithCustomCa($certificate, $caPath, $caFile);
         }
     }
 
-    private function verifyWithSystemCaBundle(string $certificate): void
+    private function verifyWithSystemCaBundle(Certificate $certificate): void
     {
-        $cert = openssl_x509_read($this->derToPemIfNeeded($certificate));
-        if ($cert === false) {
-            throw new ProtocolViolationException('Failed to parse certificate for trust store verification');
-        }
+        $certResource = $certificate->getResource();
 
-        // Verify against system CA bundle
-        $result = openssl_x509_checkpurpose($cert, X509_PURPOSE_SSL_CLIENT, []);
+        $result = openssl_x509_checkpurpose($certResource, X509_PURPOSE_SSL_CLIENT, []);
         if ($result !== true) {
             throw new ProtocolViolationException('Certificate verification failed: not trusted by system CA bundle');
         }
     }
 
-    private function verifyWithCustomCa(string $certificate, ?string $caPath, ?string $caFile): void
+    private function verifyWithCustomCa(Certificate $certificate, ?string $caPath, ?string $caFile): void
     {
-        $cert = openssl_x509_read($this->derToPemIfNeeded($certificate));
-        if ($cert === false) {
-            throw new ProtocolViolationException('Failed to parse certificate for trust store verification');
-        }
+        $certResource = $certificate->getResource();
 
         $caList = [];
         if ($caPath !== null) {
             $caList[] = $caPath;
         }
         if ($caFile !== null) {
-            // For file-based CA, we need to verify differently
             $caList[] = $caFile;
         }
 
-        // Verify certificate against custom CA
         $purpose = $this->context->isClient() ? X509_PURPOSE_SSL_SERVER : X509_PURPOSE_SSL_CLIENT;
-        $result = openssl_x509_checkpurpose($cert, $purpose, $caList);
+        $result = openssl_x509_checkpurpose($certResource, $purpose, $caList);
 
         if ($result !== true) {
             throw new ProtocolViolationException('Certificate verification failed: not trusted by custom CA');

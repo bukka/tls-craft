@@ -4,13 +4,13 @@ namespace Php\TlsCraft\Handshake\MessageParsers;
 
 use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Handshake\Extensions\Extension;
-use Php\TlsCraft\Handshake\Messages\ServerHello;
+use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Protocol\HandshakeType;
 use Php\TlsCraft\Protocol\Version;
 
 class ServerHelloParser extends AbstractMessageParser
 {
-    public function parse(string $data, int &$offset = 0): ServerHello
+    public function parse(string $data, int &$offset = 0): ServerHelloMessage
     {
         $payload = $this->parseHandshake($data, HandshakeType::SERVER_HELLO);
 
@@ -41,6 +41,6 @@ class ServerHelloParser extends AbstractMessageParser
         // Extensions
         $extensions = $this->extensionFactory->decodeExtensionList($payload, $offset);
 
-        return new ServerHello($version, $random, $sessionId, $cipherSuite, $compressionMethod, $extensions);
+        return new ServerHelloMessage($version, $random, $sessionId, $cipherSuite, $compressionMethod, $extensions);
     }
 }

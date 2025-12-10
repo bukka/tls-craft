@@ -3,19 +3,19 @@
 namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Handshake\Messages\KeyUpdate;
+use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
 
 class KeyUpdateProcessor extends MessageProcessor
 {
-    public function process(KeyUpdate $message): void
+    public function process(KeyUpdateMessage $message): void
     {
-        // Validate that handshake is complete before processing KeyUpdate
+        // Validate that handshake is complete before processing KeyUpdateMessage
         if (!$this->context->isHandshakeComplete()) {
-            throw new ProtocolViolationException('KeyUpdate received before handshake completion');
+            throw new ProtocolViolationException('KeyUpdateMessage received before handshake completion');
         }
 
-        // KeyUpdate is NOT added to handshake transcript (post-handshake message)
-        // Unlike other handshake messages, KeyUpdate doesn't affect transcript
+        // KeyUpdateMessage is NOT added to handshake transcript (post-handshake message)
+        // Unlike other handshake messages, KeyUpdateMessage doesn't affect transcript
 
         // Update the peer's traffic keys (keys we use to decrypt their messages)
         $this->updatePeerTrafficKeys();

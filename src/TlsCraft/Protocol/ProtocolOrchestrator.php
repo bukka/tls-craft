@@ -11,7 +11,7 @@ use Php\TlsCraft\Exceptions\{AlertException, CraftException, ProtocolViolationEx
 use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Handshake\MessageFactories\CertificateFactory;
 use Php\TlsCraft\Handshake\MessageFactory;
-use Php\TlsCraft\Handshake\Messages\{KeyUpdate, Message};
+use Php\TlsCraft\Handshake\Messages\{KeyUpdateMessage, Message};
 use Php\TlsCraft\Handshake\MessageSerializer;
 use Php\TlsCraft\Handshake\ProcessorManager;
 use Php\TlsCraft\Record\{EncryptedLayer, LayerFactory, Record, RecordFactory};
@@ -67,14 +67,14 @@ class ProtocolOrchestrator
     {
         $this->stateTracker->startHandshake();
 
-        // Send ClientHello
+        // Send ClientHelloMessage
         $clientHello = $this->messageFactory->createClientHello();
         $this->sendHandshakeMessage($clientHello, false);
 
         // Process server handshake messages
         $this->processServerHandshakeMessages();
 
-        // Send client Finished
+        // Send client FinishedMessage
         $finished = $this->messageFactory->createFinished(true);
         $this->sendHandshakeMessage($finished);
 
@@ -86,13 +86,13 @@ class ProtocolOrchestrator
     {
         $this->stateTracker->startHandshake();
 
-        // Wait for ClientHello
+        // Wait for ClientHelloMessage
         $this->waitForClientHello();
 
         // Send server handshake flight
         $this->sendServerHandshakeFlight();
 
-        // Wait for client Finished
+        // Wait for client FinishedMessage
         $this->waitForClientFinished();
 
         // Derive application traffic secrets
@@ -128,7 +128,7 @@ class ProtocolOrchestrator
                 return $record->payload;
             }
 
-            // Handle post-handshake messages (NewSessionTicket, KeyUpdate, etc.)
+            // Handle post-handshake messages (NewSessionTicket, KeyUpdateMessage, etc.)
             if ($record->isHandshake()) {
                 $this->processHandshakeRecord($record);
                 continue; // Keep looking for application data
@@ -147,7 +147,7 @@ class ProtocolOrchestrator
     public function sendKeyUpdate(bool $requestUpdate = false): void
     {
         if (!$this->stateTracker->isConnected()) {
-            throw new CraftException('Cannot send KeyUpdate: not connected');
+            throw new CraftException('Cannot send KeyUpdateMessage: not connected');
         }
 
         $keyUpdate = $this->messageFactory->createKeyUpdate($requestUpdate);
@@ -201,7 +201,7 @@ class ProtocolOrchestrator
         while ($this->stateTracker->getHandshakeState() === HandshakeState::WAIT_CLIENT_HELLO) {
             $record = $this->recordLayer->receiveRecord();
             if (!$record) {
-                throw new CraftException('Connection closed waiting for ClientHello');
+                throw new CraftException('Connection closed waiting for ClientHelloMessage');
             }
 
             if ($record->isHandshake()) {
@@ -212,11 +212,11 @@ class ProtocolOrchestrator
 
     private function sendServerHandshakeFlight(): void
     {
-        // 1. ServerHello
+        // 1. ServerHelloMessage
         $serverHello = $this->messageFactory->createServerHello();
         $this->sendHandshakeMessage($serverHello, false);
 
-        // 2. EncryptedExtensions
+        // 2. EncryptedExtensionsMessage
         $encryptedExtensions = $this->messageFactory->createEncryptedExtensions();
         $this->sendHandshakeMessage($encryptedExtensions);
 
@@ -230,7 +230,7 @@ class ProtocolOrchestrator
         $certificateVerify = $this->messageFactory->createCertificateVerify($signature);
         $this->sendHandshakeMessage($certificateVerify);
 
-        // 5. Finished
+        // 5. FinishedMessage
         $finished = $this->messageFactory->createFinished(false);
         $this->sendHandshakeMessage($finished);
     }
@@ -240,7 +240,7 @@ class ProtocolOrchestrator
         while (!$this->stateTracker->isHandshakeComplete()) {
             $record = $this->recordLayer->receiveRecord();
             if (!$record) {
-                throw new CraftException('Connection closed waiting for client Finished');
+                throw new CraftException('Connection closed waiting for client FinishedMessage');
             }
 
             if ($record->isHandshake()) {
@@ -404,16 +404,16 @@ class ProtocolOrchestrator
         }
     }
 
-    private function handleKeyUpdate(KeyUpdate $keyUpdate): void
+    private function handleKeyUpdate(KeyUpdateMessage $keyUpdate): void
     {
         if (!$this->stateTracker->isConnected()) {
-            throw new ProtocolViolationException('KeyUpdate received before connection established');
+            throw new ProtocolViolationException('KeyUpdateMessage received before connection established');
         }
 
         // Update keys
         $this->context->updateTrafficKeys();
 
-        // Send KeyUpdate response if requested
+        // Send KeyUpdateMessage response if requested
         if ($keyUpdate->requestUpdate) {
             $response = $this->messageFactory->createKeyUpdate(false);
             $this->sendHandshakeMessage($response);

@@ -2,11 +2,11 @@
 
 namespace Php\TlsCraft\Handshake\MessageSerializers;
 
-use Php\TlsCraft\Handshake\Messages\ServerHello;
+use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 
 class ServerHelloSerializer extends AbstractMessageSerializer
 {
-    public function serialize(ServerHello $message): string
+    public function serialize(ServerHelloMessage $message): string
     {
         $encoded = $message->version->toBytes();
         $encoded .= $message->random;

@@ -3,12 +3,12 @@
 namespace Php\TlsCraft\Handshake\MessageFactories;
 
 use Php\TlsCraft\Crypto\CertificateChain;
-use Php\TlsCraft\Handshake\Messages\Certificate;
+use Php\TlsCraft\Handshake\Messages\CertificateMessage;
 
 class CertificateFactory extends AbstractMessageFactory
 {
-    public function create(CertificateChain $certificateChain): Certificate
+    public function create(CertificateChain $certificateChain): CertificateMessage
     {
-        return new Certificate('', $certificateChain);
+        return new CertificateMessage('', $certificateChain);
     }
 }

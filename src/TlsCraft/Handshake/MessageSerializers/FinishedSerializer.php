@@ -2,11 +2,11 @@
 
 namespace Php\TlsCraft\Handshake\MessageSerializers;
 
-use Php\TlsCraft\Handshake\Messages\Finished;
+use Php\TlsCraft\Handshake\Messages\FinishedMessage;
 
 class FinishedSerializer extends AbstractMessageSerializer
 {
-    public function serialize(Finished $message): string
+    public function serialize(FinishedMessage $message): string
     {
         return $message->verifyData;
     }

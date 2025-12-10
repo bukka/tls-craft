@@ -5,7 +5,7 @@ namespace Php\TlsCraft\Handshake\Messages;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Protocol\HandshakeType;
 
-class KeyUpdate extends Message
+class KeyUpdateMessage extends Message
 {
     public function __construct(
         public readonly bool $requestUpdate,

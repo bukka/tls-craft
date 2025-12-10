@@ -15,13 +15,13 @@ use Php\TlsCraft\Handshake\MessageSerializers\{
 };
 use Php\TlsCraft\Handshake\Messages\{
     Message,
-    Certificate,
-    CertificateVerify,
-    ClientHello,
-    EncryptedExtensions,
-    Finished,
-    KeyUpdate,
-    ServerHello
+    CertificateMessage,
+    CertificateVerifyMessage,
+    ClientHelloMessage,
+    EncryptedExtensionsMessage,
+    FinishedMessage,
+    KeyUpdateMessage,
+    ServerHelloMessage
 };
 use Php\TlsCraft\Logger;
 
@@ -92,13 +92,13 @@ class MessageSerializer
     private function serializeMessage(Message $msg): string
     {
         return match (true) {
-            $msg instanceof ClientHello        => $this->getClientHelloSerializer()->serialize($msg),
-            $msg instanceof ServerHello        => $this->getServerHelloSerializer()->serialize($msg),
-            $msg instanceof EncryptedExtensions=> $this->getEncryptedExtensionsSerializer()->serialize($msg),
-            $msg instanceof Certificate        => $this->getCertificateSerializer()->serialize($msg),
-            $msg instanceof CertificateVerify  => $this->getCertificateVerifySerializer()->serialize($msg),
-            $msg instanceof Finished           => $this->getFinishedSerializer()->serialize($msg),
-            $msg instanceof KeyUpdate          => $this->getKeyUpdateSerializer()->serialize($msg),
+            $msg instanceof ClientHelloMessage        => $this->getClientHelloSerializer()->serialize($msg),
+            $msg instanceof ServerHelloMessage        => $this->getServerHelloSerializer()->serialize($msg),
+            $msg instanceof EncryptedExtensionsMessage=> $this->getEncryptedExtensionsSerializer()->serialize($msg),
+            $msg instanceof CertificateMessage        => $this->getCertificateSerializer()->serialize($msg),
+            $msg instanceof CertificateVerifyMessage  => $this->getCertificateVerifySerializer()->serialize($msg),
+            $msg instanceof FinishedMessage           => $this->getFinishedSerializer()->serialize($msg),
+            $msg instanceof KeyUpdateMessage          => $this->getKeyUpdateSerializer()->serialize($msg),
             default => throw new CraftException('No serializer for message: ' . $msg::class),
         };
     }

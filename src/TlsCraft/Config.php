@@ -389,7 +389,7 @@ class Config
 
     public function addServerEncryptedExtensions(): void
     {
-        // Server EncryptedExtensions - Add extensions for server name acknowledgement (empty server name) and ALPN
+        // Server EncryptedExtensionsMessage - Add extensions for server name acknowledgement (empty server name) and ALPN
         $this->encryptedExtensions->add(new ServerNameExtensionProvider());
         $this->encryptedExtensions->add(new AlpnExtensionProvider($this->supportedProtocols));
     }

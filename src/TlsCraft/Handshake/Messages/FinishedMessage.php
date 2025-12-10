@@ -4,7 +4,7 @@ namespace Php\TlsCraft\Handshake\Messages;
 
 use Php\TlsCraft\Protocol\HandshakeType;
 
-class Finished extends Message
+class FinishedMessage extends Message
 {
     public function __construct(
         public readonly string $verifyData,

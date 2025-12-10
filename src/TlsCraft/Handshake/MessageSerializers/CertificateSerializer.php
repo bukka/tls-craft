@@ -2,11 +2,11 @@
 
 namespace Php\TlsCraft\Handshake\MessageSerializers;
 
-use Php\TlsCraft\Handshake\Messages\Certificate;
+use Php\TlsCraft\Handshake\Messages\CertificateMessage;
 
 class CertificateSerializer extends AbstractMessageSerializer
 {
-    public function serialize(Certificate $message): string
+    public function serialize(CertificateMessage $message): string
     {
         // Certificate request context (empty for server certificate)
         $contextLength = strlen($message->certificateRequestContext);

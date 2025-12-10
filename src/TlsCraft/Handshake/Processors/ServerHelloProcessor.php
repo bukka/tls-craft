@@ -5,19 +5,19 @@ namespace Php\TlsCraft\Handshake\Processors;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Extensions\{KeyShareExtension, SupportedVersionsExtension};
 use Php\TlsCraft\Handshake\ExtensionType;
-use Php\TlsCraft\Handshake\Messages\ServerHello;
+use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Protocol\Version;
 
 /**
- * Process ServerHello message which happens on the client side after ClientHello
+ * Process ServerHelloMessage message which happens on the client side after ClientHelloMessage
  */
 class ServerHelloProcessor extends MessageProcessor
 {
-    public function process(ServerHello $message): void
+    public function process(ServerHelloMessage $message): void
     {
         // Validate legacy version field (should be 1.2 for TLS 1.3)
         if ($message->version !== Version::TLS_1_2) {
-            throw new ProtocolViolationException('ServerHello legacy version must be TLS 1.2, got: '.$message->version->name);
+            throw new ProtocolViolationException('ServerHelloMessage legacy version must be TLS 1.2, got: '.$message->version->name);
         }
 
         // Validate cipher suite selection
@@ -27,7 +27,7 @@ class ServerHelloProcessor extends MessageProcessor
 
         // Validate compression method (must be null for TLS 1.3)
         if ($message->compressionMethod !== 0) {
-            throw new ProtocolViolationException('ServerHello compression method must be null (0) for TLS 1.3');
+            throw new ProtocolViolationException('ServerHelloMessage compression method must be null (0) for TLS 1.3');
         }
 
         // Process mandatory extensions
@@ -44,17 +44,17 @@ class ServerHelloProcessor extends MessageProcessor
         $this->deriveHandshakeSecrets();
     }
 
-    private function parseSupportedVersions(ServerHello $message): void
+    private function parseSupportedVersions(ServerHelloMessage $message): void
     {
         /** @var SupportedVersionsExtension $ext */
         $ext = $message->getExtension(ExtensionType::SUPPORTED_VERSIONS);
         if (!$ext) {
-            throw new ProtocolViolationException('supported_versions extension missing in ServerHello');
+            throw new ProtocolViolationException('supported_versions extension missing in ServerHelloMessage');
         }
 
         $versions = $ext->getVersions();
         if (count($versions) !== 1) {
-            throw new ProtocolViolationException('ServerHello supported_versions must contain exactly one version');
+            throw new ProtocolViolationException('ServerHelloMessage supported_versions must contain exactly one version');
         }
 
         $selectedVersion = $versions[0];
@@ -66,17 +66,17 @@ class ServerHelloProcessor extends MessageProcessor
         $this->context->setNegotiatedVersion(Version::TLS_1_3);
     }
 
-    private function parseKeyShare(ServerHello $message): void
+    private function parseKeyShare(ServerHelloMessage $message): void
     {
         /** @var KeyShareExtension $ext */
         $ext = $message->getExtension(ExtensionType::KEY_SHARE);
         if (!$ext) {
-            throw new ProtocolViolationException('key_share extension missing in ServerHello');
+            throw new ProtocolViolationException('key_share extension missing in ServerHelloMessage');
         }
 
         $keyShares = $ext->getKeyShares();
         if (count($keyShares) !== 1) {
-            throw new ProtocolViolationException('ServerHello key_share must contain exactly one key share');
+            throw new ProtocolViolationException('ServerHelloMessage key_share must contain exactly one key share');
         }
 
         $serverKeyShare = $keyShares[0];

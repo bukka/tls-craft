@@ -11,13 +11,13 @@ use Php\TlsCraft\Handshake\Extensions\ServerNameExtension;
 use Php\TlsCraft\Handshake\Extensions\SignatureAlgorithmsExtension;
 use Php\TlsCraft\Handshake\Extensions\SupportedVersionsExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
-use Php\TlsCraft\Handshake\Messages\ClientHello;
+use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
 use Php\TlsCraft\Logger;
 use Php\TlsCraft\Protocol\Version;
 
 class ClientHelloProcessor extends MessageProcessor
 {
-    public function process(ClientHello $message): void
+    public function process(ClientHelloMessage $message): void
     {
         // Validate version (should be always legacy TLS 1.2)
         if ($message->version != Version::TLS_1_2) {
@@ -34,7 +34,7 @@ class ClientHelloProcessor extends MessageProcessor
             throw new ProtocolViolationException('Null compression method not supported');
         }
 
-        // Set session ID for ServerHello
+        // Set session ID for ServerHelloMessage
         $this->context->setClientHelloSessionId($message->sessionId);
 
         // Set client random
@@ -55,7 +55,7 @@ class ClientHelloProcessor extends MessageProcessor
         $this->parseAlpn($message);
     }
 
-    private function parseSupportedVersions(ClientHello $message): void
+    private function parseSupportedVersions(ClientHelloMessage $message): void
     {
         /** @var SupportedVersionsExtension $ext */
         $ext = $message->getExtension(ExtensionType::SUPPORTED_VERSIONS);
@@ -70,7 +70,7 @@ class ClientHelloProcessor extends MessageProcessor
         $this->context->setNegotiatedVersion(Version::TLS_1_3);
     }
 
-    private function parseKeyShare(ClientHello $message): void
+    private function parseKeyShare(ClientHelloMessage $message): void
     {
         /** @var KeyShareExtension $ext */
         $ext = $message->getExtension(ExtensionType::KEY_SHARE);
@@ -81,7 +81,7 @@ class ClientHelloProcessor extends MessageProcessor
         $clientKeyShares = $ext->getKeyShares();
         $supportedGroups = $this->context->getConfig()->getSupportedGroups();
 
-        Logger::debug('ClientHello key shares', [
+        Logger::debug('ClientHelloMessage key shares', [
             'Client key shares' => $clientKeyShares,
             'Supported groups' => $supportedGroups,
         ]);
@@ -100,7 +100,7 @@ class ClientHelloProcessor extends MessageProcessor
         }
     }
 
-    private function parseSignatureAlgorithms(ClientHello $message): void
+    private function parseSignatureAlgorithms(ClientHelloMessage $message): void
     {
         /** @var SignatureAlgorithmsExtension $ext */
         $ext = $message->getExtension(ExtensionType::SIGNATURE_ALGORITHMS);
@@ -137,7 +137,7 @@ class ClientHelloProcessor extends MessageProcessor
         // Get server's configured algorithms
         $serverSchemes = $this->context->getConfig()->getSignatureAlgorithms();
 
-        Logger::debug('ClientHello signature algorithms', [
+        Logger::debug('ClientHelloMessage signature algorithms', [
             'Certificate key type' => $certificateChain->getKeyTypeName(),
             'Certificate schemes' => array_map(fn($s) => $s->name, $certificateSchemes),
             'Client sig algs' => array_map(fn($s) => $s->name, $clientSigAlgs),
@@ -176,7 +176,7 @@ class ClientHelloProcessor extends MessageProcessor
         return null;
     }
 
-    private function parseServerNameIndication(ClientHello $message): void
+    private function parseServerNameIndication(ClientHelloMessage $message): void
     {
         /** @var ServerNameExtension $ext */
         $ext = $message->getExtension(ExtensionType::SERVER_NAME);
@@ -186,7 +186,7 @@ class ClientHelloProcessor extends MessageProcessor
         }
     }
 
-    private function parseAlpn(ClientHello $message): void
+    private function parseAlpn(ClientHelloMessage $message): void
     {
         /** @var AlpnExtension $ext */
         $ext = $message->getExtension(ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION);

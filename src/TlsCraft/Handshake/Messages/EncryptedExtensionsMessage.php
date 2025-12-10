@@ -4,7 +4,7 @@ namespace Php\TlsCraft\Handshake\Messages;
 
 use Php\TlsCraft\Protocol\HandshakeType;
 
-class EncryptedExtensions extends Message
+class EncryptedExtensionsMessage extends Message
 {
     public function __construct(
         array $extensions, // array of Extension

@@ -2,14 +2,14 @@
 
 namespace Php\TlsCraft\Handshake\MessageFactories;
 
-use Php\TlsCraft\Handshake\Messages\Finished;
+use Php\TlsCraft\Handshake\Messages\FinishedMessage;
 
 class FinishedFactory extends AbstractMessageFactory
 {
-    public function create(bool $isClient): Finished
+    public function create(bool $isClient): FinishedMessage
     {
         $finishedData = $this->context->getFinishedData($isClient);
 
-        return new Finished($finishedData);
+        return new FinishedMessage($finishedData);
     }
 }

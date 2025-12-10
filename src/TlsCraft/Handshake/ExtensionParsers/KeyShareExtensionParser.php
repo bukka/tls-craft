@@ -16,10 +16,10 @@ class KeyShareExtensionParser extends AbstractExtensionParser
         $offset = 0;
 
         if ($this->context->isClient()) {
-            // Client parsing ServerHello: single KeyShare entry (no length prefix)
+            // Client parsing ServerHelloMessage: single KeyShare entry (no length prefix)
             $keyShares[] = KeyShare::decode($data, $offset);
         } else {
-            // Server parsing ClientHello: list format with 2-byte length prefix
+            // Server parsing ClientHelloMessage: list format with 2-byte length prefix
             $listLength = unpack('n', substr($data, 0, 2))[1];
             $offset = 2;
             $endOffset = $offset + $listLength;

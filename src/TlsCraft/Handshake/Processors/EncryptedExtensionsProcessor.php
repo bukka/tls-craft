@@ -9,14 +9,14 @@ use Php\TlsCraft\Handshake\Extensions\{
     SupportedGroupsExtension
 };
 use Php\TlsCraft\Handshake\ExtensionType;
-use Php\TlsCraft\Handshake\Messages\EncryptedExtensions;
+use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
 
 class EncryptedExtensionsProcessor extends MessageProcessor
 {
-    public function process(EncryptedExtensions $message): void
+    public function process(EncryptedExtensionsMessage $message): void
     {
-        // EncryptedExtensions can be empty - that's valid
-        // Just validate that any extensions present are allowed in EncryptedExtensions
+        // EncryptedExtensionsMessage can be empty - that's valid
+        // Just validate that any extensions present are allowed in EncryptedExtensionsMessage
         $this->validateAllowedExtensions($message);
 
         // Process extensions that might be present
@@ -27,29 +27,29 @@ class EncryptedExtensionsProcessor extends MessageProcessor
         // Any other extensions are handled generically or ignored
     }
 
-    private function validateAllowedExtensions(EncryptedExtensions $message): void
+    private function validateAllowedExtensions(EncryptedExtensionsMessage $message): void
     {
         foreach ($message->extensions as $extension) {
             $extensionType = ExtensionType::from($extension->type->value);
 
             if (!$extensionType->isAllowedInEncryptedExtensions()) {
-                throw new ProtocolViolationException("Extension {$extensionType->getName()} not allowed in EncryptedExtensions");
+                throw new ProtocolViolationException("Extension {$extensionType->getName()} not allowed in EncryptedExtensionsMessage");
             }
         }
     }
 
-    private function parseServerNameExtension(EncryptedExtensions $message): void
+    private function parseServerNameExtension(EncryptedExtensionsMessage $message): void
     {
         /** @var ServerNameExtension $ext */
         $ext = $message->getExtension(ExtensionType::SERVER_NAME);
         if ($ext) {
-            // Server Name extension in EncryptedExtensions is typically empty
+            // Server Name extension in EncryptedExtensionsMessage is typically empty
             // It just confirms that SNI was processed
             $this->context->setServerNameAcknowledged(true);
         }
     }
 
-    private function parseALPNExtension(EncryptedExtensions $message): void
+    private function parseALPNExtension(EncryptedExtensionsMessage $message): void
     {
         /** @var ALPNExtension $ext */
         $ext = $message->getExtension(ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
@@ -73,12 +73,12 @@ class EncryptedExtensionsProcessor extends MessageProcessor
         }
     }
 
-    private function parseSupportedGroupsExtension(EncryptedExtensions $message): void
+    private function parseSupportedGroupsExtension(EncryptedExtensionsMessage $message): void
     {
         /** @var SupportedGroupsExtension $ext */
         $ext = $message->getExtension(ExtensionType::SUPPORTED_GROUPS);
         if ($ext) {
-            // Server can send supported_groups in EncryptedExtensions
+            // Server can send supported_groups in EncryptedExtensionsMessage
             // This is informational - tells client what groups server supports
             // for future connections or post-handshake auth
             $serverSupportedGroups = $ext->getGroups();
