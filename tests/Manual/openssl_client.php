@@ -20,5 +20,12 @@ $client = stream_socket_client(
     300000
 );
 
-fwrite($client, "ctest");
-var_dump(fread($client, 5));
+if ($client === false) {
+    var_dump($errno, $errstr);
+    while ($error = openssl_error_string()) {
+        echo $error . "\n";
+    }
+} else {
+    fwrite($client, "ctest");
+    var_dump(fread($client, 5));
+}
