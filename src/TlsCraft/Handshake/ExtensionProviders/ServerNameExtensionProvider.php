@@ -29,11 +29,10 @@ class ServerNameExtensionProvider implements ExtensionProvider
             Logger::debug('ServerNameExtensionProvider: Checking server SNI', [
                 'requested_name' => $requestedName,
                 'requested_name_is_null' => $requestedName === null,
-                'requested_name_is_empty' => $requestedName === '',
                 'will_return' => $requestedName ? 'extension' : 'null',
             ]);
 
-            if (!$requestedName) {
+            if (!$requestedName || $this->isIpAddress($requestedName)) {
                 return null;
             }
 
@@ -41,6 +40,11 @@ class ServerNameExtensionProvider implements ExtensionProvider
 
             return new ServerNameExtension($this->serverName);
         }
+    }
+
+    private function isIpAddress(string $name): bool
+    {
+        return filter_var($name, FILTER_VALIDATE_IP) !== false;
     }
 
     public function getExtensionType(): ExtensionType
