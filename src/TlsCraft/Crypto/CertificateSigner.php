@@ -64,15 +64,12 @@ class CertificateSigner
 
         $signature = '';
 
-        // Try the array format first (PHP 7.2+)
         $result = openssl_sign(
             $data,
             $signature,
             $privateKey->getResource(),
-            [
-                'digest_alg' => $hashAlgo,
-                'padding' => OPENSSL_PKCS1_PSS_PADDING,
-            ]
+            $hashAlgo,
+            OPENSSL_PKCS1_PSS_PADDING
         );
 
         if (!$result) {
