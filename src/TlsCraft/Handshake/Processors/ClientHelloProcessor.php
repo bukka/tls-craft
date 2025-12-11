@@ -20,7 +20,7 @@ class ClientHelloProcessor extends MessageProcessor
     public function process(ClientHelloMessage $message): void
     {
         Logger::debug('ClientHelloProcessor: Starting processing', [
-            'version' => sprintf('0x%04x', $message->version),
+            'version' => sprintf('0x%04x', $message->version->value),
             'cipher_suites_count' => count($message->cipherSuites),
         ]);
 
@@ -74,7 +74,7 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         Logger::debug('ClientHelloProcessor: Supported versions', [
-            'versions' => array_map(fn($v) => sprintf('0x%04x', $v), $ext->getVersions()),
+            'versions' => array_map(fn($v) => sprintf('0x%04x', $v->value), $ext->getVersions()),
             'supports_tls13' => $ext->supportsVersion(Version::TLS_1_3),
         ]);
 
