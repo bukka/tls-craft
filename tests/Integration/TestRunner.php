@@ -8,15 +8,19 @@ use const PHP_BINARY;
 use const STDERR;
 use const STDIN;
 
+/**
+ * Test runner for spawning client/server processes in integration tests
+ * Allows PHPUnit tests to spawn subprocesses for multi-party TLS testing
+ */
 class TestRunner
 {
-    private array $workerProcesses = [];
-    private array $workerPipes = [];
-    private bool $isWorker = false;
-
     public const ROLE_CLIENT = 'client';
     public const ROLE_SERVER = 'server';
     public const WORKER_MARKER = 'TLS_INTEGRATION_WORKER';
+
+    private array $workerProcesses = [];
+    private array $workerPipes = [];
+    private bool $isWorker = false;
 
     public function __construct(bool $isWorker = false)
     {
@@ -26,6 +30,8 @@ class TestRunner
     /**
      * Start a server in subprocess, return address when ready
      * Call this from your test, then run your client code
+     *
+     * @throws Exception If server process fails to start
      */
     public function startServerProcess(string $serverCode): string
     {
@@ -42,7 +48,7 @@ class TestRunner
     /**
      * Start a client in subprocess, return immediately
      * Call this from your test, then run your server code
-     * Pass server address to client code using setClientAddress()
+     * Pass server address to client code using {{ADDR}} placeholder
      */
     public function startClientProcess(string $clientCode, string $serverAddress): void
     {
@@ -52,7 +58,9 @@ class TestRunner
     }
 
     /**
-     * Wait for subprocess to complete (use after starting client/server)
+     * Wait for subprocess to complete
+     *
+     * @return bool True if process completed successfully (exit code 0)
      */
     public function waitForCompletion(string $role, int $timeoutSeconds = 30): bool
     {
@@ -71,7 +79,6 @@ class TestRunner
 
         // Timeout - terminate process
         proc_terminate($this->workerProcesses[$role]);
-
         return false;
     }
 
@@ -100,6 +107,53 @@ class TestRunner
     {
         foreach (array_keys($this->workerProcesses) as $role) {
             $this->stopWorker($role);
+        }
+    }
+
+    /**
+     * Send message from worker to main process
+     */
+    public function notifyMain(string $message): void
+    {
+        if ($this->isWorker) {
+            echo $message . "\n";
+            flush();
+        }
+    }
+
+    /**
+     * Notify that server is ready with address
+     */
+    public function notifyServerReady(string $address): void
+    {
+        $this->notifyMain('READY:' . $address);
+    }
+
+    /**
+     * Run worker process (internal use only)
+     */
+    public function runWorker(): void
+    {
+        if (!$this->isWorker) {
+            return;
+        }
+
+        // Read code from stdin
+        $code = '';
+        while (($line = fgets(STDIN)) !== false) {
+            if (trim($line) === '---END---') {
+                break;
+            }
+            $code .= $line;
+        }
+
+        try {
+            // Execute worker code
+            eval($code);
+        } catch (Exception $e) {
+            echo 'WORKER_ERROR: ' . $e->getMessage() . "\n";
+            echo $e->getTraceAsString() . "\n";
+            exit(1);
         }
     }
 
@@ -132,7 +186,7 @@ class TestRunner
         $this->workerPipes[$role] = $pipes;
 
         // Send code to worker
-        fwrite($pipes[0], $this->stripPhpTags($code)."\n---END---\n");
+        fwrite($pipes[0], $this->stripPhpTags($code) . "\n---END---\n");
     }
 
     private function waitForWorkerReady(string $role, int $timeoutSeconds = 10): ?string
@@ -159,50 +213,6 @@ class TestRunner
         }
 
         return null;
-    }
-
-    public function runWorker(): void
-    {
-        if (!$this->isWorker) {
-            return;
-        }
-
-        // Read code from stdin
-        $code = '';
-        while (($line = fgets(STDIN)) !== false) {
-            if (trim($line) === '---END---') {
-                break;
-            }
-            $code .= $line;
-        }
-
-        try {
-            // Execute worker code
-            eval($code);
-        } catch (Exception $e) {
-            echo 'WORKER_ERROR: '.$e->getMessage()."\n";
-            echo $e->getTraceAsString()."\n";
-            exit(1);
-        }
-    }
-
-    /**
-     * Send message from worker to main process
-     */
-    public function notifyMain(string $message): void
-    {
-        if ($this->isWorker) {
-            echo $message."\n";
-            flush();
-        }
-    }
-
-    /**
-     * Notify that server is ready with address
-     */
-    public function notifyServerReady(string $address): void
-    {
-        $this->notifyMain('READY:'.$address);
     }
 
     private function stripPhpTags(string $code): string

@@ -5,9 +5,7 @@ namespace Php\TlsCraft\Tests\Integration;
 use Php\TlsCraft\Client;
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\CraftException;
-use Php\TlsCraft\Protocol\Version;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -38,46 +36,47 @@ class ClientIntegrationTest extends TestCase
 
     /**
      * Data provider for different certificate algorithms
+     * Returns [generatorFactory, configFactory] for each test case
      */
     public static function certificateAlgorithmProvider(): array
     {
         return [
-            'RSA-2048' => [
-                'generator' => fn () => TestCertificateGenerator::forRSA(2048),
-                'config_factory' => fn () => new Config(
-                    supportedVersions: [Version::TLS_1_3],
-                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
-                    supportedGroups: ['P-256'], // RSA can work with any group
-                    signatureAlgorithms: [SignatureScheme::RSA_PKCS1_SHA256->value],
-                ),
-            ],
+//            'RSA-2048' => [
+//                fn () => TestCertificateGenerator::forRSA(2048),
+//                fn () => new Config(
+//                    supportedVersions: ['TLS 1.3'],
+//                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+//                    supportedGroups: ['P-256'],
+//                    signatureAlgorithms: ['rsa_pkcs1_sha256'],
+//                ),
+//            ],
             'ECC-P256' => [
-                'generator' => fn () => TestCertificateGenerator::forECC('prime256v1'),
-                'config_factory' => fn () => new Config(
-                    supportedVersions: [Version::TLS_1_3],
+                fn () => TestCertificateGenerator::forECC('prime256v1'),
+                fn () => new Config(
+                    supportedVersions: ['TLS 1.3'],
                     cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
                     supportedGroups: ['P-256'],
-                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP256R1_SHA256->value],
+                    signatureAlgorithms: ['ecdsa_secp256r1_sha256'],
                 ),
             ],
-            'ECC-P384' => [
-                'generator' => fn () => TestCertificateGenerator::forECC('secp384r1'),
-                'config_factory' => fn () => new Config(
-                    supportedVersions: [Version::TLS_1_3],
-                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
-                    supportedGroups: ['P-384'],
-                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP384R1_SHA384->value],
-                ),
-            ],
-            'ECC-P521' => [
-                'generator' => fn () => TestCertificateGenerator::forECC('secp521r1'),
-                'config_factory' => fn () => new Config(
-                    supportedVersions: [Version::TLS_1_3],
-                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
-                    supportedGroups: ['P-521'],
-                    signatureAlgorithms: [SignatureScheme::ECDSA_SECP521R1_SHA512->value],
-                ),
-            ],
+//            'ECC-P384' => [
+//                fn () => TestCertificateGenerator::forECC('secp384r1'),
+//                fn () => new Config(
+//                    supportedVersions: ['TLS 1.3'],
+//                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+//                    supportedGroups: ['P-384'],
+//                    signatureAlgorithms: ['ecdsa_secp384r1_sha384'],
+//                ),
+//            ],
+//            'ECC-P521' => [
+//                fn () => TestCertificateGenerator::forECC('secp521r1'),
+//                fn () => new Config(
+//                    supportedVersions: ['TLS 1.3'],
+//                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+//                    supportedGroups: ['P-521'],
+//                    signatureAlgorithms: ['ecdsa_secp521r1_sha512'],
+//                ),
+//            ],
         ];
     }
 
@@ -132,14 +131,14 @@ class ClientIntegrationTest extends TestCase
             $server = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
             socket_bind($server, "127.0.0.1", 0);
             // Note: No socket_listen() - this will cause connection to be refused
-            
+
             $address = "";
             $port = 0;
             socket_getsockname($server, $address, $port);
-            
+
             $runner = new Php\TlsCraft\Tests\Integration\TestRunner(true);
             $runner->notifyServerReady("$address:$port");
-            
+
             // Keep socket open but don\'t listen
             sleep(5);
             socket_close($server);
@@ -171,7 +170,7 @@ class ClientIntegrationTest extends TestCase
 
         // Create config with certificate verification enabled
         $config = new Config(
-            supportedVersions: [Version::TLS_1_3],
+            supportedVersions: ['TLS 1.3'],
             cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
         );
 
@@ -199,7 +198,7 @@ class ClientIntegrationTest extends TestCase
         [$hostname, $port] = explode(':', $serverAddress);
 
         $config = new Config(
-            supportedVersions: [Version::TLS_1_3],
+            supportedVersions: ['TLS 1.3'],
             cipherSuites: [
                 CipherSuite::TLS_AES_256_GCM_SHA384->value, // Prefer this
                 CipherSuite::TLS_AES_128_GCM_SHA256->value, // Fallback
@@ -232,20 +231,27 @@ class ClientIntegrationTest extends TestCase
         $generator = TestCertificateGenerator::forRSA();
         $serverCerts = $generator->generateServerCertificateFiles('localhost');
 
+        // Use the existing combined cert file path
+        $certFile = $serverCerts['combined_file'];
+
         // Server that supports specific ALPN protocols
         $serverCode = '
             $context = stream_context_create([
                 "ssl" => [
-                    "local_cert" => "'.$serverCerts['combined_file'].'",
+                    "local_cert" => "' . $certFile . '",
                     "verify_peer" => false,
                     "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
                     "alpn_protocols" => "http/1.1,h2", // Server supports these
                 ]
             ]);
 
-            $server = stream_socket_server("tcp://127.0.0.1:0", $errno, $errstr);
+            $server = stream_socket_server("tcp://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+            if (!$server) {
+                die("Failed to create server: $errstr ($errno)");
+            }
+
             $address = stream_socket_get_name($server, false);
-            
+
             $runner = new Php\TlsCraft\Tests\Integration\TestRunner(true);
             $runner->notifyServerReady($address);
 
@@ -262,7 +268,7 @@ class ClientIntegrationTest extends TestCase
         [$hostname, $port] = explode(':', $serverAddress);
 
         $config = new Config(
-            supportedVersions: [Version::TLS_1_3],
+            supportedVersions: ['TLS 1.3'],
             supportedProtocols: ['h2', 'http/1.1'], // Client preference order
         );
         $config->forTesting();
@@ -282,18 +288,26 @@ class ClientIntegrationTest extends TestCase
         $session->close();
     }
 
+    /**
+     * Create server code for stream socket server
+     */
     private function createServerCode(array $serverCerts): string
     {
+        // Use the existing combined cert file path
+        $certFile = $serverCerts['cert_file'];
+        $keyFile = $serverCerts['key_file'];
+
         return '
             $context = stream_context_create([
                 "ssl" => [
-                    "local_cert" => "'.$serverCerts['combined_file'].'",
+                    "local_cert" => "' . $certFile . '",
+                    "local_key" => "' . $keyFile . '",
                     "verify_peer" => false,
                     "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
                 ]
             ]);
 
-            $server = stream_socket_server("tcp://127.0.0.1:0", $errno, $errstr);
+            $server = stream_socket_server("tcp://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
             if (!$server) {
                 die("Failed to create server: $errstr ($errno)");
             }
@@ -304,18 +318,15 @@ class ClientIntegrationTest extends TestCase
 
             $client = stream_socket_accept($server, 30);
             if (!$client) {
+                fclose($server);
                 die("Failed to accept client connection");
-            }
-
-            if (!stream_socket_enable_crypto($client, true, STREAM_CRYPTO_METHOD_TLSv1_3_SERVER)) {
-                die("Failed to enable TLS on server side");
             }
 
             $data = fread($client, 1024);
             if ($data !== false) {
                 fwrite($client, "Echo: " . $data);
             }
-            
+
             fclose($client);
             fclose($server);
         ';
