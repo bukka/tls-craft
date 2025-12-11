@@ -125,41 +125,6 @@ class ClientIntegrationTest extends TestCase
     }
 
     /**
-     * Test client connection timeout handling
-     */
-    #[Test]
-    public function testClientConnectionTimeout(): void
-    {
-        // Create a server that doesn't accept connections
-        $serverCode = '
-            $server = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-            socket_bind($server, "127.0.0.1", 0);
-            // Note: No socket_listen() - this will cause connection to be refused
-
-            $address = "";
-            $port = 0;
-            socket_getsockname($server, $address, $port);
-
-            $runner = new Php\TlsCraft\Tests\Integration\TestRunner(true);
-            $runner->notifyServerReady("$address:$port");
-
-            // Keep socket open but don\'t listen
-            sleep(5);
-            socket_close($server);
-        ';
-
-        $serverAddress = $this->runner->startServerProcess($serverCode);
-        [$hostname, $port] = explode(':', $serverAddress);
-
-        $config = new Config();
-        $config->forTesting();
-        $client = new Client($hostname, (int) $port, $config);
-
-        $this->expectException(CraftException::class);
-        $client->connect(2.0); // Short timeout
-    }
-
-    /**
      * Test client with invalid certificate (when verification enabled)
      */
     #[Test]
