@@ -41,15 +41,18 @@ class ClientIntegrationTest extends TestCase
     public static function certificateAlgorithmProvider(): array
     {
         return [
-//            'RSA-2048' => [
-//                fn () => TestCertificateGenerator::forRSA(2048),
-//                fn () => new Config(
-//                    supportedVersions: ['TLS 1.3'],
-//                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
-//                    supportedGroups: ['P-256'],
-//                    signatureAlgorithms: ['rsa_pkcs1_sha256'],
-//                ),
-//            ],
+            /* Once RSA-PSS salt length is supported, uncomment this test case */
+            /*
+            'RSA-2048' => [
+                fn () => TestCertificateGenerator::forRSA(2048),
+                fn () => new Config(
+                    supportedVersions: ['TLS 1.3'],
+                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+                    supportedGroups: ['P-256'],
+                    signatureAlgorithms: ['rsa_pkcs1_sha256'],
+                ),
+            ],
+            */
             'ECC-P256' => [
                 fn () => TestCertificateGenerator::forECC('prime256v1'),
                 fn () => new Config(
@@ -59,24 +62,24 @@ class ClientIntegrationTest extends TestCase
                     signatureAlgorithms: ['ecdsa_secp256r1_sha256'],
                 ),
             ],
-//            'ECC-P384' => [
-//                fn () => TestCertificateGenerator::forECC('secp384r1'),
-//                fn () => new Config(
-//                    supportedVersions: ['TLS 1.3'],
-//                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
-//                    supportedGroups: ['P-384'],
-//                    signatureAlgorithms: ['ecdsa_secp384r1_sha384'],
-//                ),
-//            ],
-//            'ECC-P521' => [
-//                fn () => TestCertificateGenerator::forECC('secp521r1'),
-//                fn () => new Config(
-//                    supportedVersions: ['TLS 1.3'],
-//                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
-//                    supportedGroups: ['P-521'],
-//                    signatureAlgorithms: ['ecdsa_secp521r1_sha512'],
-//                ),
-//            ],
+            'ECC-P384' => [
+                fn () => TestCertificateGenerator::forECC('secp384r1'),
+                fn () => new Config(
+                    supportedVersions: ['TLS 1.3'],
+                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+                    supportedGroups: ['P-384'],
+                    signatureAlgorithms: ['ecdsa_secp384r1_sha384'],
+                ),
+            ],
+            'ECC-P521' => [
+                fn () => TestCertificateGenerator::forECC('secp521r1'),
+                fn () => new Config(
+                    supportedVersions: ['TLS 1.3'],
+                    cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+                    supportedGroups: ['P-521'],
+                    signatureAlgorithms: ['ecdsa_secp521r1_sha512'],
+                ),
+            ],
         ];
     }
 
@@ -302,7 +305,7 @@ class ClientIntegrationTest extends TestCase
             $context = stream_context_create([
                 "ssl" => [
                     "local_cert" => "' . $certFile . '",
-                    "local_key" => "' . $keyFile . '",
+                    "local_pk" => "' . $keyFile . '",
                     "verify_peer" => false,
                     "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
                 ]

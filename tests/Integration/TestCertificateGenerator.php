@@ -86,6 +86,7 @@ class TestCertificateGenerator
             'config' => $configFile,
             'req_extensions' => 'v3_req',
             'x509_extensions' => 'usr_cert',
+            'digest_alg' => 'sha256',
         ];
 
         try {
@@ -99,17 +100,20 @@ class TestCertificateGenerator
             // Export certificate and key to PEM strings
             $certPem = '';
             $keyPem = '';
+            $caCertPem = '';
             openssl_x509_export($this->lastCert, $certPem);
             openssl_pkey_export($this->lastKey, $keyPem);
+            openssl_x509_export($this->ca, $caCertPem);
 
             // Generate file paths and write files
             $certFile = $this->getTempPath('cert.pem');
             $keyFile = $this->getTempPath('key.pem');
             $combinedFile = $this->getTempPath('combined.pem');
 
-            file_put_contents($certFile, $certPem);
+            // Include CA cert in chain for PHP's OpenSSL wrapper
+            file_put_contents($certFile, $certPem . $caCertPem);
             file_put_contents($keyFile, $keyPem);
-            file_put_contents($combinedFile, $certPem . $keyPem);
+            file_put_contents($combinedFile, $certPem . $caCertPem . $keyPem);
 
             // Track generated files for cleanup
             self::$generatedFiles = array_merge(self::$generatedFiles, [$certFile, $keyFile, $combinedFile]);
