@@ -87,6 +87,7 @@ class ClientIntegrationTest extends TestCase
     #[DataProvider('certificateAlgorithmProvider')]
     public function testClientHandshakeWithAlgorithm(callable $generatorFactory, callable $configFactory): void
     {
+        /** @var TestCertificateGenerator $generator */
         $generator = $generatorFactory();
         $serverCerts = $generator->generateServerCertificateFiles('localhost');
 
@@ -307,9 +308,12 @@ class ClientIntegrationTest extends TestCase
                 ]
             ]);
 
-            $server = stream_socket_server("tcp://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+            $server = stream_socket_server("tlsv1.3://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
             if (!$server) {
                 die("Failed to create server: $errstr ($errno)");
+                while ($error = openssl_error_string()) {
+                    echo $error . "\n";
+                }
             }
 
             $address = stream_socket_get_name($server, false);
