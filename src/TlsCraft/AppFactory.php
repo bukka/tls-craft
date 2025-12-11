@@ -10,10 +10,11 @@ final class AppFactory
         int $port,
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
+        bool $debug = false,
     ): Client {
         RuntimeEnvironment::assertOpenSsl3();
         // You can still pass config/factory through; Client will build from them.
-        return new Client($hostname, $port, $config, $connectionFactory);
+        return new Client($hostname, $port, $config, $connectionFactory, debug: $debug);
     }
 
     public static function createServer(

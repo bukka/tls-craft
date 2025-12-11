@@ -20,7 +20,11 @@ class Client
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
         ?DependencyContainer $dependencyContainer = null,
+        bool $debug = false,
     ) {
+        if ($debug) {
+            Logger::enable();
+        }
         $this->hostname = $hostname;
         $this->port = $port;
         $this->config = $config ?? new Config();

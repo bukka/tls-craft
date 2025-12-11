@@ -7,7 +7,7 @@ use Php\TlsCraft\Logger;
 
 Logger::enable();
 
-$client = AppFactory::createClient('localhost', 4433);
+$client = AppFactory::createClient('localhost', 4433, debug: true);
 $session = $client->connect(30000);
 
 $session->send("ctest");
