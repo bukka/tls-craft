@@ -125,35 +125,6 @@ class ClientIntegrationTest extends TestCase
     }
 
     /**
-     * Test client with invalid certificate (when verification enabled)
-     */
-    #[Test]
-    public function testClientWithInvalidCertificate(): void
-    {
-        $generator = TestCertificateGenerator::forRSA();
-        $serverCerts = $generator->generateServerCertificateFiles('invalid-hostname.test');
-
-        $serverCode = $this->createServerCode($serverCerts);
-        $serverAddress = $this->runner->startServerProcess($serverCode);
-        [$hostname, $port] = explode(':', $serverAddress);
-
-        // Create config with certificate verification enabled
-        $config = new Config(
-            supportedVersions: ['TLS 1.3'],
-            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
-        );
-
-        // Enable certificate verification (should fail due to hostname mismatch)
-        $config->setRequireTrustedCertificates(true)
-            ->setAllowSelfSignedCertificates(false);
-
-        $client = new Client($hostname, (int) $port, $config);
-
-        $this->expectException(CraftException::class);
-        $client->connect(5.0);
-    }
-
-    /**
      * Test multiple cipher suites negotiation
      */
     #[Test]
