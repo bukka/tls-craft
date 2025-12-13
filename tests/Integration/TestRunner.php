@@ -130,6 +130,39 @@ class TestRunner
     }
 
     /**
+     * Notify client (from main process) that server is ready to accept connections
+     */
+    public function notifyClientReady(): void
+    {
+        if (isset($this->workerPipes[self::ROLE_CLIENT])) {
+            fwrite($this->workerPipes[self::ROLE_CLIENT][0], "GO\n");
+            fflush($this->workerPipes[self::ROLE_CLIENT][0]);
+        }
+    }
+
+    /**
+     * Wait for server notification (called from client worker subprocess)
+     */
+    public function waitForServerNotification(int $timeoutSeconds = 30): void
+    {
+        if (!$this->isWorker) {
+            return;
+        }
+
+        $startTime = time();
+        while (time() - $startTime < $timeoutSeconds) {
+            stream_set_blocking(STDIN, false);
+            $line = fgets(STDIN);
+            if ($line !== false && trim($line) === 'GO') {
+                return;
+            }
+            usleep(100000); // 100ms
+        }
+
+        die('Timeout waiting for server ready notification');
+    }
+
+    /**
      * Run worker process (internal use only)
      */
     public function runWorker(): void
