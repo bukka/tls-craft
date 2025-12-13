@@ -23,7 +23,11 @@ class Server
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
         ?DependencyContainer $dependencyContainer = null,
+        bool $debug = false,
     ) {
+        if ($debug) {
+            Logger::enable();
+        }
         $this->certificatePath = $certificatePath;
         $this->privateKeyPath = $privateKeyPath;
         $this->config = $config ?? new Config();
