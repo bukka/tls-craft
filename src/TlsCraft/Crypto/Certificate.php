@@ -7,11 +7,6 @@ use OpenSSLCertificate;
 use Php\TlsCraft\Exceptions\CryptoException;
 use Php\TlsCraft\Logger;
 
-use const OPENSSL_KEYTYPE_EC;
-use const OPENSSL_KEYTYPE_ED25519;
-use const OPENSSL_KEYTYPE_ED448;
-use const OPENSSL_KEYTYPE_RSA;
-
 class Certificate
 {
     private OpenSSLCertificate $resource;
@@ -106,6 +101,22 @@ class Certificate
             'Key type' => $this->getKeyTypeName(),
         ]);
 
+        if ($keyType === OPENSSL_KEYTYPE_EC) {
+            // For EC keys, only the signature scheme matching the certificate's curve is supported
+            $curve = $this->getECCurveName();
+
+            Logger::debug('EC certificate curve detected', [
+                'Curve' => $curve,
+            ]);
+
+            return match ($curve) {
+                'prime256v1', 'secp256r1', 'P-256' => [SignatureScheme::ECDSA_SECP256R1_SHA256],
+                'secp384r1', 'P-384' => [SignatureScheme::ECDSA_SECP384R1_SHA384],
+                'secp521r1', 'P-521' => [SignatureScheme::ECDSA_SECP521R1_SHA512],
+                default => [],
+            };
+        }
+
         return match ($keyType) {
             OPENSSL_KEYTYPE_RSA => [
                 SignatureScheme::RSA_PSS_RSAE_SHA256,
@@ -118,11 +129,6 @@ class Certificate
                 SignatureScheme::RSA_PKCS1_SHA384,
                 SignatureScheme::RSA_PKCS1_SHA512,
             ],
-            OPENSSL_KEYTYPE_EC => [
-                SignatureScheme::ECDSA_SECP256R1_SHA256,
-                SignatureScheme::ECDSA_SECP384R1_SHA384,
-                SignatureScheme::ECDSA_SECP521R1_SHA512,
-            ],
             OPENSSL_KEYTYPE_ED25519 => [
                 SignatureScheme::ED25519,
             ],
@@ -131,6 +137,16 @@ class Certificate
             ],
             default => [],
         };
+    }
+
+    private function getECCurveName(): string
+    {
+        if ($this->getKeyType() !== OPENSSL_KEYTYPE_EC) {
+            return '';
+        }
+
+        // The curve name is stored in the 'ec' array under 'curve_name'
+        return $this->details['ec']['curve_name'] ?? '';
     }
 
     public function getPublicKey(): OpenSSLAsymmetricKey
