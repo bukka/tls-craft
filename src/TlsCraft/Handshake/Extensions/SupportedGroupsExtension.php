@@ -11,7 +11,7 @@ class SupportedGroupsExtension extends Extension
      * @param NamedGroup[] $groups
      */
     public function __construct(
-        private array $groups
+        private array $groups,
     ) {
         parent::__construct(ExtensionType::SUPPORTED_GROUPS);
     }

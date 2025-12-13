@@ -33,9 +33,7 @@ abstract class AbstractMessageParser
         }
 
         if ($expectedType !== $type) {
-            throw new CraftException(
-                "Handshake type mismatch: expected {$expectedType->name}, got {$type->name}"
-            );
+            throw new CraftException("Handshake type mismatch: expected {$expectedType->name}, got {$type->name}");
         }
 
         return substr($data, 4, $length);

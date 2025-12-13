@@ -28,7 +28,7 @@ class KeyDerivation
     public function hkdfExpand(string $prk, string $info, int $length, string $algorithm = 'sha256'): string
     {
         $hashLength = strlen(hash($algorithm, '', true));
-        $n = (int)ceil($length / $hashLength);
+        $n = (int) ceil($length / $hashLength);
         if ($n > 255) {
             throw new CryptoException('HKDF expand length too large');
         }
@@ -84,7 +84,7 @@ class KeyDerivation
         string $label,
         string $context,
         int $length,
-        CipherSuite $cipherSuite
+        CipherSuite $cipherSuite,
     ): string {
         $hashAlg = $cipherSuite->getHashAlgorithm();
         $hkdfLabel = self::buildHkdfLabel($length, 'tls13 '.$label, $context);

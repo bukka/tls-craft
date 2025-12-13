@@ -35,7 +35,7 @@ class Server
         $this->dependencyContainer = $dependencyContainer ?? new DependencyContainer(
             false,
             $this->config,
-            $this->connectionFactory
+            $this->connectionFactory,
         );
     }
 
@@ -129,7 +129,7 @@ class Server
         $base64Data = preg_replace(
             ['/-----BEGIN CERTIFICATE-----/', '/-----END CERTIFICATE-----/', '/\s+/'],
             '',
-            $pemData
+            $pemData,
         );
 
         $derData = base64_decode($base64Data);

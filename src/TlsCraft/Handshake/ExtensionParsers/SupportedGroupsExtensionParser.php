@@ -4,6 +4,7 @@ namespace Php\TlsCraft\Handshake\ExtensionParsers;
 
 use Php\TlsCraft\Crypto\NamedGroup;
 use Php\TlsCraft\Handshake\Extensions\SupportedGroupsExtension;
+use ValueError;
 
 class SupportedGroupsExtensionParser extends AbstractExtensionParser
 {
@@ -24,7 +25,7 @@ class SupportedGroupsExtensionParser extends AbstractExtensionParser
 
             try {
                 $groups[] = NamedGroup::from($groupValue);
-            } catch (\ValueError $e) {
+            } catch (ValueError $e) {
                 // Skip unknown groups
                 continue;
             }

@@ -5,8 +5,8 @@ namespace Php\TlsCraft\Handshake\Processors;
 use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\{CryptoException, ProtocolViolationException};
 use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
-
 use Php\TlsCraft\Protocol\HandshakeType;
+
 use const OPENSSL_ALGO_SHA256;
 use const OPENSSL_ALGO_SHA384;
 use const OPENSSL_ALGO_SHA512;
@@ -35,8 +35,8 @@ class CertificateVerifyProcessor extends MessageProcessor
 
         // Convert algorithm names to SignatureScheme objects for comparison
         $supportedSchemes = array_map(
-            fn($name) => SignatureScheme::fromName($name),
-            $supportedAlgorithms
+            fn ($name) => SignatureScheme::fromName($name),
+            $supportedAlgorithms,
         );
 
         if (!in_array($algorithm, $supportedSchemes, true)) {
@@ -119,12 +119,12 @@ class CertificateVerifyProcessor extends MessageProcessor
         $contextString = $this->getContextString();
         $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
             $this->context->getNegotiatedCipherSuite()->getHashAlgorithm(),
-            HandshakeType::CERTIFICATE
+            HandshakeType::CERTIFICATE,
         );
 
-        return str_repeat("\x20", 64) .
-            $contextString .
-            "\x00" .
+        return str_repeat("\x20", 64).
+            $contextString.
+            "\x00".
             $transcriptHash;
     }
 
@@ -149,9 +149,7 @@ class CertificateVerifyProcessor extends MessageProcessor
         [$opensslAlgo, $padding] = $this->getOpenSSLParameters($algorithm);
 
         if ($opensslAlgo === null) {
-            throw new ProtocolViolationException(
-                "Signature verification not implemented for algorithm: {$algorithm->getName()}"
-            );
+            throw new ProtocolViolationException("Signature verification not implemented for algorithm: {$algorithm->getName()}");
         }
 
         $result = openssl_verify($data, $signature, $publicKey, $opensslAlgo, $padding);

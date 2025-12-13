@@ -10,53 +10,51 @@ class RecordFactory
 {
     public static function createApplicationData(
         string $data,
-        Version $version = Version::TLS_1_3
+        Version $version = Version::TLS_1_3,
     ): Record {
         return new Record(
             ContentType::APPLICATION_DATA,
             $version,
-            $data
+            $data,
         );
     }
 
     public static function createHandshake(
         string $handshakeData,
         $encrypted = true,
-        Version $version = Version::TLS_1_3
+        Version $version = Version::TLS_1_3,
     ): Record {
         return new Record(
             ContentType::HANDSHAKE,
             $version,
             $handshakeData,
-            $encrypted
+            $encrypted,
         );
     }
 
     public static function createAlert(
         string $alertData,
-        Version $version = Version::TLS_1_3
+        Version $version = Version::TLS_1_3,
     ): Record {
         return new Record(
             ContentType::ALERT,
             $version,
-            $alertData
+            $alertData,
         );
     }
 
     public static function createOversized(
         int $size,
-        Version $version = Version::TLS_1_3
+        Version $version = Version::TLS_1_3,
     ): Record {
         if ($size <= Record::MAX_PAYLOAD_LENGTH) {
-            throw new CraftException(
-                'Size must exceed maximum payload length for oversized record'
-            );
+            throw new CraftException('Size must exceed maximum payload length for oversized record');
         }
 
         return new Record(
             ContentType::APPLICATION_DATA,
             $version,
-            str_repeat('A', $size)
+            str_repeat('A', $size),
         );
     }
 }

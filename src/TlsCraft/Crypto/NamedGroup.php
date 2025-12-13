@@ -3,12 +3,13 @@
 namespace Php\TlsCraft\Crypto;
 
 use InvalidArgumentException;
+use JsonSerializable;
 
 /**
  * Named Groups (Elliptic Curve Groups and Finite Field Groups)
  * RFC 8446 Section 4.2.7
  */
-enum NamedGroup: int implements \JsonSerializable
+enum NamedGroup: int implements JsonSerializable
 {
     // Elliptic Curve Groups (ECDH, deprecated - TLS 1.2 and earlier)
     case SECT163K1 = 1;
@@ -183,7 +184,7 @@ enum NamedGroup: int implements \JsonSerializable
             self::FFDHE3072,
             self::FFDHE4096,
             self::FFDHE6144,
-            self::FFDHE8192
+            self::FFDHE8192,
         ], true);
     }
 

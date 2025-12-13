@@ -79,6 +79,7 @@ class TestRunner
 
         // Timeout - terminate process
         proc_terminate($this->workerProcesses[$role]);
+
         return false;
     }
 
@@ -116,7 +117,7 @@ class TestRunner
     public function notifyMain(string $message): void
     {
         if ($this->isWorker) {
-            echo $message . "\n";
+            echo $message."\n";
             flush();
         }
     }
@@ -126,7 +127,7 @@ class TestRunner
      */
     public function notifyServerReady(string $address): void
     {
-        $this->notifyMain('READY:' . $address);
+        $this->notifyMain('READY:'.$address);
     }
 
     /**
@@ -159,7 +160,7 @@ class TestRunner
             usleep(100000); // 100ms
         }
 
-        die('Timeout waiting for server ready notification');
+        exit('Timeout waiting for server ready notification');
     }
 
     /**
@@ -184,8 +185,8 @@ class TestRunner
             // Execute worker code
             eval($code);
         } catch (Exception $e) {
-            echo 'WORKER_ERROR: ' . $e->getMessage() . "\n";
-            echo $e->getTraceAsString() . "\n";
+            echo 'WORKER_ERROR: '.$e->getMessage()."\n";
+            echo $e->getTraceAsString()."\n";
             exit(1);
         }
     }
@@ -219,7 +220,7 @@ class TestRunner
         $this->workerPipes[$role] = $pipes;
 
         // Send code to worker
-        fwrite($pipes[0], $this->stripPhpTags($code) . "\n---END---\n");
+        fwrite($pipes[0], $this->stripPhpTags($code)."\n---END---\n");
     }
 
     private function waitForWorkerReady(string $role, int $timeoutSeconds = 10): ?string

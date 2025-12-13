@@ -1,4 +1,5 @@
 <?php
+
 namespace Php\TlsCraft;
 
 use Php\TlsCraft\Connection\ConnectionFactory;
@@ -20,7 +21,8 @@ final class DependencyContainer
         private bool $isClient,
         private ?Config $config = null,
         private ?ConnectionFactory $connectionFactory = null,
-    ) {}
+    ) {
+    }
     private ?Config $cfg = null;
     private ?ConnectionFactory $connFactory = null;
     private ?CryptoFactory $cryptoFactory = null;
@@ -66,7 +68,7 @@ final class DependencyContainer
             $this->isClient,
             $this->getConfig(),
             $this->getCryptoFactory(),
-            new HandshakeTranscript()
+            new HandshakeTranscript(),
         );
     }
 

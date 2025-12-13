@@ -2,6 +2,10 @@
 
 namespace Php\TlsCraft;
 
+use const FILE_APPEND;
+use const JSON_UNESCAPED_SLASHES;
+use const JSON_UNESCAPED_UNICODE;
+
 /**
  * Minimal, dependency-free debug logger.
  * Usage:
@@ -11,8 +15,8 @@ namespace Php\TlsCraft;
 final class Logger
 {
     public const DEBUG = 'DEBUG';
-    public const INFO  = 'INFO';
-    public const WARN  = 'WARN';
+    public const INFO = 'INFO';
+    public const WARN = 'WARN';
     public const ERROR = 'ERROR';
 
     private static bool $enabled = false;
@@ -40,14 +44,17 @@ final class Logger
     {
         self::log(self::DEBUG, $title, $data);
     }
+
     public static function info(string $title, array|string|null $data = null): void
     {
         self::log(self::INFO, $title, $data);
     }
+
     public static function warn(string $title, array|string|null $data = null): void
     {
         self::log(self::WARN, $title, $data);
     }
+
     public static function error(string $title, array|string|null $data = null): void
     {
         self::log(self::ERROR, $title, $data);
@@ -61,20 +68,28 @@ final class Logger
             if ($v === '' || preg_match('/[^\x20-\x7E]/', $v)) {
                 return bin2hex($v);
             }
+
             return $v;
         }
-        if (is_bool($v)) return $v ? 'true' : 'false';
-        if (is_null($v)) return 'null';
-        if (is_scalar($v)) return (string)$v;
-        return json_encode($v, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+        if (is_bool($v)) {
+            return $v ? 'true' : 'false';
+        }
+        if (null === $v) {
+            return 'null';
+        }
+        if (is_scalar($v)) {
+            return (string) $v;
+        }
+
+        return json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
     private static function levelRank(string $level): int
     {
         return match ($level) {
             self::DEBUG => 0,
-            self::INFO  => 1,
-            self::WARN  => 2,
+            self::INFO => 1,
+            self::WARN => 2,
             self::ERROR => 3,
             default => 0,
         };
@@ -82,18 +97,22 @@ final class Logger
 
     private static function log(string $level, string $title, array|string|null $data): void
     {
-        if (!self::$enabled) return;
-        if (self::levelRank($level) < self::levelRank(self::$minLevel)) return;
+        if (!self::$enabled) {
+            return;
+        }
+        if (self::levelRank($level) < self::levelRank(self::$minLevel)) {
+            return;
+        }
 
         $time = date('Y-m-d H:i:s');
-        $out  = "[{$time} {$level}] {$title}";
+        $out = "[{$time} {$level}] {$title}";
 
         if (is_array($data)) {
             foreach ($data as $k => $v) {
-                $out .= "\n  {$k}: " . self::normalizeValue($v);
+                $out .= "\n  {$k}: ".self::normalizeValue($v);
             }
         } elseif (is_string($data) && $data !== '') {
-            $out .= "\n  " . self::normalizeValue($data);
+            $out .= "\n  ".self::normalizeValue($data);
         }
 
         $out .= "\n";

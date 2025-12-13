@@ -4,6 +4,7 @@ namespace Php\TlsCraft\Handshake;
 
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Context;
+use Php\TlsCraft\Crypto\CertificateChain;
 use Php\TlsCraft\Handshake\MessageFactories\{
     CertificateFactory,
     CertificateVerifyFactory,
@@ -13,7 +14,6 @@ use Php\TlsCraft\Handshake\MessageFactories\{
     KeyUpdateFactory,
     ServerHelloFactory
 };
-use Php\TlsCraft\Crypto\CertificateChain;
 use Php\TlsCraft\Handshake\MessageParsers\CertificateParser;
 use Php\TlsCraft\Handshake\MessageParsers\CertificateVerifyParser;
 use Php\TlsCraft\Handshake\MessageParsers\ClientHelloParser;
@@ -61,6 +61,7 @@ class MessageFactory
         if (!$this->clientHelloFactory) {
             $this->clientHelloFactory = new ClientHelloFactory($this->context, $this->config);
         }
+
         return $this->clientHelloFactory;
     }
 
@@ -69,6 +70,7 @@ class MessageFactory
         if (!$this->serverHelloFactory) {
             $this->serverHelloFactory = new ServerHelloFactory($this->context, $this->config);
         }
+
         return $this->serverHelloFactory;
     }
 
@@ -77,6 +79,7 @@ class MessageFactory
         if (!$this->encryptedExtensionsFactory) {
             $this->encryptedExtensionsFactory = new EncryptedExtensionsFactory($this->context, $this->config);
         }
+
         return $this->encryptedExtensionsFactory;
     }
 
@@ -85,6 +88,7 @@ class MessageFactory
         if (!$this->certificateFactory) {
             $this->certificateFactory = new CertificateFactory($this->context, $this->config);
         }
+
         return $this->certificateFactory;
     }
 
@@ -93,6 +97,7 @@ class MessageFactory
         if (!$this->certificateVerifyFactory) {
             $this->certificateVerifyFactory = new CertificateVerifyFactory($this->context, $this->config);
         }
+
         return $this->certificateVerifyFactory;
     }
 
@@ -101,6 +106,7 @@ class MessageFactory
         if (!$this->finishedFactory) {
             $this->finishedFactory = new FinishedFactory($this->context, $this->config);
         }
+
         return $this->finishedFactory;
     }
 
@@ -109,6 +115,7 @@ class MessageFactory
         if (!$this->keyUpdateFactory) {
             $this->keyUpdateFactory = new KeyUpdateFactory($this->context, $this->config);
         }
+
         return $this->keyUpdateFactory;
     }
 
@@ -117,6 +124,7 @@ class MessageFactory
         if (!$this->clientHelloParser) {
             $this->clientHelloParser = new ClientHelloParser($this->context, $this->extensionFactory);
         }
+
         return $this->clientHelloParser;
     }
 
@@ -125,6 +133,7 @@ class MessageFactory
         if (!$this->serverHelloParser) {
             $this->serverHelloParser = new ServerHelloParser($this->context, $this->extensionFactory);
         }
+
         return $this->serverHelloParser;
     }
 
@@ -133,6 +142,7 @@ class MessageFactory
         if (!$this->encryptedExtensionsParser) {
             $this->encryptedExtensionsParser = new EncryptedExtensionsParser($this->context, $this->extensionFactory);
         }
+
         return $this->encryptedExtensionsParser;
     }
 
@@ -141,6 +151,7 @@ class MessageFactory
         if (!$this->certificateParser) {
             $this->certificateParser = new CertificateParser($this->context, $this->extensionFactory);
         }
+
         return $this->certificateParser;
     }
 
@@ -149,6 +160,7 @@ class MessageFactory
         if (!$this->certificateVerifyParser) {
             $this->certificateVerifyParser = new CertificateVerifyParser($this->context, $this->extensionFactory);
         }
+
         return $this->certificateVerifyParser;
     }
 
@@ -157,6 +169,7 @@ class MessageFactory
         if (!$this->finishedParser) {
             $this->finishedParser = new FinishedParser($this->context, $this->extensionFactory);
         }
+
         return $this->finishedParser;
     }
 
@@ -165,6 +178,7 @@ class MessageFactory
         if (!$this->keyUpdateParser) {
             $this->keyUpdateParser = new KeyUpdateParser($this->context, $this->extensionFactory);
         }
+
         return $this->keyUpdateParser;
     }
 

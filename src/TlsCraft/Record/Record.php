@@ -5,7 +5,6 @@ namespace Php\TlsCraft\Record;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Protocol\ContentType;
-use Php\TlsCraft\Protocol\HandshakeType;
 use Php\TlsCraft\Protocol\Version;
 
 class Record

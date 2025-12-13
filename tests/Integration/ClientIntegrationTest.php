@@ -5,7 +5,6 @@ namespace Php\TlsCraft\Tests\Integration;
 use Php\TlsCraft\Client;
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Exceptions\CraftException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -178,7 +177,7 @@ class ClientIntegrationTest extends TestCase
         $serverCode = '
             $context = stream_context_create([
                 "ssl" => [
-                    "local_cert" => "' . $certFile . '",
+                    "local_cert" => "'.$certFile.'",
                     "verify_peer" => false,
                     "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
                     "alpn_protocols" => "http/1.1,h2", // Server supports these
@@ -240,8 +239,8 @@ class ClientIntegrationTest extends TestCase
         return '
             $context = stream_context_create([
                 "ssl" => [
-                    "local_cert" => "' . $certFile . '",
-                    "local_pk" => "' . $keyFile . '",
+                    "local_cert" => "'.$certFile.'",
+                    "local_pk" => "'.$keyFile.'",
                     "verify_peer" => false,
                     "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
                 ]

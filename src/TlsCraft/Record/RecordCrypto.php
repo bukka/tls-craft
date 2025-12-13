@@ -297,6 +297,7 @@ class RecordCrypto
         if ($version == Version::TLS_1_3) {
             $version = Version::TLS_1_2;
         }
+
         return pack('Cnn', $contentType->value, $version->value, $length);
     }
 }

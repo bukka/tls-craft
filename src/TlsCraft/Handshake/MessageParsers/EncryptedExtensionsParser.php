@@ -2,7 +2,6 @@
 
 namespace Php\TlsCraft\Handshake\MessageParsers;
 
-use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
 use Php\TlsCraft\Protocol\HandshakeType;
 

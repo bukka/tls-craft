@@ -45,6 +45,7 @@ class HandshakeTranscript
         foreach ($messages as $message) {
             $result .= $message['data'];
         }
+
         return $result;
     }
 
@@ -57,6 +58,7 @@ class HandshakeTranscript
         foreach ($messages as $message) {
             $types[] = $message['type']->name;
         }
+
         return implode(',', $types);
     }
 
@@ -78,6 +80,7 @@ class HandshakeTranscript
 
     /**
      * Get messages through (and including) a specific message type
+     *
      * @return array<array{type: HandshakeType, data: string}>
      */
     private function getMessagesThrough(HandshakeType $throughType): array
@@ -100,6 +103,7 @@ class HandshakeTranscript
      * Get messages through (and including) a specific message type
      *
      * @param HandshakeType $throughType The last type to include
+     *
      * @return string Concatenated wire format of all messages through the specified type
      */
     public function getThrough(HandshakeType $throughType): string
@@ -111,6 +115,7 @@ class HandshakeTranscript
      * Get types through (and including) a specific message type
      *
      * @param HandshakeType $throughType The last type to include
+     *
      * @return string Concatenated types
      */
     public function getTypesThrough(HandshakeType $throughType): string

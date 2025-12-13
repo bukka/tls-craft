@@ -20,7 +20,7 @@ class KeySchedule
     public function __construct(
         private CipherSuite $cipherSuite,
         private KeyDerivation $keyDerivation,
-        private HandshakeTranscript $transcript
+        private HandshakeTranscript $transcript,
     ) {
         $this->hashAlgorithm = $cipherSuite->getHashAlgorithm();
         $this->hashLength = $cipherSuite->getHashLength();
@@ -47,14 +47,14 @@ class KeySchedule
             $this->earlySecret,
             'derived',
             '',
-            $this->cipherSuite
+            $this->cipherSuite,
         );
 
         // handshake_secret = HKDF-Extract(derived_secret, ECDHE)
         $this->handshakeSecret = $this->keyDerivation->hkdfExtract(
             $derivedSecret,
             $sharedSecret,
-            $this->hashAlgorithm
+            $this->hashAlgorithm,
         );
 
         Logger::debug('HANDSHAKE SECRET', [
@@ -69,14 +69,14 @@ class KeySchedule
             $this->handshakeSecret,
             'derived',
             '',
-            $this->cipherSuite
+            $this->cipherSuite,
         );
 
         // master_secret = HKDF-Extract(derived_secret2, 0^HashLen)
         $this->masterSecret = $this->keyDerivation->hkdfExtract(
             $derivedSecret,
             str_repeat("\x00", $this->hashLength),
-            $this->hashAlgorithm
+            $this->hashAlgorithm,
         );
 
         Logger::debug('MASTER SECRET', [

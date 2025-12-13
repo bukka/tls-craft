@@ -24,8 +24,8 @@ class SupportedGroupsProvider implements ExtensionProvider
 
         // Convert group names to NamedGroup enums
         $groups = array_map(
-            fn($groupName) => NamedGroup::fromName($groupName),
-            $this->supportedGroups
+            fn ($groupName) => NamedGroup::fromName($groupName),
+            $this->supportedGroups,
         );
 
         return new SupportedGroupsExtension($groups);

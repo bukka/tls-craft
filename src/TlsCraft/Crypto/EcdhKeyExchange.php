@@ -3,9 +3,10 @@
 namespace Php\TlsCraft\Crypto;
 
 use Php\TlsCraft\Exceptions\CryptoException;
-
 use Php\TlsCraft\Exceptions\OpenSslException;
+
 use const OPENSSL_KEYTYPE_EC;
+use const STR_PAD_LEFT;
 
 class EcdhKeyExchange implements OpenSslKeyExchange
 {
@@ -52,7 +53,7 @@ class EcdhKeyExchange implements OpenSslKeyExchange
         $y = str_pad($y, $coordLen, "\x00", STR_PAD_LEFT);
 
         // Create uncompressed EC point (0x04 + x + y)
-        $publicKey = "\x04" . $x . $y;
+        $publicKey = "\x04".$x.$y;
 
         return new OpenSslKeyPair($keyResource, $publicKey, $this);
     }
@@ -70,7 +71,7 @@ class EcdhKeyExchange implements OpenSslKeyExchange
     public function getPeerPublicKey(string $peerPublicKey): mixed
     {
         // Verify peer public key format (should start with 0x04 for uncompressed)
-        if (strlen($peerPublicKey) < 1 || ord($peerPublicKey[0]) !== 0x04) {
+        if ($peerPublicKey === '' || ord($peerPublicKey[0]) !== 0x04) {
             throw new CryptoException('Invalid peer public key format');
         }
 

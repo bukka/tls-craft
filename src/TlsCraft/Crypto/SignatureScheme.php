@@ -3,9 +3,10 @@
 namespace Php\TlsCraft\Crypto;
 
 use InvalidArgumentException;
+use JsonSerializable;
 use ValueError;
 
-enum SignatureScheme: int implements \JsonSerializable
+enum SignatureScheme: int implements JsonSerializable
 {
     // RSA PKCS1
     case RSA_PKCS1_SHA1 = 0x0201;
@@ -197,7 +198,7 @@ enum SignatureScheme: int implements \JsonSerializable
         try {
             return self::from($value);
         } catch (ValueError $e) {
-            throw new InvalidArgumentException("Unknown signature scheme value: 0x" . dechex($value) . " ({$value})");
+            throw new InvalidArgumentException('Unknown signature scheme value: 0x'.dechex($value)." ({$value})");
         }
     }
 

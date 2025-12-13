@@ -8,6 +8,8 @@ use Php\TlsCraft\Handshake\Extensions\ServerNameExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Logger;
 
+use const FILTER_VALIDATE_IP;
+
 class ServerNameExtensionProvider implements ExtensionProvider
 {
     public function __construct(private readonly string $serverName = '')

@@ -4,7 +4,6 @@ namespace Php\TlsCraft;
 
 use Closure;
 use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Handshake\ClientHelloExtensionProviders;
 use Php\TlsCraft\Handshake\EncryptedExtensionsProviders;
 use Php\TlsCraft\Handshake\ExtensionProviders\AlpnExtensionProvider;

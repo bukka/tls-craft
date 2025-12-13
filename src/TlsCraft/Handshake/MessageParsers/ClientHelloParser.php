@@ -2,7 +2,6 @@
 
 namespace Php\TlsCraft\Handshake\MessageParsers;
 
-use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
 use Php\TlsCraft\Protocol\HandshakeType;
 use Php\TlsCraft\Protocol\Version;

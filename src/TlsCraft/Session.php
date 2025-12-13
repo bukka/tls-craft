@@ -3,7 +3,6 @@
 namespace Php\TlsCraft;
 
 use Php\TlsCraft\Connection\Connection;
-use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Protocol\AlertDescription;
 use Php\TlsCraft\Protocol\AlertLevel;
 use Php\TlsCraft\Protocol\ProtocolOrchestrator;
@@ -34,6 +33,7 @@ class Session
         if ($this->receiveBuffer !== '') {
             $result = substr($this->receiveBuffer, 0, $maxLength);
             $this->receiveBuffer = substr($this->receiveBuffer, strlen($result));
+
             return $result;
         }
 
@@ -48,6 +48,7 @@ class Session
         if (strlen($data) > $maxLength) {
             $result = substr($data, 0, $maxLength);
             $this->receiveBuffer = substr($data, $maxLength);
+
             return $result;
         }
 

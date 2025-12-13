@@ -2,21 +2,27 @@
 
 namespace Php\TlsCraft\Crypto;
 
+use OpenSSLAsymmetricKey;
 use Php\TlsCraft\Exceptions\CryptoException;
 use Php\TlsCraft\Logger;
 
+use const OPENSSL_KEYTYPE_EC;
+use const OPENSSL_KEYTYPE_ED25519;
+use const OPENSSL_KEYTYPE_ED448;
+use const OPENSSL_KEYTYPE_RSA;
+
 class PrivateKey
 {
-    private \OpenSSLAsymmetricKey $resource;
+    private OpenSSLAsymmetricKey $resource;
     private array $details;
 
-    private function __construct(\OpenSSLAsymmetricKey $resource)
+    private function __construct(OpenSSLAsymmetricKey $resource)
     {
         $this->resource = $resource;
 
         $details = openssl_pkey_get_details($resource);
         if ($details === false) {
-            throw new CryptoException('Failed to get private key details: ' . openssl_error_string());
+            throw new CryptoException('Failed to get private key details: '.openssl_error_string());
         }
         $this->details = $details;
 
@@ -35,7 +41,7 @@ class PrivateKey
 
         $key = openssl_pkey_get_private($pemData, $passphrase ?? '');
         if ($key === false) {
-            throw new CryptoException('Failed to read private key: ' . openssl_error_string());
+            throw new CryptoException('Failed to read private key: '.openssl_error_string());
         }
 
         return new self($key);
@@ -80,7 +86,7 @@ class PrivateKey
         return $this->details['bits'] ?? 0;
     }
 
-    public function getResource(): \OpenSSLAsymmetricKey
+    public function getResource(): OpenSSLAsymmetricKey
     {
         return $this->resource;
     }

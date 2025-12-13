@@ -37,7 +37,7 @@ class FinishedProcessor extends MessageProcessor
             // Get transcript hash excluding the FinishedMessage message itself
             $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
                 $cipherSuite->getHashAlgorithm(),
-                HandshakeType::CERTIFICATE_VERIFY
+                HandshakeType::CERTIFICATE_VERIFY,
             );
             // We're client verifying server's FinishedMessage
             $handshakeSecret = $keySchedule->getServerHandshakeTrafficSecret();
@@ -45,7 +45,7 @@ class FinishedProcessor extends MessageProcessor
             // Get transcript hash including the client FinishedMessage message
             $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
                 $cipherSuite->getHashAlgorithm(),
-                HandshakeType::FINISHED
+                HandshakeType::FINISHED,
             );
             // We're server verifying client's FinishedMessage
             $handshakeSecret = $keySchedule->getClientHandshakeTrafficSecret();
@@ -63,4 +63,3 @@ class FinishedProcessor extends MessageProcessor
         }
     }
 }
-

@@ -207,7 +207,7 @@ class Context
             if (!$this->sharedSecret) {
                 $missing[] = 'shared secret';
             }
-            throw new CraftException('Cannot derive handshake secrets: missing ' . implode(' and ', $missing));
+            throw new CraftException('Cannot derive handshake secrets: missing '.implode(' and ', $missing));
         }
 
         $this->keySchedule->deriveHandshakeSecret($this->sharedSecret);
@@ -428,8 +428,8 @@ class Context
         $this->privateKey = $this->cryptoFactory->createPrivateKeyFromPEM($pemData, $passphrase);
 
         // Validate that key matches certificate if both are set
-        if ($this->certificateChain &&
-            !$this->privateKey->matchesCertificate($this->certificateChain->getLeafCertificate())) {
+        if ($this->certificateChain
+            && !$this->privateKey->matchesCertificate($this->certificateChain->getLeafCertificate())) {
             throw new CryptoException('Private key does not match leaf certificate');
         }
     }
@@ -439,8 +439,8 @@ class Context
         $this->privateKey = $this->cryptoFactory->createPrivateKeyFromFile($path, $passphrase);
 
         // Validate that key matches certificate if both are set
-        if ($this->certificateChain &&
-            !$this->privateKey->matchesCertificate($this->certificateChain->getLeafCertificate())) {
+        if ($this->certificateChain
+            && !$this->privateKey->matchesCertificate($this->certificateChain->getLeafCertificate())) {
             throw new CryptoException('Private key does not match leaf certificate');
         }
     }
@@ -450,6 +450,7 @@ class Context
         if (!$this->certificateChain) {
             throw new CraftException('Certificate chain not set');
         }
+
         return $this->certificateChain;
     }
 

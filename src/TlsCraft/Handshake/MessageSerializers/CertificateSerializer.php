@@ -10,7 +10,7 @@ class CertificateSerializer extends AbstractMessageSerializer
     {
         // Certificate request context (empty for server certificate)
         $contextLength = strlen($message->certificateRequestContext);
-        $data = chr($contextLength) . $message->certificateRequestContext;
+        $data = chr($contextLength).$message->certificateRequestContext;
 
         // Certificate list
         $certListData = '';

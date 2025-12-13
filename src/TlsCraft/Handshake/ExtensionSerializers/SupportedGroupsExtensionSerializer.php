@@ -18,7 +18,7 @@ class SupportedGroupsExtensionSerializer extends AbstractExtensionSerializer
         $groupsLength = strlen($groupsData);
 
         // Extension data: groups list length (2) + groups
-        $extensionData = pack('n', $groupsLength) . $groupsData;
+        $extensionData = pack('n', $groupsLength).$groupsData;
 
         return $this->packData($extensionData);
     }

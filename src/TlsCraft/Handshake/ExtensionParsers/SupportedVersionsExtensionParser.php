@@ -11,7 +11,6 @@ use Php\TlsCraft\Protocol\Version;
  */
 class SupportedVersionsExtensionParser extends AbstractExtensionParser
 {
-
     public function parse(string $data): SupportedVersionsExtension
     {
         $versions = [];
@@ -19,9 +18,7 @@ class SupportedVersionsExtensionParser extends AbstractExtensionParser
         if ($this->context->isClient()) {
             // ServerHelloMessage format: must be exactly a single 2-byte version (no length prefix)
             if (strlen($data) !== 2) {
-                throw new CraftException(
-                    sprintf('Invalid SupportedVersions extension in ServerHelloMessage: expected 2 bytes, got %d', strlen($data))
-                );
+                throw new CraftException(sprintf('Invalid SupportedVersions extension in ServerHelloMessage: expected 2 bytes, got %d', strlen($data)));
             }
             $versions[] = Version::fromBytes($data);
         } else {

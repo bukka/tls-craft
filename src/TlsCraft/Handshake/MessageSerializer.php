@@ -4,6 +4,16 @@ namespace Php\TlsCraft\Handshake;
 
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Handshake\Messages\{
+    CertificateMessage,
+    CertificateVerifyMessage,
+    ClientHelloMessage,
+    EncryptedExtensionsMessage,
+    FinishedMessage,
+    KeyUpdateMessage,
+    Message,
+    ServerHelloMessage
+};
 use Php\TlsCraft\Handshake\MessageSerializers\{
     CertificateSerializer,
     CertificateVerifySerializer,
@@ -12,16 +22,6 @@ use Php\TlsCraft\Handshake\MessageSerializers\{
     FinishedSerializer,
     KeyUpdateSerializer,
     ServerHelloSerializer
-};
-use Php\TlsCraft\Handshake\Messages\{
-    Message,
-    CertificateMessage,
-    CertificateVerifyMessage,
-    ClientHelloMessage,
-    EncryptedExtensionsMessage,
-    FinishedMessage,
-    KeyUpdateMessage,
-    ServerHelloMessage
 };
 use Php\TlsCraft\Logger;
 
@@ -33,7 +33,8 @@ class MessageSerializer
     public function __construct(
         private Context $context,
         private ExtensionFactory $extensionFactory,
-    ) {}
+    ) {
+    }
 
     /** --------- Cached serializer instances ---------- */
     private ?ClientHelloSerializer $clientHelloSerializer = null;
@@ -92,14 +93,14 @@ class MessageSerializer
     private function serializeMessage(Message $msg): string
     {
         return match (true) {
-            $msg instanceof ClientHelloMessage        => $this->getClientHelloSerializer()->serialize($msg),
-            $msg instanceof ServerHelloMessage        => $this->getServerHelloSerializer()->serialize($msg),
-            $msg instanceof EncryptedExtensionsMessage=> $this->getEncryptedExtensionsSerializer()->serialize($msg),
-            $msg instanceof CertificateMessage        => $this->getCertificateSerializer()->serialize($msg),
-            $msg instanceof CertificateVerifyMessage  => $this->getCertificateVerifySerializer()->serialize($msg),
-            $msg instanceof FinishedMessage           => $this->getFinishedSerializer()->serialize($msg),
-            $msg instanceof KeyUpdateMessage          => $this->getKeyUpdateSerializer()->serialize($msg),
-            default => throw new CraftException('No serializer for message: ' . $msg::class),
+            $msg instanceof ClientHelloMessage => $this->getClientHelloSerializer()->serialize($msg),
+            $msg instanceof ServerHelloMessage => $this->getServerHelloSerializer()->serialize($msg),
+            $msg instanceof EncryptedExtensionsMessage => $this->getEncryptedExtensionsSerializer()->serialize($msg),
+            $msg instanceof CertificateMessage => $this->getCertificateSerializer()->serialize($msg),
+            $msg instanceof CertificateVerifyMessage => $this->getCertificateVerifySerializer()->serialize($msg),
+            $msg instanceof FinishedMessage => $this->getFinishedSerializer()->serialize($msg),
+            $msg instanceof KeyUpdateMessage => $this->getKeyUpdateSerializer()->serialize($msg),
+            default => throw new CraftException('No serializer for message: '.$msg::class),
         };
     }
 
@@ -118,7 +119,7 @@ class MessageSerializer
         // 3-byte length: take the last 3 bytes of the 4-byte BE int
         $len3 = substr(pack('N', $len), 1);
 
-        $data = $msg->type->toByte() . $len3 . $payload;
+        $data = $msg->type->toByte().$len3.$payload;
 
         Logger::debug('Serialize Message', [
             'type' => $msg->type->name,

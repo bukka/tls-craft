@@ -5,13 +5,14 @@ namespace Php\TlsCraft\Tests\Unit\Crypto;
 use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Crypto\KeyDerivation;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 class KeyDerivationTest extends TestCase
 {
     /** RFC 5869 — Test Case 1 (SHA-256): hkdfExtract */
     public function testHkdfExtractMatchesRfc5869Case1(): void
     {
-        $ikm  = hex2bin(str_repeat('0b', 22)); // 22 bytes of 0x0b
+        $ikm = hex2bin(str_repeat('0b', 22)); // 22 bytes of 0x0b
         $salt = hex2bin('000102030405060708090a0b0c'); // 13 bytes
         $expPrk = hex2bin('077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5');
 
@@ -38,7 +39,7 @@ class KeyDerivationTest extends TestCase
     /** RFC 5869 — Test Case 1 (SHA-256): combined hkdf() */
     public function testHkdfCombinedMatchesRfc5869Case1(): void
     {
-        $ikm  = hex2bin(str_repeat('0b', 22));
+        $ikm = hex2bin(str_repeat('0b', 22));
         $salt = hex2bin('000102030405060708090a0b0c');
         $info = hex2bin('f0f1f2f3f4f5f6f7f8f9');
         $length = 42;
@@ -78,24 +79,24 @@ class KeyDerivationTest extends TestCase
 
         $kd = new KeyDerivation();
         $key = $kd->expandLabel($serverHsSecret, 'key', '', $cipher->getKeyLength(), $cipher);
-        $iv  = $kd->expandLabel($serverHsSecret, 'iv',  '', $cipher->getIVLength(),  $cipher);
+        $iv = $kd->expandLabel($serverHsSecret, 'iv', '', $cipher->getIVLength(), $cipher);
 
         $this->assertSame('f9ca909c9db85dec8821c2f4dcd9c2d1', bin2hex($key), 'TLS 1.3 AEAD key must match');
-        $this->assertSame('f29ea3bc801f3138ca81585e',         bin2hex($iv),  'TLS 1.3 AEAD IV must match');
+        $this->assertSame('f29ea3bc801f3138ca81585e', bin2hex($iv), 'TLS 1.3 AEAD IV must match');
     }
 
     /** deriveSecret() should equal Expand-Label(secret, label, Hash(messages), HashLen) */
     public function testDeriveSecretMatchesExpandLabelWithTranscriptHash(): void
     {
         $cipher = CipherSuite::TLS_AES_128_GCM_SHA256;
-        $secret   = random_bytes($cipher->getHashLength()); // pretend this is some traffic secret
+        $secret = random_bytes($cipher->getHashLength()); // pretend this is some traffic secret
         $messages = random_bytes(100);                      // pretend transcript bytes
-        $hashAlg  = $cipher->getHashAlgorithm();
-        $ctxHash  = hash($hashAlg, $messages, true);
+        $hashAlg = $cipher->getHashAlgorithm();
+        $ctxHash = hash($hashAlg, $messages, true);
 
         $kd = new KeyDerivation();
         $viaDeriveSecret = $kd->deriveSecret($secret, 'test-label', $messages, $cipher);
-        $viaExpandLabel  = $kd->expandLabel($secret, 'test-label', $ctxHash, $cipher->getHashLength(), $cipher);
+        $viaExpandLabel = $kd->expandLabel($secret, 'test-label', $ctxHash, $cipher->getHashLength(), $cipher);
 
         $this->assertSame(bin2hex($viaExpandLabel), bin2hex($viaDeriveSecret), 'deriveSecret must be equivalent to Expand-Label(..., Hash(messages))');
     }
@@ -111,7 +112,7 @@ class KeyDerivationTest extends TestCase
         $k128 = $kd->expandLabel($sec128, 'key', '', $c128->getKeyLength(), $c128);
         $iv128 = $kd->expandLabel($sec128, 'iv', '', $c128->getIVLength(), $c128);
         $this->assertSame($c128->getKeyLength(), strlen($k128));
-        $this->assertSame($c128->getIVLength(),  strlen($iv128));
+        $this->assertSame($c128->getIVLength(), strlen($iv128));
 
         // AES-256-GCM-SHA384
         $c256 = CipherSuite::TLS_AES_256_GCM_SHA384;
@@ -119,7 +120,7 @@ class KeyDerivationTest extends TestCase
         $k256 = $kd->expandLabel($sec256, 'key', '', $c256->getKeyLength(), $c256);
         $iv256 = $kd->expandLabel($sec256, 'iv', '', $c256->getIVLength(), $c256);
         $this->assertSame($c256->getKeyLength(), strlen($k256));
-        $this->assertSame($c256->getIVLength(),  strlen($iv256));
+        $this->assertSame($c256->getIVLength(), strlen($iv256));
     }
 
     /**
@@ -147,18 +148,18 @@ class KeyDerivationTest extends TestCase
         $kd = new KeyDerivation();
 
         // Access private method using reflection
-        $reflection = new \ReflectionClass($kd);
+        $reflection = new ReflectionClass($kd);
         $method = $reflection->getMethod('buildHkdfLabel');
 
         // Build label for "tls13 derived" with empty context
         $label = $method->invoke($kd, 32, 'tls13 derived', '');
 
-        $expected = '00200d746c7331332064657269766564' . '00';
+        $expected = '00200d746c733133206465726976656400';
 
         $this->assertSame(
             $expected,
             bin2hex($label),
-            'HKDF-Label encoding must match TLS 1.3 specification'
+            'HKDF-Label encoding must match TLS 1.3 specification',
         );
     }
 
@@ -169,7 +170,7 @@ class KeyDerivationTest extends TestCase
     {
         $kd = new KeyDerivation();
 
-        $reflection = new \ReflectionClass($kd);
+        $reflection = new ReflectionClass($kd);
         $method = $reflection->getMethod('buildHkdfLabel');
 
         // Build label for "tls13 key" with empty context
@@ -184,7 +185,7 @@ class KeyDerivationTest extends TestCase
         $this->assertSame(
             $expected,
             bin2hex($label),
-            'HKDF-Label for key must be correctly encoded'
+            'HKDF-Label for key must be correctly encoded',
         );
     }
 }

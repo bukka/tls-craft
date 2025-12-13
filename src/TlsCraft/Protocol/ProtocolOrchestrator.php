@@ -4,19 +4,17 @@ namespace Php\TlsCraft\Protocol;
 
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Control\{FlowController};
+use Php\TlsCraft\Control\FlowController;
 use Php\TlsCraft\Crypto\CertificateSigner;
-use Php\TlsCraft\Crypto\CertificateUtils;
-use Php\TlsCraft\Exceptions\{AlertException, CraftException, ProtocolViolationException};
 use Php\TlsCraft\Crypto\CryptoFactory;
-use Php\TlsCraft\Handshake\MessageFactories\CertificateFactory;
+use Php\TlsCraft\Exceptions\{AlertException, CraftException, ProtocolViolationException};
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\Messages\{KeyUpdateMessage, Message};
 use Php\TlsCraft\Handshake\MessageSerializer;
 use Php\TlsCraft\Handshake\ProcessorManager;
+use Php\TlsCraft\Logger;
 use Php\TlsCraft\Record\{EncryptedLayer, LayerFactory, Record, RecordFactory};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
-use Php\TlsCraft\Logger;
 
 /**
  * Updated ProtocolOrchestrator with clean typing and proper integration
@@ -321,7 +319,7 @@ class ProtocolOrchestrator
 
         // Parse handshake message header
         $type = HandshakeType::fromByte($buffer[0]);
-        $length = unpack('N', "\x00" . substr($buffer, 1, 3))[1];
+        $length = unpack('N', "\x00".substr($buffer, 1, 3))[1];
 
         if (strlen($buffer) < 4 + $length) {
             return null; // Complete message not yet available
@@ -340,12 +338,10 @@ class ProtocolOrchestrator
         if (!$this->validator->validateHandshakeMessage(
             $type,
             $this->stateTracker->getHandshakeState(),
-            $this->stateTracker->isClient()
+            $this->stateTracker->isClient(),
         )) {
             $handshakeState = $this->stateTracker->getHandshakeState()->value;
-            throw new ProtocolViolationException(
-                "Unexpected handshake message {$type->name} in state {$handshakeState}"
-            );
+            throw new ProtocolViolationException("Unexpected handshake message {$type->name} in state {$handshakeState}");
         }
 
         // Add to context transcript

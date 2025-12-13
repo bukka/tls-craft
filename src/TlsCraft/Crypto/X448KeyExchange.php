@@ -5,6 +5,8 @@ namespace Php\TlsCraft\Crypto;
 use Php\TlsCraft\Exceptions\CryptoException;
 use Php\TlsCraft\Exceptions\OpenSslException;
 
+use const OPENSSL_KEYTYPE_X448;
+
 class X448KeyExchange implements OpenSslKeyExchange
 {
     public function generateKeyPair(): KeyPair
@@ -49,6 +51,7 @@ class X448KeyExchange implements OpenSslKeyExchange
         if (!$peerKeyResource) {
             throw new OpenSslException('Failed to create peer public key resource');
         }
+
         return $peerKeyResource;
     }
 
@@ -58,7 +61,7 @@ class X448KeyExchange implements OpenSslKeyExchange
         $der = base64_decode(str_replace(
             ['-----BEGIN PUBLIC KEY-----', '-----END PUBLIC KEY-----', "\n", "\r"],
             '',
-            $pem
+            $pem,
         ));
 
         if (!$der) {
@@ -80,7 +83,7 @@ class X448KeyExchange implements OpenSslKeyExchange
         // Create X448 public key in PEM format
         // This is the DER structure for X448 public key
         $oid = "\x30\x42\x30\x05\x06\x03\x2b\x65\x6f\x03\x39\x00";
-        $der = $oid . $rawPublicKey;
+        $der = $oid.$rawPublicKey;
 
         $pem = "-----BEGIN PUBLIC KEY-----\n";
         $pem .= chunk_split(base64_encode($der), 64);

@@ -4,6 +4,13 @@ namespace Php\TlsCraft\Connection;
 
 use Php\TlsCraft\Exceptions\CraftException;
 
+use const STREAM_CLIENT_CONNECT;
+use const STREAM_IPPROTO_IP;
+use const STREAM_PF_UNIX;
+use const STREAM_SERVER_BIND;
+use const STREAM_SERVER_LISTEN;
+use const STREAM_SOCK_STREAM;
+
 /**
  * Connection factory for creating connections
  */

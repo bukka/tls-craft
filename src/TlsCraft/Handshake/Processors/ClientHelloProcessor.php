@@ -74,7 +74,7 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         Logger::debug('ClientHelloProcessor: Supported versions', [
-            'versions' => array_map(fn($v) => sprintf('0x%04x', $v->value), $ext->getVersions()),
+            'versions' => array_map(fn ($v) => sprintf('0x%04x', $v->value), $ext->getVersions()),
             'supports_tls13' => $ext->supportsVersion(Version::TLS_1_3),
         ]);
 
@@ -97,7 +97,7 @@ class ClientHelloProcessor extends MessageProcessor
         $supportedGroups = $this->context->getConfig()->getSupportedGroups();
 
         Logger::debug('ClientHelloProcessor: Key shares', [
-            'client_key_shares' => array_map(fn($ks) => $ks->getGroup()->getName(), $clientKeyShares),
+            'client_key_shares' => array_map(fn ($ks) => $ks->getGroup()->getName(), $clientKeyShares),
             'supported_groups' => $supportedGroups,
         ]);
 
@@ -130,7 +130,7 @@ class ClientHelloProcessor extends MessageProcessor
 
         Logger::debug('ClientHelloProcessor: Signature algorithms', [
             'client_algorithms_count' => count($clientSigAlgs),
-            'client_algorithms' => array_map(fn($s) => $s->name, array_slice($clientSigAlgs, 0, 5)),
+            'client_algorithms' => array_map(fn ($s) => $s->name, array_slice($clientSigAlgs, 0, 5)),
         ]);
 
         // Store client's signature algorithms for later use in CertificateVerify
@@ -151,6 +151,7 @@ class ClientHelloProcessor extends MessageProcessor
         $certificateChain = $this->context->getCertificateChain();
         if (!$certificateChain) {
             Logger::error('No certificate chain configured');
+
             return null;
         }
 
@@ -162,8 +163,8 @@ class ClientHelloProcessor extends MessageProcessor
 
         Logger::debug('ClientHelloProcessor: Signature scheme selection', [
             'certificate_key_type' => $certificateChain->getKeyTypeName(),
-            'certificate_schemes' => array_map(fn($s) => $s->name, $certificateSchemes),
-            'client_sig_algs' => array_map(fn($s) => $s->name, $clientSigAlgs),
+            'certificate_schemes' => array_map(fn ($s) => $s->name, $certificateSchemes),
+            'client_sig_algs' => array_map(fn ($s) => $s->name, $clientSigAlgs),
             'server_config_sig_algs' => $serverSchemes,
         ]);
 
@@ -190,12 +191,14 @@ class ClientHelloProcessor extends MessageProcessor
                     Logger::debug('ClientHelloProcessor: Signature scheme selected', [
                         'scheme' => $serverScheme->name,
                     ]);
+
                     return $serverScheme;
                 }
             }
         }
 
         Logger::error('No matching signature scheme found');
+
         return null;
     }
 
@@ -245,6 +248,7 @@ class ClientHelloProcessor extends MessageProcessor
         // If server has no configured protocols, don't select anything
         if (empty($this->config->getSupportedProtocols())) {
             Logger::debug('ClientHelloProcessor: No server ALPN protocols configured');
+
             return null;
         }
 
@@ -259,6 +263,7 @@ class ClientHelloProcessor extends MessageProcessor
             'client_protocols' => $clientProtocols,
             'server_protocols' => $this->config->getSupportedProtocols(),
         ]);
+
         return null;
     }
 }

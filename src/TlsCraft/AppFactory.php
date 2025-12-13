@@ -1,4 +1,5 @@
 <?php
+
 namespace Php\TlsCraft;
 
 use Php\TlsCraft\Connection\ConnectionFactory;
@@ -13,6 +14,7 @@ final class AppFactory
         bool $debug = false,
     ): Client {
         RuntimeEnvironment::assertOpenSsl3();
+
         // You can still pass config/factory through; Client will build from them.
         return new Client($hostname, $port, $config, $connectionFactory, debug: $debug);
     }
@@ -24,6 +26,7 @@ final class AppFactory
         ?ConnectionFactory $connectionFactory = null,
     ): Server {
         RuntimeEnvironment::assertOpenSsl3();
+
         return new Server($certificatePath, $privateKeyPath, $config, $connectionFactory);
     }
 }

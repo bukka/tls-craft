@@ -47,6 +47,7 @@ class TestCertificateGenerator
     public static function forRSA(int $keySize = 2048, ?string $testName = null): self
     {
         $testName = $testName ?: self::getCallerName();
+
         return new self(self::KEY_TYPE_RSA, ['key_size' => $keySize], $testName);
     }
 
@@ -56,6 +57,7 @@ class TestCertificateGenerator
     public static function forECC(string $curve = 'prime256v1', ?string $testName = null): self
     {
         $testName = $testName ?: self::getCallerName();
+
         return new self(self::KEY_TYPE_EC, ['curve' => $curve], $testName);
     }
 
@@ -111,9 +113,9 @@ class TestCertificateGenerator
             $combinedFile = $this->getTempPath('combined.pem');
 
             // Include CA cert in chain for PHP's OpenSSL wrapper
-            file_put_contents($certFile, $certPem . $caCertPem);
+            file_put_contents($certFile, $certPem.$caCertPem);
             file_put_contents($keyFile, $keyPem);
-            file_put_contents($combinedFile, $certPem . $caCertPem . $keyPem);
+            file_put_contents($combinedFile, $certPem.$caCertPem.$keyPem);
 
             // Track generated files for cleanup
             self::$generatedFiles = array_merge(self::$generatedFiles, [$certFile, $keyFile, $combinedFile]);
@@ -127,7 +129,7 @@ class TestCertificateGenerator
                 'hostname' => $hostname,
             ];
         } catch (Exception $e) {
-            throw new RuntimeException('Certificate generation failed: ' . $e->getMessage(), 0, $e);
+            throw new RuntimeException('Certificate generation failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -138,6 +140,7 @@ class TestCertificateGenerator
     {
         $caCert = '';
         openssl_x509_export($this->ca, $caCert);
+
         return $caCert;
     }
 
@@ -154,7 +157,7 @@ class TestCertificateGenerator
         self::$generatedFiles = [];
 
         // Also clean up any remaining files matching our pattern
-        $pattern = sys_get_temp_dir() . '/tlscraft_test_*';
+        $pattern = sys_get_temp_dir().'/tlscraft_test_*';
         foreach (glob($pattern) as $file) {
             if (is_file($file)) {
                 @unlink($file);
@@ -274,8 +277,9 @@ CONFIG;
 
     private function getTempPath(string $suffix): string
     {
-        $prefix = 'tlscraft_test_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $this->testName) . '_';
-        return sys_get_temp_dir() . '/' . $prefix . $suffix;
+        $prefix = 'tlscraft_test_'.preg_replace('/[^a-zA-Z0-9_-]/', '_', $this->testName).'_';
+
+        return sys_get_temp_dir().'/'.$prefix.$suffix;
     }
 
     private static function getCallerName(): string
@@ -291,13 +295,13 @@ CONFIG;
 
         // Fallback to class::method or just method name
         if (isset($trace[2]['class'], $trace[2]['function'])) {
-            return $trace[2]['class'] . '::' . $trace[2]['function'];
+            return $trace[2]['class'].'::'.$trace[2]['function'];
         }
 
         if (isset($trace[2]['function'])) {
             return $trace[2]['function'];
         }
 
-        return 'unknown_test_' . uniqid();
+        return 'unknown_test_'.uniqid();
     }
 }

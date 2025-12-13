@@ -8,6 +8,9 @@ use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Messages\CertificateMessage;
 use Php\TlsCraft\Logger;
 
+use const X509_PURPOSE_SSL_CLIENT;
+use const X509_PURPOSE_SSL_SERVER;
+
 class CertificateProcessor extends MessageProcessor
 {
     public function process(CertificateMessage $message): void
@@ -210,6 +213,7 @@ class CertificateProcessor extends MessageProcessor
         // Wildcard matching (*.example.com)
         if (str_starts_with($pattern, '*.')) {
             $domain = substr($pattern, 2);
+
             return str_ends_with($hostname, '.'.$domain);
         }
 
@@ -219,6 +223,7 @@ class CertificateProcessor extends MessageProcessor
     private function isCACertificate(array $certInfo): bool
     {
         $basicConstraints = $certInfo['extensions']['basicConstraints'] ?? '';
+
         return str_contains($basicConstraints, 'CA:TRUE');
     }
 

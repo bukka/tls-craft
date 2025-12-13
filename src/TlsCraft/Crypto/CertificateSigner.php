@@ -5,6 +5,11 @@ namespace Php\TlsCraft\Crypto;
 use Php\TlsCraft\Exceptions\CryptoException;
 use Php\TlsCraft\Logger;
 
+use const OPENSSL_ALGO_SHA256;
+use const OPENSSL_ALGO_SHA384;
+use const OPENSSL_ALGO_SHA512;
+use const OPENSSL_PKCS1_PSS_PADDING;
+
 class CertificateSigner
 {
     public function createSignature(
@@ -47,7 +52,7 @@ class CertificateSigner
 
         $signature = '';
         if (!openssl_sign($data, $signature, $privateKey->getResource(), $algorithm)) {
-            throw new CryptoException('Failed to create RSA PKCS1 signature: ' . openssl_error_string());
+            throw new CryptoException('Failed to create RSA PKCS1 signature: '.openssl_error_string());
         }
 
         return $signature;
@@ -75,7 +80,7 @@ class CertificateSigner
             $privateKey->getResource(),
             $hashAlgo,
             OPENSSL_PKCS1_PSS_PADDING,
-            OPENSSL_RSA_PSS_SALTLEN_DIGEST
+            OPENSSL_RSA_PSS_SALTLEN_DIGEST,
         );
 
         if (!$result) {
@@ -85,10 +90,7 @@ class CertificateSigner
 
             // Fallback: manually construct PSS signature
             // This is less ideal but works on older PHP versions
-            throw new CryptoException(
-                'RSA-PSS signature creation failed. Your PHP version may not support PSS padding. ' .
-                'Error: ' . openssl_error_string()
-            );
+            throw new CryptoException('RSA-PSS signature creation failed. Your PHP version may not support PSS padding. Error: '.openssl_error_string());
         }
 
         return $signature;
@@ -104,7 +106,7 @@ class CertificateSigner
 
         $signature = '';
         if (!openssl_sign($data, $signature, $privateKey->getResource(), $algorithm)) {
-            throw new CryptoException('Failed to create ECDSA signature: ' . openssl_error_string());
+            throw new CryptoException('Failed to create ECDSA signature: '.openssl_error_string());
         }
 
         return $signature;

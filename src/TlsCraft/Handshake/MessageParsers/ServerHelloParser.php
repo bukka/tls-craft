@@ -3,7 +3,6 @@
 namespace Php\TlsCraft\Handshake\MessageParsers;
 
 use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Handshake\Extensions\Extension;
 use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Protocol\HandshakeType;
 use Php\TlsCraft\Protocol\Version;

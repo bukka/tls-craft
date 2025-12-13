@@ -30,7 +30,7 @@ class OpenSslKeyPair implements KeyPair
 
         Logger::debug('Peer key resource details', [
             'Input peer key' => bin2hex($peerPublicKey),
-            'Resource type' => get_class($peerPublicKeyResource),
+            'Resource type' => $peerPublicKeyResource::class,
         ]);
 
         $sharedSecret = openssl_pkey_derive($peerPublicKeyResource, $this->privateKeyResource);

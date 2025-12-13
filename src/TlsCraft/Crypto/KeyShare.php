@@ -2,11 +2,12 @@
 
 namespace Php\TlsCraft\Crypto;
 
+use JsonSerializable;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Logger;
 use ValueError;
 
-class KeyShare implements \JsonSerializable
+class KeyShare implements JsonSerializable
 {
     public function __construct(
         private NamedGroup $group,
@@ -20,11 +21,7 @@ class KeyShare implements \JsonSerializable
                 'Actual length' => strlen($this->keyExchange),
                 'Key (prefix)' => substr($this->keyExchange, 0, 16),
             ]);
-            throw new CraftException(
-                "Invalid key exchange length for {$this->group->getName()}: expected {$expectedLength}, got ".strlen(
-                    $this->keyExchange
-                )
-            );
+            throw new CraftException("Invalid key exchange length for {$this->group->getName()}: expected {$expectedLength}, got ".strlen($this->keyExchange));
         }
 
         Logger::debug('KeyShare constructed', [
@@ -151,10 +148,10 @@ class KeyShare implements \JsonSerializable
     public function __toString(): string
     {
         return sprintf(
-            "KeyShare(group=%s, key_length=%d, key_hex=%s...)",
+            'KeyShare(group=%s, key_length=%d, key_hex=%s...)',
             $this->group->getName(),
             strlen($this->keyExchange),
-            bin2hex($this->keyExchan)
+            bin2hex($this->keyExchan),
         );
     }
 

@@ -12,6 +12,6 @@ class AbstractExtensionSerializer
 
     protected function packData(string $data, string $format = 'n'): string
     {
-        return pack($format, strlen($data)) . $data;
+        return pack($format, strlen($data)).$data;
     }
 }

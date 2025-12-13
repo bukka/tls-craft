@@ -2,12 +2,13 @@
 
 namespace Php\TlsCraft\Handshake\MessageParsers;
 
+use Exception;
 use Php\TlsCraft\Crypto\Certificate as X509Certificate;
 use Php\TlsCraft\Crypto\CertificateChain;
 use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\Messages\CertificateMessage;
-use Php\TlsCraft\Protocol\HandshakeType;
 use Php\TlsCraft\Logger;
+use Php\TlsCraft\Protocol\HandshakeType;
 
 class CertificateParser extends AbstractMessageParser
 {
@@ -41,7 +42,7 @@ class CertificateParser extends AbstractMessageParser
         ]);
 
         while ($offset < $endOffset) {
-            $certLength = unpack('N', "\x00" . substr($payload, $offset, 3))[1];
+            $certLength = unpack('N', "\x00".substr($payload, $offset, 3))[1];
             $offset += 3;
 
             $certDER = substr($payload, $offset, $certLength);
@@ -64,8 +65,8 @@ class CertificateParser extends AbstractMessageParser
 
             try {
                 $x509Certificates[] = X509Certificate::fromPEM($pemData);
-            } catch (\Exception $e) {
-                throw new CraftException('Failed to parse certificate: ' . $e->getMessage());
+            } catch (Exception $e) {
+                throw new CraftException('Failed to parse certificate: '.$e->getMessage());
             }
         }
 

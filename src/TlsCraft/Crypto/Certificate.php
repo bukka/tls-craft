@@ -2,32 +2,39 @@
 
 namespace Php\TlsCraft\Crypto;
 
+use OpenSSLAsymmetricKey;
+use OpenSSLCertificate;
 use Php\TlsCraft\Exceptions\CryptoException;
 use Php\TlsCraft\Logger;
 
+use const OPENSSL_KEYTYPE_EC;
+use const OPENSSL_KEYTYPE_ED25519;
+use const OPENSSL_KEYTYPE_ED448;
+use const OPENSSL_KEYTYPE_RSA;
+
 class Certificate
 {
-    private \OpenSSLCertificate $resource;
-    private \OpenSSLAsymmetricKey $publicKey;
+    private OpenSSLCertificate $resource;
+    private OpenSSLAsymmetricKey $publicKey;
     private array $details;
     private string $derData;
 
     private function __construct(
-        \OpenSSLCertificate $resource,
-        string $derData
+        OpenSSLCertificate $resource,
+        string $derData,
     ) {
         $this->resource = $resource;
         $this->derData = $derData;
 
         $publicKey = openssl_pkey_get_public($resource);
         if ($publicKey === false) {
-            throw new CryptoException('Failed to extract public key from certificate: ' . openssl_error_string());
+            throw new CryptoException('Failed to extract public key from certificate: '.openssl_error_string());
         }
         $this->publicKey = $publicKey;
 
         $details = openssl_pkey_get_details($publicKey);
         if ($details === false) {
-            throw new CryptoException('Failed to get public key details: ' . openssl_error_string());
+            throw new CryptoException('Failed to get public key details: '.openssl_error_string());
         }
         $this->details = $details;
 
@@ -42,19 +49,19 @@ class Certificate
     {
         $cert = openssl_x509_read($pemData);
         if ($cert === false) {
-            throw new CryptoException('Failed to read certificate: ' . openssl_error_string());
+            throw new CryptoException('Failed to read certificate: '.openssl_error_string());
         }
 
         // Export to PEM without text
         if (!openssl_x509_export($cert, $cleanPem, true)) {
-            throw new CryptoException('Failed to export certificate: ' . openssl_error_string());
+            throw new CryptoException('Failed to export certificate: '.openssl_error_string());
         }
 
         // Convert PEM to DER
         $base64Data = preg_replace(
             ['/-----BEGIN CERTIFICATE-----/', '/-----END CERTIFICATE-----/', '/\s+/'],
             '',
-            $cleanPem
+            $cleanPem,
         );
 
         $derData = base64_decode($base64Data);
@@ -126,12 +133,12 @@ class Certificate
         };
     }
 
-    public function getPublicKey(): \OpenSSLAsymmetricKey
+    public function getPublicKey(): OpenSSLAsymmetricKey
     {
         return $this->publicKey;
     }
 
-    public function getResource(): \OpenSSLCertificate
+    public function getResource(): OpenSSLCertificate
     {
         return $this->resource;
     }
