@@ -4,17 +4,28 @@ namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Crypto\Certificate;
 use Php\TlsCraft\Crypto\CertificateChain;
+use Php\TlsCraft\Crypto\CertificateInfo;
+use Php\TlsCraft\Crypto\CertificateVerifier;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Messages\CertificateMessage;
 use Php\TlsCraft\Logger;
 
-use const X509_PURPOSE_SSL_CLIENT;
-use const X509_PURPOSE_SSL_SERVER;
-
 class CertificateProcessor extends MessageProcessor
 {
+    private CertificateVerifier $verifier;
+
+    protected function initialize(): void
+    {
+        $this->verifier = $this->context->getCryptoFactory()->createCertificateVerifier();
+    }
+
     public function process(CertificateMessage $message): void
     {
+        // Initialize verifier if needed
+        if (!isset($this->verifier)) {
+            $this->initialize();
+        }
+
         Logger::debug('Processing Certificate message', [
             'Context length' => strlen($message->certificateRequestContext),
             'Chain length' => $message->certificateChain->getLength(),
@@ -57,12 +68,7 @@ class CertificateProcessor extends MessageProcessor
         $certificates = $certificateChain->getCertificates();
 
         foreach ($certificates as $index => $certificate) {
-            $certResource = $certificate->getResource();
-            $certInfo = openssl_x509_parse($certResource);
-
-            if ($certInfo === false) {
-                throw new ProtocolViolationException('Failed to parse certificate information');
-            }
+            $certInfo = CertificateInfo::fromCertificate($certificate);
 
             if ($index === 0) {
                 $this->processEndEntityCertificate($certificate, $certInfo);
@@ -72,13 +78,13 @@ class CertificateProcessor extends MessageProcessor
         }
     }
 
-    private function processEndEntityCertificate(Certificate $certificate, array $certInfo): void
+    private function processEndEntityCertificate(Certificate $certificate, CertificateInfo $certInfo): void
     {
         $publicKey = $certificate->getPublicKey();
         $this->context->setPeerPublicKey($publicKey);
 
         Logger::debug('Processing end-entity certificate', [
-            'Subject' => $certInfo['subject']['CN'] ?? 'unknown',
+            'Subject' => $certInfo->getSubjectCommonName() ?? 'unknown',
             'Key type' => $certificate->getKeyTypeName(),
         ]);
 
@@ -87,64 +93,76 @@ class CertificateProcessor extends MessageProcessor
         $this->validateSubjectAlternativeName($certInfo);
     }
 
-    private function processIntermediateCertificate(Certificate $certificate, array $certInfo): void
+    private function processIntermediateCertificate(Certificate $certificate, CertificateInfo $certInfo): void
     {
         Logger::debug('Processing intermediate certificate', [
-            'Subject' => $certInfo['subject']['CN'] ?? 'unknown',
+            'Subject' => $certInfo->getSubjectCommonName() ?? 'unknown',
         ]);
 
-        if (!$this->isCACertificate($certInfo)) {
+        if (!$certInfo->isCA()) {
             throw new ProtocolViolationException('Intermediate certificate is not a valid CA certificate');
         }
 
         $this->validateCertificateValidity($certInfo);
     }
 
-    private function validateCertificatePurpose(array $certInfo): void
+    private function validateCertificatePurpose(CertificateInfo $certInfo): void
     {
         // Skip validation if disabled or for self-signed certificates
         if (!$this->config->isValidateCertificatePurpose() || $this->config->isAllowSelfSignedCertificates()) {
+            Logger::debug('Skipping certificate purpose validation');
+
             return;
         }
 
-        // Check if certificate has the required key usage
-        $keyUsage = $certInfo['extensions']['keyUsage'] ?? '';
+        Logger::debug('Validating certificate purpose', [
+            'Is client' => $this->context->isClient(),
+            'Key usage' => $certInfo->getKeyUsage(),
+            'Extended key usage' => $certInfo->getExtendedKeyUsage(),
+        ]);
 
         if ($this->context->isClient()) {
             // We are client - validating server certificate
-            if (!str_contains($keyUsage, 'Digital Signature')
-                && !str_contains($keyUsage, 'Key Agreement')) {
+            if (!$certInfo->hasKeyUsage('Digital Signature')
+                && !$certInfo->hasKeyUsage('Key Agreement')) {
                 throw new ProtocolViolationException('Server certificate missing required key usage');
             }
 
-            // Check Extended Key Usage
-            $extKeyUsage = $certInfo['extensions']['extendedKeyUsage'] ?? '';
-            if (!str_contains($extKeyUsage, 'TLS Web Server Authentication')) {
+            if (!$certInfo->hasExtendedKeyUsage('TLS Web Server Authentication')) {
                 throw new ProtocolViolationException('Server certificate missing serverAuth extended key usage');
             }
         } else {
             // We are server - validating client certificate
-            if (!str_contains($keyUsage, 'Digital Signature')) {
+            if (!$certInfo->hasKeyUsage('Digital Signature')) {
                 throw new ProtocolViolationException('Client certificate missing Digital Signature key usage');
             }
 
-            $extKeyUsage = $certInfo['extensions']['extendedKeyUsage'] ?? '';
-            if (!str_contains($extKeyUsage, 'TLS Web Client Authentication')) {
+            if (!$certInfo->hasExtendedKeyUsage('TLS Web Client Authentication')) {
                 throw new ProtocolViolationException('Client certificate missing clientAuth extended key usage');
             }
         }
+
+        Logger::debug('Certificate purpose validation passed');
     }
 
-    private function validateCertificateValidity(array $certInfo): void
+    private function validateCertificateValidity(CertificateInfo $certInfo): void
     {
         // Skip validation if disabled
         if (!$this->config->isValidateCertificateExpiry()) {
+            Logger::debug('Skipping certificate expiry validation');
+
             return;
         }
 
         $now = time();
-        $validFrom = $certInfo['validFrom_time_t'];
-        $validTo = $certInfo['validTo_time_t'];
+        $validFrom = $certInfo->getValidFromTimestamp();
+        $validTo = $certInfo->getValidToTimestamp();
+
+        Logger::debug('Validating certificate validity period', [
+            'Valid from' => date('Y-m-d H:i:s', $validFrom),
+            'Valid to' => date('Y-m-d H:i:s', $validTo),
+            'Current time' => date('Y-m-d H:i:s', $now),
+        ]);
 
         if ($now < $validFrom) {
             throw new ProtocolViolationException('Certificate is not yet valid (valid from: '.date('Y-m-d H:i:s', $validFrom).')');
@@ -153,12 +171,16 @@ class CertificateProcessor extends MessageProcessor
         if ($now > $validTo) {
             throw new ProtocolViolationException('Certificate has expired (valid to: '.date('Y-m-d H:i:s', $validTo).')');
         }
+
+        Logger::debug('Certificate validity period check passed');
     }
 
-    private function validateSubjectAlternativeName(array $certInfo): void
+    private function validateSubjectAlternativeName(CertificateInfo $certInfo): void
     {
         // Skip validation if disabled
         if (!$this->config->isValidateHostname()) {
+            Logger::debug('Skipping hostname validation');
+
             return;
         }
 
@@ -166,65 +188,36 @@ class CertificateProcessor extends MessageProcessor
             // We are client - validate server certificate against requested server name
             $requestedServerName = $this->context->getRequestedServerName();
             if ($requestedServerName) {
-                $this->validateServerName($certInfo, $requestedServerName);
+                $this->validateHostname($certInfo, $requestedServerName);
             }
         }
     }
 
-    private function validateServerName(array $certInfo, string $requestedName): void
+    private function validateHostname(CertificateInfo $certInfo, string $requestedName): void
     {
-        $san = $certInfo['extensions']['subjectAltName'] ?? '';
-        $commonName = $certInfo['subject']['CN'] ?? '';
+        Logger::debug('Validating hostname', [
+            'Requested name' => $requestedName,
+        ]);
 
-        $validNames = [];
+        $validNames = $certInfo->getDnsNames();
 
-        // Parse SAN extension
-        if ($san) {
-            $sanEntries = explode(', ', $san);
-            foreach ($sanEntries as $entry) {
-                if (str_starts_with($entry, 'DNS:')) {
-                    $validNames[] = substr($entry, 4);
-                }
-            }
-        }
-
-        // Add common name if no SAN DNS names
-        if (empty($validNames) && $commonName) {
-            $validNames[] = $commonName;
-        }
+        Logger::debug('Valid names for hostname matching', [
+            'Valid names' => $validNames,
+        ]);
 
         // Check if requested name matches any valid name
         foreach ($validNames as $validName) {
-            if ($this->matchesHostname($requestedName, $validName)) {
+            if ($this->verifier->matchesHostname($requestedName, $validName)) {
+                Logger::debug('Hostname matched', [
+                    'Requested' => $requestedName,
+                    'Matched against' => $validName,
+                ]);
+
                 return; // Match found
             }
         }
 
         throw new ProtocolViolationException("Certificate does not match requested server name: {$requestedName}");
-    }
-
-    private function matchesHostname(string $hostname, string $pattern): bool
-    {
-        // Simple hostname matching (supports wildcards)
-        if ($pattern === $hostname) {
-            return true;
-        }
-
-        // Wildcard matching (*.example.com)
-        if (str_starts_with($pattern, '*.')) {
-            $domain = substr($pattern, 2);
-
-            return str_ends_with($hostname, '.'.$domain);
-        }
-
-        return false;
-    }
-
-    private function isCACertificate(array $certInfo): bool
-    {
-        $basicConstraints = $certInfo['extensions']['basicConstraints'] ?? '';
-
-        return str_contains($basicConstraints, 'CA:TRUE');
     }
 
     private function validateCertificateChain(CertificateChain $certificateChain): void
@@ -235,6 +228,8 @@ class CertificateProcessor extends MessageProcessor
             $this->validateSingleCertificate($certificateChain->getLeafCertificate());
         } else {
             $this->validateChainSignatures($certificates);
+            $rootCert = $certificates[count($certificates) - 1];
+            $this->verifyAgainstTrustStore($rootCert);
         }
     }
 
@@ -242,6 +237,8 @@ class CertificateProcessor extends MessageProcessor
     {
         if (!$this->config->isAllowSelfSignedCertificates()) {
             $this->verifyAgainstTrustStore($certificate);
+        } else {
+            Logger::debug('Allowing self-signed certificate');
         }
     }
 
@@ -251,26 +248,17 @@ class CertificateProcessor extends MessageProcessor
             $cert = $certificates[$i];
             $issuer = $certificates[$i + 1];
 
-            if (!$this->verifyCertificateSignature($cert, $issuer)) {
+            if (!$this->verifier->verifyCertificateSignature($cert, $issuer)) {
                 throw new ProtocolViolationException("Certificate chain validation failed at position {$i}");
             }
         }
-
-        $rootCert = $certificates[count($certificates) - 1];
-        $this->verifyAgainstTrustStore($rootCert);
-    }
-
-    private function verifyCertificateSignature(Certificate $cert, Certificate $issuer): bool
-    {
-        $certResource = $cert->getResource();
-        $issuerPublicKey = $issuer->getPublicKey();
-
-        return openssl_x509_verify($certResource, $issuerPublicKey) === 1;
     }
 
     private function verifyAgainstTrustStore(Certificate $certificate): void
     {
         if (!$this->config->isRequireTrustedCertificates()) {
+            Logger::debug('Skipping trust store verification (not required)');
+
             return;
         }
 
@@ -278,39 +266,9 @@ class CertificateProcessor extends MessageProcessor
         $caFile = $this->config->getCustomCaFile();
 
         if ($caPath === null && $caFile === null) {
-            $this->verifyWithSystemCaBundle($certificate);
+            $this->verifier->verifyWithSystemCaBundle($certificate, $this->context->isClient());
         } else {
-            $this->verifyWithCustomCa($certificate, $caPath, $caFile);
-        }
-    }
-
-    private function verifyWithSystemCaBundle(Certificate $certificate): void
-    {
-        $certResource = $certificate->getResource();
-
-        $result = openssl_x509_checkpurpose($certResource, X509_PURPOSE_SSL_CLIENT, []);
-        if ($result !== true) {
-            throw new ProtocolViolationException('Certificate verification failed: not trusted by system CA bundle');
-        }
-    }
-
-    private function verifyWithCustomCa(Certificate $certificate, ?string $caPath, ?string $caFile): void
-    {
-        $certResource = $certificate->getResource();
-
-        $caList = [];
-        if ($caPath !== null) {
-            $caList[] = $caPath;
-        }
-        if ($caFile !== null) {
-            $caList[] = $caFile;
-        }
-
-        $purpose = $this->context->isClient() ? X509_PURPOSE_SSL_SERVER : X509_PURPOSE_SSL_CLIENT;
-        $result = openssl_x509_checkpurpose($certResource, $purpose, $caList);
-
-        if ($result !== true) {
-            throw new ProtocolViolationException('Certificate verification failed: not trusted by custom CA');
+            $this->verifier->verifyWithCustomCa($certificate, $this->context->isClient(), $caPath, $caFile);
         }
     }
 }

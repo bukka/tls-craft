@@ -7,6 +7,11 @@ use OpenSSLCertificate;
 use Php\TlsCraft\Exceptions\CryptoException;
 use Php\TlsCraft\Logger;
 
+use const OPENSSL_KEYTYPE_EC;
+use const OPENSSL_KEYTYPE_ED25519;
+use const OPENSSL_KEYTYPE_ED448;
+use const OPENSSL_KEYTYPE_RSA;
+
 class Certificate
 {
     private OpenSSLCertificate $resource;

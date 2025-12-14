@@ -40,6 +40,11 @@ class CryptoFactory
         return new CertificateSigner();
     }
 
+    public function createCertificateVerifier(): CertificateVerifier
+    {
+        return new CertificateVerifier();
+    }
+
     public function createCertificateChainFromPEM(string $pemData): CertificateChain
     {
         return CertificateChain::fromPEM($pemData);

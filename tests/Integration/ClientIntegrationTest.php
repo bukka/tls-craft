@@ -5,6 +5,7 @@ namespace Php\TlsCraft\Tests\Integration;
 use Php\TlsCraft\Client;
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Crypto\CipherSuite;
+use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -121,6 +122,102 @@ class ClientIntegrationTest extends TestCase
             $this->runner->waitForCompletion(TestRunner::ROLE_SERVER, 15),
             'Server should complete successfully',
         );
+    }
+
+    /**
+     * Test certificate verification with custom CA
+     */
+    #[Test]
+    public function testCertificateVerificationWithCustomCA(): void
+    {
+        $generator = TestCertificateGenerator::forECC('prime256v1');
+        $serverCerts = $generator->generateServerCertificateFiles('localhost');
+
+        $serverCode = $this->createServerCode($serverCerts);
+        $serverAddress = $this->runner->startServerProcess($serverCode);
+        [$hostname, $port] = explode(':', $serverAddress);
+
+        // Configure to require trusted certificates with custom CA
+        $config = new Config(
+            supportedVersions: ['TLS 1.3'],
+            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+            supportedGroups: ['P-256'],
+            signatureAlgorithms: ['ecdsa_secp256r1_sha256'],
+        );
+        $config->withCustomCa(caFile: $serverCerts['ca_file']);
+
+        $client = new Client($hostname, (int) $port, $config);
+        $session = $client->connect();
+
+        $this->assertNotNull($session, 'Should connect with valid custom CA');
+
+        $testMessage = 'Trusted CA test';
+        $session->send($testMessage);
+        $response = $session->receive();
+
+        $this->assertEquals("Echo: {$testMessage}", $response);
+
+        $session->close();
+    }
+
+    /**
+     * Test certificate verification failure without proper CA
+     */
+    #[Test]
+    public function testCertificateVerificationFailsWithoutCA(): void
+    {
+        $generator = TestCertificateGenerator::forECC('prime256v1');
+        $serverCerts = $generator->generateServerCertificateFiles('localhost');
+
+        $serverCode = $this->createServerCode($serverCerts);
+        $serverAddress = $this->runner->startServerProcess($serverCode);
+        [$hostname, $port] = explode(':', $serverAddress);
+
+        // Configure to require trusted certificates but don't provide CA
+        $config = new Config(
+            supportedVersions: ['TLS 1.3'],
+            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+            supportedGroups: ['P-256'],
+            signatureAlgorithms: ['ecdsa_secp256r1_sha256'],
+        );
+        $config->forProduction(); // Strict validation, no custom CA
+
+        $this->expectException(ProtocolViolationException::class);
+        $this->expectExceptionMessage('Certificate verification failed');
+
+        $client = new Client($hostname, (int) $port, $config);
+        $client->connect(); // Should fail certificate verification
+    }
+
+    /**
+     * Test hostname validation
+     */
+    #[Test]
+    public function testHostnameValidation(): void
+    {
+        $generator = TestCertificateGenerator::forECC('prime256v1');
+        // Generate cert for 'localhost' but try to connect to '127.0.0.1'
+        $serverCerts = $generator->generateServerCertificateFiles('example.com');
+
+        $serverCode = $this->createServerCode($serverCerts);
+        $serverAddress = $this->runner->startServerProcess($serverCode);
+        [$hostname, $port] = explode(':', $serverAddress);
+
+        $config = new Config(
+            supportedVersions: ['TLS 1.3'],
+            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+            supportedGroups: ['P-256'],
+            signatureAlgorithms: ['ecdsa_secp256r1_sha256'],
+            serverName: 'wronghost.com', // Different from cert's hostname
+        );
+        $config->withCustomCa(caFile: $serverCerts['ca_file'])
+            ->setValidateHostname(true);
+
+        $this->expectException(ProtocolViolationException::class);
+        $this->expectExceptionMessage('does not match requested server name');
+
+        $client = new Client($hostname, (int) $port, $config);
+        $client->connect(); // Should fail hostname validation
     }
 
     /**
@@ -258,7 +355,7 @@ class ClientIntegrationTest extends TestCase
             $runner = new Php\TlsCraft\Tests\Integration\TestRunner(true);
             $runner->notifyServerReady($address);
 
-            $client = stream_socket_accept($server, 30);
+            $client = @stream_socket_accept($server, 30);
             if (!$client) {
                 fclose($server);
                 die("Failed to accept client connection");

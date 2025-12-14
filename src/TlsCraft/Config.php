@@ -3,6 +3,7 @@
 namespace Php\TlsCraft;
 
 use Closure;
+use InvalidArgumentException;
 use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Handshake\ClientHelloExtensionProviders;
 use Php\TlsCraft\Handshake\EncryptedExtensionsProviders;
@@ -213,6 +214,11 @@ class Config
         return $this;
     }
 
+    public function hasCustomValidator(): bool
+    {
+        return $this->customValidator !== null;
+    }
+
     // Certificate validation getters/setters
     public function isRequireTrustedCertificates(): bool
     {
@@ -281,6 +287,10 @@ class Config
 
     public function setCustomCaPath(?string $path): self
     {
+        if ($path !== null && !is_dir($path)) {
+            throw new InvalidArgumentException("CA path does not exist or is not a directory: {$path}");
+        }
+
         $this->customCaPath = $path;
 
         return $this;
@@ -293,12 +303,25 @@ class Config
 
     public function setCustomCaFile(?string $file): self
     {
+        if ($file !== null && !is_file($file)) {
+            throw new InvalidArgumentException("CA file does not exist: {$file}");
+        }
+
         $this->customCaFile = $file;
 
         return $this;
     }
 
-    // Convenience methods for testing
+    public function hasCustomCa(): bool
+    {
+        return $this->customCaPath !== null || $this->customCaFile !== null;
+    }
+
+    // Convenience methods for common configurations
+
+    /**
+     * Configure for testing environment (permissive validation)
+     */
     public function forTesting(): self
     {
         return $this->setAllowSelfSignedCertificates(true)
@@ -308,6 +331,9 @@ class Config
             ->setValidateHostname(false);
     }
 
+    /**
+     * Configure for production environment (strict validation)
+     */
     public function forProduction(): self
     {
         return $this->setAllowSelfSignedCertificates(false)
@@ -317,6 +343,9 @@ class Config
             ->setValidateHostname(true);
     }
 
+    /**
+     * Configure to use custom CA for certificate verification
+     */
     public function withCustomCa(?string $caPath = null, ?string $caFile = null): self
     {
         if ($caPath !== null) {
@@ -326,8 +355,34 @@ class Config
             $this->setCustomCaFile($caFile);
         }
 
+        // When using custom CA, typically we want strict validation
         return $this->setRequireTrustedCertificates(true)
             ->setAllowSelfSignedCertificates(false);
+    }
+
+    /**
+     * Configure to skip all certificate validation (use with caution!)
+     */
+    public function withoutCertificateValidation(): self
+    {
+        return $this->setRequireTrustedCertificates(false)
+            ->setAllowSelfSignedCertificates(true)
+            ->setValidateCertificateExpiry(false)
+            ->setValidateCertificatePurpose(false)
+            ->setValidateHostname(false);
+    }
+
+    /**
+     * Configure to validate certificates but allow self-signed
+     * (useful for internal networks with self-signed certs)
+     */
+    public function withSelfSignedValidation(): self
+    {
+        return $this->setAllowSelfSignedCertificates(true)
+            ->setRequireTrustedCertificates(false)
+            ->setValidateCertificateExpiry(true)
+            ->setValidateCertificatePurpose(true)
+            ->setValidateHostname(true);
     }
 
     // Original extension setup methods - kept intact
@@ -391,10 +446,5 @@ class Config
         // Server EncryptedExtensionsMessage - Add extensions for server name acknowledgement (empty server name) and ALPN
         $this->encryptedExtensions->add(new ServerNameExtensionProvider());
         $this->encryptedExtensions->add(new AlpnExtensionProvider($this->supportedProtocols));
-    }
-
-    public function hasCustomValidator()
-    {
-        return $this->customValidator !== null;
     }
 }

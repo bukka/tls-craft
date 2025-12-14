@@ -64,7 +64,7 @@ class TestCertificateGenerator
     /**
      * Generate server certificate and save to files
      *
-     * @return array{cert: string, key: string, cert_file: string, key_file: string, combined_file: string, hostname: string}
+     * @return array{cert: string, key: string, cert_file: string, key_file: string, combined_file: string, ca_file: string, hostname: string}
      */
     public function generateServerCertificateFiles(string $hostname = 'localhost'): array
     {
@@ -111,14 +111,16 @@ class TestCertificateGenerator
             $certFile = $this->getTempPath('cert.pem');
             $keyFile = $this->getTempPath('key.pem');
             $combinedFile = $this->getTempPath('combined.pem');
+            $caFile = $this->getTempPath('ca.pem');
 
             // Include CA cert in chain for PHP's OpenSSL wrapper
             file_put_contents($certFile, $certPem.$caCertPem);
             file_put_contents($keyFile, $keyPem);
             file_put_contents($combinedFile, $certPem.$caCertPem.$keyPem);
+            file_put_contents($caFile, $caCertPem);
 
             // Track generated files for cleanup
-            self::$generatedFiles = array_merge(self::$generatedFiles, [$certFile, $keyFile, $combinedFile]);
+            self::$generatedFiles = array_merge(self::$generatedFiles, [$certFile, $keyFile, $combinedFile, $caFile]);
 
             return [
                 'cert' => $certPem,
@@ -126,6 +128,7 @@ class TestCertificateGenerator
                 'cert_file' => $certFile,
                 'key_file' => $keyFile,
                 'combined_file' => $combinedFile,
+                'ca_file' => $caFile,
                 'hostname' => $hostname,
             ];
         } catch (Exception $e) {
@@ -142,6 +145,18 @@ class TestCertificateGenerator
         openssl_x509_export($this->ca, $caCert);
 
         return $caCert;
+    }
+
+    /**
+     * Save CA certificate to file and return path
+     */
+    public function getCACertificateFile(): string
+    {
+        $caFile = $this->getTempPath('ca.pem');
+        file_put_contents($caFile, $this->getCACertificate());
+        self::$generatedFiles[] = $caFile;
+
+        return $caFile;
     }
 
     /**
@@ -260,11 +275,13 @@ prompt = no
 [ v3_req ]
 basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [ usr_cert ]
 basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [ alt_names ]
