@@ -5,8 +5,10 @@ namespace Php\TlsCraft\Protocol;
 use Php\TlsCraft\Connection\Connection;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Control\FlowController;
+use Php\TlsCraft\Crypto\CertificateChain;
 use Php\TlsCraft\Crypto\CertificateSigner;
 use Php\TlsCraft\Crypto\CryptoFactory;
+use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\{AlertException, CraftException, ProtocolViolationException};
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\Messages\{KeyUpdateMessage, Message};
@@ -17,14 +19,12 @@ use Php\TlsCraft\Record\{EncryptedLayer, LayerFactory, Record, RecordFactory};
 use Php\TlsCraft\State\{HandshakeState, ProtocolValidator, StateTracker};
 
 /**
- * Updated ProtocolOrchestrator with clean typing and proper integration
+ * ProtocolOrchestrator - Manages TLS 1.3 handshake and connection lifecycle
  */
 class ProtocolOrchestrator
 {
     private EncryptedLayer $recordLayer;
-
     private CertificateSigner $certificateSigner;
-
     private string $handshakeBuffer = '';
 
     public function __construct(
@@ -65,14 +65,20 @@ class ProtocolOrchestrator
     {
         $this->stateTracker->startHandshake();
 
-        // Send ClientHelloMessage
+        // Load client certificate from config if configured
+        // (will be sent if server requests it via CertificateRequest)
+        if ($this->context->getConfig()->hasCertificate()) {
+            $this->context->loadCertificateFromConfig();
+        }
+
+        // Send ClientHello
         $clientHello = $this->messageFactory->createClientHello();
         $this->sendHandshakeMessage($clientHello, false);
 
         // Process server handshake messages
         $this->processServerHandshakeMessages();
 
-        // Send client FinishedMessage
+        // Send client Finished
         $finished = $this->messageFactory->createFinished(true);
         $this->sendHandshakeMessage($finished);
 
@@ -84,13 +90,19 @@ class ProtocolOrchestrator
     {
         $this->stateTracker->startHandshake();
 
-        // Wait for ClientHelloMessage
+        // Load server certificate from config
+        if (!$this->context->getConfig()->hasCertificate()) {
+            throw new CraftException('Server certificate not configured');
+        }
+        $this->context->loadCertificateFromConfig();
+
+        // Wait for ClientHello
         $this->waitForClientHello();
 
         // Send server handshake flight
         $this->sendServerHandshakeFlight();
 
-        // Wait for client FinishedMessage
+        // Wait for client Finished (and optionally client certificate)
         $this->waitForClientFinished();
 
         // Derive application traffic secrets
@@ -126,7 +138,7 @@ class ProtocolOrchestrator
                 return $record->payload;
             }
 
-            // Handle post-handshake messages (NewSessionTicket, KeyUpdateMessage, etc.)
+            // Handle post-handshake messages (NewSessionTicket, KeyUpdate, etc.)
             if ($record->isHandshake()) {
                 $this->processHandshakeRecord($record);
                 continue; // Keep looking for application data
@@ -145,7 +157,7 @@ class ProtocolOrchestrator
     public function sendKeyUpdate(bool $requestUpdate = false): void
     {
         if (!$this->stateTracker->isConnected()) {
-            throw new CraftException('Cannot send KeyUpdateMessage: not connected');
+            throw new CraftException('Cannot send KeyUpdate: not connected');
         }
 
         $keyUpdate = $this->messageFactory->createKeyUpdate($requestUpdate);
@@ -199,7 +211,7 @@ class ProtocolOrchestrator
         while ($this->stateTracker->getHandshakeState() === HandshakeState::WAIT_CLIENT_HELLO) {
             $record = $this->recordLayer->receiveRecord();
             if (!$record) {
-                throw new CraftException('Connection closed waiting for ClientHelloMessage');
+                throw new CraftException('Connection closed waiting for ClientHello');
             }
 
             if ($record->isHandshake()) {
@@ -210,25 +222,33 @@ class ProtocolOrchestrator
 
     private function sendServerHandshakeFlight(): void
     {
-        // 1. ServerHelloMessage
+        // 1. ServerHello
         $serverHello = $this->messageFactory->createServerHello();
         $this->sendHandshakeMessage($serverHello, false);
 
-        // 2. EncryptedExtensionsMessage
+        // 2. EncryptedExtensions
         $encryptedExtensions = $this->messageFactory->createEncryptedExtensions();
         $this->sendHandshakeMessage($encryptedExtensions);
 
-        // 3. Certificate
+        // 3. CertificateRequest (optional - if server wants client authentication)
+        if ($this->context->getConfig()->isRequestClientCertificate()) {
+            $certificateRequest = $this->messageFactory->createCertificateRequest();
+            $this->sendHandshakeMessage($certificateRequest);
+
+            Logger::debug('Sent CertificateRequest to client');
+        }
+
+        // 4. Certificate (server's certificate)
         $certificateChain = $this->context->getCertificateChain();
         $certificate = $this->messageFactory->createCertificate($certificateChain);
         $this->sendHandshakeMessage($certificate);
 
-        // 4. CertificateVerify
-        $signature = $this->createCertificateVerifySignature();
+        // 5. CertificateVerify (server's signature)
+        $signature = $this->createServerCertificateVerifySignature();
         $certificateVerify = $this->messageFactory->createCertificateVerify($signature);
         $this->sendHandshakeMessage($certificateVerify);
 
-        // 5. FinishedMessage
+        // 6. Finished
         $finished = $this->messageFactory->createFinished(false);
         $this->sendHandshakeMessage($finished);
     }
@@ -238,7 +258,7 @@ class ProtocolOrchestrator
         while (!$this->stateTracker->isHandshakeComplete()) {
             $record = $this->recordLayer->receiveRecord();
             if (!$record) {
-                throw new CraftException('Connection closed waiting for client FinishedMessage');
+                throw new CraftException('Connection closed waiting for client Finished');
             }
 
             if ($record->isHandshake()) {
@@ -253,6 +273,9 @@ class ProtocolOrchestrator
 
     private function processServerHandshakeMessages(): void
     {
+        // Track if we received a CertificateRequest
+        $certificateRequestReceived = false;
+
         // Process messages until handshake is complete
         while (!$this->stateTracker->isHandshakeComplete()) {
             // Try to process any buffered messages first
@@ -264,6 +287,12 @@ class ProtocolOrchestrator
                 }
 
                 $this->processHandshakeMessage($message['type'], $message['data']);
+
+                // Track if we got CertificateRequest
+                if ($message['type'] === HandshakeType::CERTIFICATE_REQUEST) {
+                    $certificateRequestReceived = true;
+                }
+
                 $processedAny = true;
             }
 
@@ -288,6 +317,11 @@ class ProtocolOrchestrator
             } elseif ($record->isAlert()) {
                 $this->handleAlertRecord($record);
             }
+        }
+
+        // After receiving server's Finished, send client certificate if requested
+        if ($certificateRequestReceived) {
+            $this->sendClientCertificateFlight();
         }
     }
 
@@ -364,7 +398,15 @@ class ProtocolOrchestrator
             case HandshakeType::ENCRYPTED_EXTENSIONS:
                 $encryptedExtensions = $this->messageFactory->createEncryptedExtensionsFromWire($data);
                 $this->processorManager->processEncryptedExtensions($encryptedExtensions);
+                // After EncryptedExtensions, we might get CertificateRequest or Certificate
+                // Stay in current state, will transition based on next message
                 $this->stateTracker->transitionHandshake(HandshakeState::WAIT_CERTIFICATE);
+                break;
+
+            case HandshakeType::CERTIFICATE_REQUEST:
+                $certificateRequest = $this->messageFactory->createCertificateRequestFromWire($data);
+                $this->processorManager->processCertificateRequest($certificateRequest);
+                // State remains WAIT_CERTIFICATE - server still needs to send its certificate
                 break;
 
             case HandshakeType::CERTIFICATE:
@@ -388,11 +430,13 @@ class ProtocolOrchestrator
             case HandshakeType::KEY_UPDATE:
                 $keyUpdate = $this->messageFactory->createKeyUpdateFromWire($data);
                 $this->processorManager->processKeyUpdate($keyUpdate);
+                $this->handleKeyUpdate($keyUpdate);
                 break;
 
             case HandshakeType::NEW_SESSION_TICKET:
                 // For now, just acknowledge and ignore
-                // In the future; it can store the ticket for session resumption.
+                // In the future, it can store the ticket for session resumption
+                Logger::debug('Received NewSessionTicket (ignored)');
                 break;
 
             default:
@@ -400,16 +444,50 @@ class ProtocolOrchestrator
         }
     }
 
+    /**
+     * Send client certificate flight (after receiving server's Finished)
+     * This is called when the server sent a CertificateRequest
+     */
+    private function sendClientCertificateFlight(): void
+    {
+        Logger::debug('Sending client certificate flight');
+
+        // Check if we have a certificate configured
+        $hasCertificate = $this->context->getCertificateChain() && $this->context->getPrivateKey();
+
+        if ($hasCertificate) {
+            // Send Certificate with the context from CertificateRequest
+            $certificateChain = $this->context->getCertificateChain();
+            $certificate = $this->messageFactory->createCertificate($certificateChain);
+            $this->sendHandshakeMessage($certificate);
+
+            // Send CertificateVerify
+            $signature = $this->createClientCertificateVerifySignature();
+            $certificateVerify = $this->messageFactory->createCertificateVerify($signature);
+            $this->sendHandshakeMessage($certificateVerify);
+
+            Logger::debug('Sent client certificate and signature');
+        } else {
+            // Send empty Certificate message (no client cert available)
+            $certificate = $this->messageFactory->createCertificate(
+                CertificateChain::fromCertificates([]),
+            );
+            $this->sendHandshakeMessage($certificate);
+
+            Logger::debug('Sent empty client certificate (no cert configured)');
+        }
+    }
+
     private function handleKeyUpdate(KeyUpdateMessage $keyUpdate): void
     {
         if (!$this->stateTracker->isConnected()) {
-            throw new ProtocolViolationException('KeyUpdateMessage received before connection established');
+            throw new ProtocolViolationException('KeyUpdate received before connection established');
         }
 
         // Update keys
         $this->context->updateTrafficKeys();
 
-        // Send KeyUpdateMessage response if requested
+        // Send KeyUpdate response if requested
         if ($keyUpdate->requestUpdate) {
             $response = $this->messageFactory->createKeyUpdate(false);
             $this->sendHandshakeMessage($response);
@@ -436,37 +514,60 @@ class ProtocolOrchestrator
         }
     }
 
-    private function handleNonApplicationRecord(Record $record): void
-    {
-        if ($record->isHandshake()) {
-            $this->processHandshakeRecord($record);
-        } elseif ($record->isAlert()) {
-            $this->handleAlertRecord($record);
-        }
-        // Ignore other types (e.g., ChangeCipherSpec for compatibility)
-    }
+    // === Signature Creation ===
 
-
-    // === Proper Signature Creation ===
-
-    private function createCertificateVerifySignature(): string
+    /**
+     * Create signature for server's CertificateVerify
+     */
+    private function createServerCertificateVerifySignature(): string
     {
         $transcript = $this->context->getHandshakeTranscript();
-        $signatureContext = $this->buildSignatureContext($transcript->getThrough(HandshakeType::CERTIFICATE));
+        $signatureContext = $this->buildSignatureContext(
+            $transcript->getThrough(HandshakeType::CERTIFICATE),
+            false, // server
+        );
 
         $privateKey = $this->context->getPrivateKey();
         $signatureScheme = $this->context->getNegotiatedSignatureScheme();
 
         if (!$privateKey || !$signatureScheme) {
-            throw new CraftException('Missing private key or signature scheme for CertificateVerify');
+            throw new CraftException('Missing private key or signature scheme for server CertificateVerify');
         }
 
         return $this->certificateSigner->createSignature($signatureContext, $privateKey, $signatureScheme);
     }
 
-    private function buildSignatureContext(string $transcript): string
+    /**
+     * Create signature for client's CertificateVerify
+     */
+    private function createClientCertificateVerifySignature(): string
     {
-        $contextString = $this->stateTracker->isClient() ?
+        $transcript = $this->context->getHandshakeTranscript();
+        $signatureContext = $this->buildSignatureContext(
+            $transcript->getThrough(HandshakeType::CERTIFICATE),
+            true, // client
+        );
+
+        $privateKey = $this->context->getPrivateKey();
+
+        // Choose signature scheme that matches both:
+        // 1. Client certificate's key type
+        // 2. Server's requested signature algorithms
+        $signatureScheme = $this->selectClientSignatureScheme();
+
+        if (!$privateKey || !$signatureScheme) {
+            throw new CraftException('Missing client private key or signature scheme for CertificateVerify');
+        }
+
+        return $this->certificateSigner->createSignature($signatureContext, $privateKey, $signatureScheme);
+    }
+
+    /**
+     * Build signature context for CertificateVerify
+     */
+    private function buildSignatureContext(string $transcript, bool $isClient): string
+    {
+        $contextString = $isClient ?
             'TLS 1.3, client CertificateVerify' :
             'TLS 1.3, server CertificateVerify';
 
@@ -476,5 +577,38 @@ class ProtocolOrchestrator
             $contextString.
             "\x00".
             hash($hashAlgo, $transcript, true);
+    }
+
+    /**
+     * Select appropriate signature scheme for client certificate
+     */
+    private function selectClientSignatureScheme(): ?SignatureScheme
+    {
+        $clientCert = $this->context->getCertificateChain();
+        if (!$clientCert) {
+            return null;
+        }
+
+        // Get schemes supported by the client certificate
+        $certSupportedSchemes = $clientCert->getSupportedSignatureSchemes();
+
+        // Get schemes requested by server
+        $serverRequestedSchemes = $this->context->getServerSignatureAlgorithms();
+
+        // If server didn't request specific algorithms, use first cert-supported scheme
+        if (empty($serverRequestedSchemes)) {
+            return $certSupportedSchemes[0] ?? null;
+        }
+
+        // Find first matching scheme
+        foreach ($certSupportedSchemes as $certScheme) {
+            foreach ($serverRequestedSchemes as $serverScheme) {
+                if ($certScheme === $serverScheme) {
+                    return $certScheme;
+                }
+            }
+        }
+
+        return null; // No compatible scheme found
     }
 }

@@ -4,6 +4,7 @@ namespace Php\TlsCraft\Handshake;
 
 use InvalidArgumentException;
 use Php\TlsCraft\Handshake\Messages\CertificateMessage;
+use Php\TlsCraft\Handshake\Messages\CertificateRequestMessage;
 use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
 use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
 use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
@@ -12,6 +13,7 @@ use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
 use Php\TlsCraft\Handshake\Messages\Message;
 use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Handshake\Processors\{CertificateProcessor,
+    CertificateRequestProcessor,
     CertificateVerifyProcessor,
     ClientHelloProcessor,
     EncryptedExtensionsProcessor,
@@ -28,6 +30,7 @@ class ProcessorManager
     private ?ServerHelloProcessor $serverHelloProcessor = null;
     private ?EncryptedExtensionsProcessor $encryptedExtensionsProcessor = null;
     private ?CertificateProcessor $certificateProcessor = null;
+    private ?CertificateRequestProcessor $certificateRequestProcessor = null;
     private ?CertificateVerifyProcessor $certificateVerifyProcessor = null;
     private ?FinishedProcessor $finishedProcessor = null;
     private ?KeyUpdateProcessor $keyUpdateProcessor = null;
@@ -69,6 +72,14 @@ class ProcessorManager
         $this->certificateProcessor->process($message);
     }
 
+    public function processCertificateRequest(CertificateRequestMessage $message): void
+    {
+        if (!$this->certificateRequestProcessor) {
+            $this->certificateRequestProcessor = $this->factory->createCertificateRequestProcessor();
+        }
+        $this->certificateRequestProcessor->process($message);
+    }
+
     public function processCertificateVerify(CertificateVerifyMessage $message): void
     {
         if (!$this->certificateVerifyProcessor) {
@@ -103,6 +114,7 @@ class ProcessorManager
             ServerHelloMessage::class => $this->processServerHello($message),
             EncryptedExtensionsMessage::class => $this->processEncryptedExtensions($message),
             CertificateMessage::class => $this->processCertificate($message),
+            CertificateRequestMessage::class => $this->processCertificateRequest($message),
             CertificateVerifyMessage::class => $this->processCertificateVerify($message),
             FinishedMessage::class => $this->processFinished($message),
             KeyUpdateMessage::class => $this->processKeyUpdate($message),

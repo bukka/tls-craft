@@ -39,6 +39,11 @@ class Config
     private ?ProtocolValidator $customValidator = null;
     private array $connectionOptions = [];
 
+    // Certificate configuration (used for both client and server)
+    private ?string $certificateFile = null;
+    private ?string $privateKeyFile = null;
+    private ?string $privateKeyPassphrase = null;
+
     // Certificate validation options
     private bool $requireTrustedCertificates = false;
     private bool $allowSelfSignedCertificates = true;
@@ -47,6 +52,9 @@ class Config
     private bool $validateHostname = true;
     private ?string $customCaPath = null;
     private ?string $customCaFile = null;
+
+    // Client certificate request (server-side only)
+    private bool $requestClientCertificate = false;
 
     public function __construct(
         ?array $supportedVersions = null,
@@ -219,7 +227,75 @@ class Config
         return $this->customValidator !== null;
     }
 
-    // Certificate validation getters/setters
+    // === Certificate Configuration (used for both client and server) ===
+
+    /**
+     * Set certificate file path
+     * - When server: this is the server certificate
+     * - When client: this is the client certificate (for client authentication)
+     */
+    public function setCertificateFile(?string $file): self
+    {
+        if ($file !== null && !is_file($file)) {
+            throw new InvalidArgumentException("Certificate file does not exist: {$file}");
+        }
+
+        $this->certificateFile = $file;
+
+        return $this;
+    }
+
+    public function getCertificateFile(): ?string
+    {
+        return $this->certificateFile;
+    }
+
+    /**
+     * Set private key file path
+     * - When server: this is the server's private key
+     * - When client: this is the client's private key (for client authentication)
+     */
+    public function setPrivateKeyFile(?string $file, ?string $passphrase = null): self
+    {
+        if ($file !== null && !is_file($file)) {
+            throw new InvalidArgumentException("Private key file does not exist: {$file}");
+        }
+
+        $this->privateKeyFile = $file;
+        $this->privateKeyPassphrase = $passphrase;
+
+        return $this;
+    }
+
+    public function getPrivateKeyFile(): ?string
+    {
+        return $this->privateKeyFile;
+    }
+
+    public function getPrivateKeyPassphrase(): ?string
+    {
+        return $this->privateKeyPassphrase;
+    }
+
+    /**
+     * Check if certificate and key are configured
+     */
+    public function hasCertificate(): bool
+    {
+        return $this->certificateFile !== null && $this->privateKeyFile !== null;
+    }
+
+    /**
+     * Configure certificate and key (convenience method)
+     */
+    public function withCertificate(string $certFile, string $keyFile, ?string $passphrase = null): self
+    {
+        return $this->setCertificateFile($certFile)
+            ->setPrivateKeyFile($keyFile, $passphrase);
+    }
+
+    // === Certificate Validation Options ===
+
     public function isRequireTrustedCertificates(): bool
     {
         return $this->requireTrustedCertificates;
@@ -317,7 +393,25 @@ class Config
         return $this->customCaPath !== null || $this->customCaFile !== null;
     }
 
-    // Convenience methods for common configurations
+    // === Client Certificate Request (Server-side) ===
+
+    /**
+     * Enable/disable requesting client certificates (server-side only)
+     * When enabled on server, it will send CertificateRequest during handshake
+     */
+    public function setRequestClientCertificate(bool $request): self
+    {
+        $this->requestClientCertificate = $request;
+
+        return $this;
+    }
+
+    public function isRequestClientCertificate(): bool
+    {
+        return $this->requestClientCertificate;
+    }
+
+    // === Convenience Methods for Common Configurations ===
 
     /**
      * Configure for testing environment (permissive validation)
@@ -383,6 +477,22 @@ class Config
             ->setValidateCertificateExpiry(true)
             ->setValidateCertificatePurpose(true)
             ->setValidateHostname(true);
+    }
+
+    /**
+     * Configure mutual TLS (server requests client certificate)
+     * Automatically enables client certificate request when custom CA is provided
+     */
+    public function withMutualTLS(?string $caPath = null, ?string $caFile = null): self
+    {
+        $this->withCustomCa($caPath, $caFile);
+
+        // Auto-enable client certificate request when CA is configured
+        if ($caPath !== null || $caFile !== null) {
+            $this->setRequestClientCertificate(true);
+        }
+
+        return $this;
     }
 
     // Original extension setup methods - kept intact

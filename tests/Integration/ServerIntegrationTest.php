@@ -86,14 +86,12 @@ class ServerIntegrationTest extends TestCase
         $serverCerts = $generator->generateServerCertificateFiles('localhost');
 
         // Create config with algorithm-specific parameters
+        /** @var Config $config */
         $config = $configFactory();
+        $config->withCertificate($serverCerts['cert_file'], $serverCerts['key_file']);
 
         // Create TlsCraft server in main process
-        $server = new Server(
-            $serverCerts['cert_file'],
-            $serverCerts['key_file'],
-            $config,
-        );
+        $server = new Server($config);
 
         $server->listen('127.0.0.1', 0);
         $serverAddress = $server->getAddress();
@@ -138,13 +136,10 @@ class ServerIntegrationTest extends TestCase
                 CipherSuite::TLS_AES_128_GCM_SHA256->value,
             ],
         );
+        $config->withCertificate($serverCerts['cert_file'], $serverCerts['key_file']);
 
         // Create server in main process
-        $server = new Server(
-            $serverCerts['cert_file'],
-            $serverCerts['key_file'],
-            $config,
-        );
+        $server = new Server($config);
 
         $server->listen('127.0.0.1', 0);
         $serverAddress = $server->getAddress();
@@ -183,13 +178,10 @@ class ServerIntegrationTest extends TestCase
             supportedVersions: ['TLS 1.3'],
             supportedProtocols: ['h2', 'http/1.1'],
         );
+        $config->withCertificate($serverCerts['cert_file'], $serverCerts['key_file']);
 
         // Create server in main process
-        $server = new Server(
-            $serverCerts['cert_file'],
-            $serverCerts['key_file'],
-            $config,
-        );
+        $server = new Server($config);
 
         $server->listen('127.0.0.1', 0);
         $serverAddress = $server->getAddress();
@@ -225,13 +217,10 @@ class ServerIntegrationTest extends TestCase
         $serverCerts = $generator->generateServerCertificateFiles('localhost');
 
         $config = new Config();
+        $config->withCertificate($serverCerts['cert_file'], $serverCerts['key_file']);
 
         // Create server in main process
-        $server = new Server(
-            $serverCerts['cert_file'],
-            $serverCerts['key_file'],
-            $config,
-        );
+        $server = new Server($config);
 
         $server->listen('127.0.0.1', 0);
         $serverAddress = $server->getAddress();

@@ -10,16 +10,12 @@ use Php\TlsCraft\Protocol\ProtocolOrchestrator;
 
 class Server
 {
-    private string $certificatePath;
-    private string $privateKeyPath;
     private Config $config;
     private ConnectionFactory $connectionFactory;
     private DependencyContainer $dependencyContainer;
     private ?Connection $serverConnection = null;
 
     public function __construct(
-        string $certificatePath,
-        string $privateKeyPath,
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
         ?DependencyContainer $dependencyContainer = null,
@@ -28,8 +24,6 @@ class Server
         if ($debug) {
             Logger::enable();
         }
-        $this->certificatePath = $certificatePath;
-        $this->privateKeyPath = $privateKeyPath;
         $this->config = $config ?? new Config();
         $this->connectionFactory = $connectionFactory ?? new ConnectionFactory();
         $this->dependencyContainer = $dependencyContainer ?? new DependencyContainer(
@@ -58,6 +52,7 @@ class Server
         if (!$this->serverConnection) {
             throw new CraftException('Server not listening');
         }
+
         RuntimeEnvironment::assertOpenSsl3();
 
         $clientConnection = $this->serverConnection->accept($timeout);
@@ -72,8 +67,8 @@ class Server
         $messageSerializer = $this->dependencyContainer->getMessageSerializer();
         $processorManager = $this->dependencyContainer->getProcessorManager();
 
-        $context->setCertificateChainFromFile($this->certificatePath);
-        $context->setPrivateKeyFromFile($this->privateKeyPath);
+        // Load certificate from config
+        $context->loadCertificateFromConfig();
 
         $orchestrator = new ProtocolOrchestrator(
             $stateTracker,
@@ -102,60 +97,5 @@ class Server
     public function close(): void
     {
         $this->serverConnection?->close();
-    }
-
-    private function loadCertificateChain(): array
-    {
-        if (!file_exists($this->certificatePath)) {
-            throw new CraftException("Certificate file not found: {$this->certificatePath}");
-        }
-
-        $certData = file_get_contents($this->certificatePath);
-        if ($certData === false) {
-            throw new CraftException('Failed to read certificate file');
-        }
-
-        $cert = openssl_x509_read($certData);
-        if ($cert === false) {
-            throw new CraftException('Invalid certificate format');
-        }
-
-        // Export to PEM without text (use true or omit the parameter)
-        if (!openssl_x509_export($cert, $pemData, true)) {
-            throw new CraftException('Failed to export certificate');
-        }
-
-        // Convert PEM to DER by removing headers and decoding base64
-        $base64Data = preg_replace(
-            ['/-----BEGIN CERTIFICATE-----/', '/-----END CERTIFICATE-----/', '/\s+/'],
-            '',
-            $pemData,
-        );
-
-        $derData = base64_decode($base64Data);
-        if ($derData === false || empty($derData)) {
-            throw new CraftException('Failed to decode certificate to DER format');
-        }
-
-        return [$derData];
-    }
-
-    private function loadPrivateKey()
-    {
-        if (!file_exists($this->privateKeyPath)) {
-            throw new CraftException("Private key file not found: {$this->privateKeyPath}");
-        }
-
-        $keyData = file_get_contents($this->privateKeyPath);
-        if ($keyData === false) {
-            throw new CraftException('Failed to read private key file');
-        }
-
-        $privateKey = openssl_pkey_get_private($keyData);
-        if ($privateKey === false) {
-            throw new CraftException('Invalid private key format');
-        }
-
-        return $privateKey;
     }
 }

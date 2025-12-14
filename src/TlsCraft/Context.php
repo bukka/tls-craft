@@ -39,6 +39,7 @@ class Context
     private ?CertificateChain $certificateChain = null;
     private ?PrivateKey $privateKey = null;
     private array $clientSignatureAlgorithms = [];
+    private array $serverSignatureAlgorithms = [];
 
     // Handshake
     private ?string $clientHelloSessionId = null;
@@ -445,6 +446,38 @@ class Context
         }
     }
 
+    public function loadCertificateFromConfig(): void
+    {
+        $config = $this->getConfig();
+
+        if (!$config->hasCertificate()) {
+            Logger::debug('No certificate configured in Config');
+
+            return; // No certificate configured
+        }
+
+        $certFile = $config->getCertificateFile();
+        $keyFile = $config->getPrivateKeyFile();
+        $passphrase = $config->getPrivateKeyPassphrase();
+
+        Logger::debug('Loading certificate from config', [
+            'Cert file' => $certFile,
+            'Key file' => $keyFile,
+            'Has passphrase' => $passphrase !== null,
+        ]);
+
+        // Load certificate chain
+        $this->setCertificateChainFromFile($certFile);
+
+        // Load private key
+        $this->setPrivateKeyFromFile($keyFile, $passphrase);
+
+        Logger::debug('Certificate loaded from config', [
+            'Chain length' => $this->certificateChain->getLength(),
+            'Key type' => $this->certificateChain->getKeyTypeName(),
+        ]);
+    }
+
     public function getCertificateChain(): CertificateChain
     {
         if (!$this->certificateChain) {
@@ -467,6 +500,16 @@ class Context
     public function getClientSignatureAlgorithms(): array
     {
         return $this->clientSignatureAlgorithms;
+    }
+
+    public function setServerSignatureAlgorithms(array $algorithms): void
+    {
+        $this->serverSignatureAlgorithms = $algorithms;
+    }
+
+    public function getServerSignatureAlgorithms(): array
+    {
+        return $this->serverSignatureAlgorithms;
     }
 
     // === Application Traffic Secret Management ===

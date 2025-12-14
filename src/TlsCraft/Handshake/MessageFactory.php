@@ -5,16 +5,16 @@ namespace Php\TlsCraft\Handshake;
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Crypto\CertificateChain;
-use Php\TlsCraft\Handshake\MessageFactories\{
-    CertificateFactory,
+use Php\TlsCraft\Handshake\MessageFactories\{CertificateFactory,
+    CertificateRequestFactory,
     CertificateVerifyFactory,
     ClientHelloFactory,
     EncryptedExtensionsFactory,
     FinishedFactory,
     KeyUpdateFactory,
-    ServerHelloFactory
-};
+    ServerHelloFactory};
 use Php\TlsCraft\Handshake\MessageParsers\CertificateParser;
+use Php\TlsCraft\Handshake\MessageParsers\CertificateRequestParser;
 use Php\TlsCraft\Handshake\MessageParsers\CertificateVerifyParser;
 use Php\TlsCraft\Handshake\MessageParsers\ClientHelloParser;
 use Php\TlsCraft\Handshake\MessageParsers\EncryptedExtensionsParser;
@@ -22,6 +22,7 @@ use Php\TlsCraft\Handshake\MessageParsers\FinishedParser;
 use Php\TlsCraft\Handshake\MessageParsers\KeyUpdateParser;
 use Php\TlsCraft\Handshake\MessageParsers\ServerHelloParser;
 use Php\TlsCraft\Handshake\Messages\CertificateMessage;
+use Php\TlsCraft\Handshake\Messages\CertificateRequestMessage;
 use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
 use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
 use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
@@ -39,6 +40,7 @@ class MessageFactory
     private ?ServerHelloFactory $serverHelloFactory = null;
     private ?EncryptedExtensionsFactory $encryptedExtensionsFactory = null;
     private ?CertificateFactory $certificateFactory = null;
+    private ?CertificateRequestFactory $certificateRequestFactory = null;
     private ?CertificateVerifyFactory $certificateVerifyFactory = null;
     private ?FinishedFactory $finishedFactory = null;
     private ?KeyUpdateFactory $keyUpdateFactory = null;
@@ -47,6 +49,7 @@ class MessageFactory
     private ?ServerHelloParser $serverHelloParser = null;
     private ?EncryptedExtensionsParser $encryptedExtensionsParser = null;
     private ?CertificateParser $certificateParser = null;
+    private ?CertificateRequestParser $certificateRequestParser = null;
     private ?CertificateVerifyParser $certificateVerifyParser = null;
     private ?FinishedParser $finishedParser = null;
     private ?KeyUpdateParser $keyUpdateParser = null;
@@ -90,6 +93,15 @@ class MessageFactory
         }
 
         return $this->certificateFactory;
+    }
+
+    private function getCertificateRequestFactory(): CertificateRequestFactory
+    {
+        if (!$this->certificateRequestFactory) {
+            $this->certificateRequestFactory = new CertificateRequestFactory($this->context, $this->config);
+        }
+
+        return $this->certificateRequestFactory;
     }
 
     private function getCertificateVerifyFactory(): CertificateVerifyFactory
@@ -155,6 +167,15 @@ class MessageFactory
         return $this->certificateParser;
     }
 
+    private function getCertificateRequestParser(): CertificateRequestParser
+    {
+        if (!$this->certificateRequestParser) {
+            $this->certificateRequestParser = new CertificateRequestParser($this->context, $this->extensionFactory);
+        }
+
+        return $this->certificateRequestParser;
+    }
+
     private function getCertificateVerifyParser(): CertificateVerifyParser
     {
         if (!$this->certificateVerifyParser) {
@@ -202,6 +223,11 @@ class MessageFactory
         return $this->getCertificateFactory()->create($certificateChain);
     }
 
+    public function createCertificateRequest(): CertificateRequestMessage
+    {
+        return $this->getCertificateRequestFactory()->create();
+    }
+
     public function createCertificateVerify(string $signature): CertificateVerifyMessage
     {
         return $this->getCertificateVerifyFactory()->create($signature);
@@ -241,6 +267,11 @@ class MessageFactory
     public function createCertificateFromWire(string $data, int &$offset = 0): CertificateMessage
     {
         return $this->getCertificateParser()->parse($data, $offset);
+    }
+
+    public function createCertificateRequestFromWire(string $data, int &$offset = 0): CertificateRequestMessage
+    {
+        return $this->getCertificateRequestParser()->parse($data, $offset);
     }
 
     public function createCertificateVerifyFromWire(string $data, int &$offset = 0): CertificateVerifyMessage

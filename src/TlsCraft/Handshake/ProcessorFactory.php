@@ -5,6 +5,7 @@ namespace Php\TlsCraft\Handshake;
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Handshake\Processors\CertificateProcessor;
+use Php\TlsCraft\Handshake\Processors\CertificateRequestProcessor;
 use Php\TlsCraft\Handshake\Processors\CertificateVerifyProcessor;
 use Php\TlsCraft\Handshake\Processors\ClientHelloProcessor;
 use Php\TlsCraft\Handshake\Processors\EncryptedExtensionsProcessor;
@@ -39,6 +40,11 @@ class ProcessorFactory
     public function createCertificateProcessor(): CertificateProcessor
     {
         return new CertificateProcessor($this->context, $this->config);
+    }
+
+    public function createCertificateRequestProcessor(): CertificateRequestProcessor
+    {
+        return new CertificateRequestProcessor($this->context, $this->config);
     }
 
     public function createCertificateVerifyProcessor(): CertificateVerifyProcessor

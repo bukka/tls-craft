@@ -4,25 +4,23 @@ namespace Php\TlsCraft\Handshake;
 
 use Php\TlsCraft\Context;
 use Php\TlsCraft\Exceptions\CraftException;
-use Php\TlsCraft\Handshake\Messages\{
-    CertificateMessage,
+use Php\TlsCraft\Handshake\Messages\{CertificateMessage,
+    CertificateRequestMessage,
     CertificateVerifyMessage,
     ClientHelloMessage,
     EncryptedExtensionsMessage,
     FinishedMessage,
     KeyUpdateMessage,
     Message,
-    ServerHelloMessage
-};
-use Php\TlsCraft\Handshake\MessageSerializers\{
+    ServerHelloMessage};
+use Php\TlsCraft\Handshake\MessageSerializers\{CertificateRequestSerializer,
     CertificateSerializer,
     CertificateVerifySerializer,
     ClientHelloSerializer,
     EncryptedExtensionsSerializer,
     FinishedSerializer,
     KeyUpdateSerializer,
-    ServerHelloSerializer
-};
+    ServerHelloSerializer};
 use Php\TlsCraft\Logger;
 
 /**
@@ -41,6 +39,7 @@ class MessageSerializer
     private ?ServerHelloSerializer $serverHelloSerializer = null;
     private ?EncryptedExtensionsSerializer $encryptedExtensionsSerializer = null;
     private ?CertificateSerializer $certificateSerializer = null;
+    private ?CertificateRequestSerializer $certificateRequestSerializer = null;
     private ?CertificateVerifySerializer $certificateVerifySerializer = null;
     private ?FinishedSerializer $finishedSerializer = null;
     private ?KeyUpdateSerializer $keyUpdateSerializer = null;
@@ -67,6 +66,12 @@ class MessageSerializer
     {
         return $this->certificateSerializer ??=
             new CertificateSerializer($this->context, $this->extensionFactory);
+    }
+
+    private function getCertificateRequestSerializer(): CertificateRequestSerializer
+    {
+        return $this->certificateRequestSerializer ??=
+            new CertificateRequestSerializer($this->context, $this->extensionFactory);
     }
 
     private function getCertificateVerifySerializer(): CertificateVerifySerializer
@@ -97,6 +102,7 @@ class MessageSerializer
             $msg instanceof ServerHelloMessage => $this->getServerHelloSerializer()->serialize($msg),
             $msg instanceof EncryptedExtensionsMessage => $this->getEncryptedExtensionsSerializer()->serialize($msg),
             $msg instanceof CertificateMessage => $this->getCertificateSerializer()->serialize($msg),
+            $msg instanceof CertificateRequestMessage => $this->getCertificateRequestSerializer()->serialize($msg),
             $msg instanceof CertificateVerifyMessage => $this->getCertificateVerifySerializer()->serialize($msg),
             $msg instanceof FinishedMessage => $this->getFinishedSerializer()->serialize($msg),
             $msg instanceof KeyUpdateMessage => $this->getKeyUpdateSerializer()->serialize($msg),
