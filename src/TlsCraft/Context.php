@@ -51,9 +51,9 @@ class Context
     private bool $serverNameAcknowledged;
     private array $serverSupportedGroups;
     private OpenSSLAsymmetricKey $peerPublicKey;
-    private string $certificateRequestContext;
+    private ?string $certificateRequestContext = null;
     private bool $certificateVerified;
-    private bool $handshakeComplete;
+    private bool $handshakeComplete = false;
 
     private array $currentDecryptionKeys = [];
     private array $currentEncryptionKeys = [];
@@ -382,7 +382,7 @@ class Context
         $this->certificateRequestContext = $context;
     }
 
-    public function getCertificateRequestContext()
+    public function getCertificateRequestContext(): ?string
     {
         return $this->certificateRequestContext;
     }

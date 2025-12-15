@@ -76,16 +76,19 @@ class ProtocolOrchestrator
         $this->sendHandshakeMessage($clientHello, false);
 
         // Process server handshake messages
-        $certificateRequestReceived = $this->processServerHandshakeMessages();
+        $this->processServerHandshakeMessages();
 
         // After receiving server's Finished, send client certificate if requested
-        if ($certificateRequestReceived) {
+        if ($this->context->getCertificateRequestContext() !== null) {
             $this->sendClientCertificateFlight();
         }
 
         // Send client Finished
         $finished = $this->messageFactory->createFinished(true);
         $this->sendHandshakeMessage($finished);
+
+        // Update state to indicate handshake is complete
+        $this->context->setHandshakeComplete(true);
 
         // Derive application traffic secrets
         $this->context->deriveApplicationSecrets();
@@ -109,6 +112,9 @@ class ProtocolOrchestrator
 
         // Wait for client Finished (and optionally client certificate)
         $this->waitForClientFinished();
+
+        // Update state to indicate handshake is complete
+        $this->context->setHandshakeComplete(true);
 
         // Derive application traffic secrets
         $this->context->deriveApplicationSecrets();
@@ -276,11 +282,8 @@ class ProtocolOrchestrator
 
     // === Enhanced Message Processing with Processors ===
 
-    private function processServerHandshakeMessages(): bool
+    private function processServerHandshakeMessages(): void
     {
-        // Track if we received a CertificateRequest
-        $certificateRequestReceived = false;
-
         // Process messages until handshake is complete
         while (!$this->stateTracker->isHandshakeComplete()) {
             // Try to process any buffered messages first
@@ -292,11 +295,6 @@ class ProtocolOrchestrator
                 }
 
                 $this->processHandshakeMessage($message['type'], $message['data']);
-
-                // Track if we got CertificateRequest
-                if ($message['type'] === HandshakeType::CERTIFICATE_REQUEST) {
-                    $certificateRequestReceived = true;
-                }
 
                 $processedAny = true;
             }
@@ -323,8 +321,6 @@ class ProtocolOrchestrator
                 $this->handleAlertRecord($record);
             }
         }
-
-        return $certificateRequestReceived;
     }
 
     private function processHandshakeRecord(Record $record): void

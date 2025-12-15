@@ -78,7 +78,7 @@ class RecordCrypto
         }
 
         // Determine which cipher to use based on handshake completion
-        if ($this->context->canDeriveApplicationSecrets()) {
+        if ($this->context->isHandshakeComplete() && $this->context->canDeriveApplicationSecrets()) {
             return $this->decryptWithApplicationKeys($record);
         } else {
             return $this->decryptWithHandshakeKeys($record);
