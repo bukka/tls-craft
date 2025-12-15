@@ -45,7 +45,7 @@ class RecordCrypto
         }
 
         // Determine which cipher to use based on handshake completion
-        if ($this->context->hasApplicationSecrets()) {
+        if ($this->context->canDeriveApplicationSecrets()) {
             return $this->encryptWithApplicationKeys($record);
         } else {
             return $this->encryptWithHandshakeKeys($record);
@@ -78,7 +78,7 @@ class RecordCrypto
         }
 
         // Determine which cipher to use based on handshake completion
-        if ($this->context->hasApplicationSecrets()) {
+        if ($this->context->canDeriveApplicationSecrets()) {
             return $this->decryptWithApplicationKeys($record);
         } else {
             return $this->decryptWithHandshakeKeys($record);
@@ -101,7 +101,7 @@ class RecordCrypto
      */
     public function updateApplicationKeys(): void
     {
-        if (!$this->context->hasApplicationSecrets()) {
+        if (!$this->context->canDeriveApplicationSecrets()) {
             throw new CraftException('Cannot update keys: application secrets not available');
         }
 

@@ -210,7 +210,7 @@ class KeySchedule
         return hash_hmac($this->hashAlgorithm, $transcript, $finishedKey, true);
     }
 
-    public function deriveApplicationKeys(string $trafficSecret): array
+    public function deriveTrafficKeys(string $trafficSecret): array
     {
         $key = $this->keyDerivation->expandLabel(
             $trafficSecret,
@@ -228,7 +228,7 @@ class KeySchedule
             $this->cipherSuite,
         );
 
-        Logger::debug('DERIVE APPLICATION KEYS', [
+        Logger::debug('DERIVE TRAFFIC KEYS', [
             'Traffic secret' => $trafficSecret,
             'Key' => $key,
             'IV' => $iv,
@@ -248,7 +248,7 @@ class KeySchedule
             $this->cipherSuite,
         );
 
-        Logger::debug('DERIVE APPLICATION KEYS', [
+        Logger::debug('DERIVE TRAFFIC KEYS', [
             'Traffic secret' => $trafficSecret,
             'Hash length' => $this->hashLength,
             'Cipher suite' => $this->cipherSuite->name,
@@ -258,6 +258,11 @@ class KeySchedule
     }
 
     public function hasApplicationSecrets(): bool
+    {
+        return isset($this->masterSecret);
+    }
+
+    public function hasMasterSecret(): bool
     {
         return isset($this->masterSecret);
     }

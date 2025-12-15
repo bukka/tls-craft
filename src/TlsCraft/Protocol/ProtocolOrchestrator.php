@@ -76,7 +76,12 @@ class ProtocolOrchestrator
         $this->sendHandshakeMessage($clientHello, false);
 
         // Process server handshake messages
-        $this->processServerHandshakeMessages();
+        $certificateRequestReceived = $this->processServerHandshakeMessages();
+
+        // After receiving server's Finished, send client certificate if requested
+        if ($certificateRequestReceived) {
+            $this->sendClientCertificateFlight();
+        }
 
         // Send client Finished
         $finished = $this->messageFactory->createFinished(true);
@@ -271,7 +276,7 @@ class ProtocolOrchestrator
 
     // === Enhanced Message Processing with Processors ===
 
-    private function processServerHandshakeMessages(): void
+    private function processServerHandshakeMessages(): bool
     {
         // Track if we received a CertificateRequest
         $certificateRequestReceived = false;
@@ -319,10 +324,7 @@ class ProtocolOrchestrator
             }
         }
 
-        // After receiving server's Finished, send client certificate if requested
-        if ($certificateRequestReceived) {
-            $this->sendClientCertificateFlight();
-        }
+        return $certificateRequestReceived;
     }
 
     private function processHandshakeRecord(Record $record): void

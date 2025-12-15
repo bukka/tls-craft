@@ -233,7 +233,7 @@ class Context
             $this->keySchedule->getClientHandshakeTrafficSecret() :
             $this->keySchedule->getServerHandshakeTrafficSecret();
 
-        return $this->keySchedule->deriveApplicationKeys($trafficSecret);
+        return $this->keySchedule->deriveTrafficKeys($trafficSecret);
     }
 
     public function getApplicationKeys(bool $forClient): array
@@ -246,7 +246,7 @@ class Context
             $this->keySchedule->getClientApplicationTrafficSecret() :
             $this->keySchedule->getServerApplicationTrafficSecret();
 
-        return $this->keySchedule->deriveApplicationKeys($trafficSecret);
+        return $this->keySchedule->deriveTrafficKeys($trafficSecret);
     }
 
     public function getFinishedData(bool $forClient): string
@@ -280,8 +280,8 @@ class Context
         $newServerSecret = $this->keySchedule->updateTrafficSecret($serverSecret);
 
         // Derive new keys from updated secrets
-        $clientKeys = $this->keySchedule->deriveApplicationKeys($newClientSecret);
-        $serverKeys = $this->keySchedule->deriveApplicationKeys($newServerSecret);
+        $clientKeys = $this->keySchedule->deriveTrafficKeys($newClientSecret);
+        $serverKeys = $this->keySchedule->deriveTrafficKeys($newServerSecret);
 
         // Store updated secrets (in a real implementation, these would update the key schedule)
         // For now, this is a placeholder for the key update process
@@ -397,9 +397,9 @@ class Context
         return $this->certificateVerified;
     }
 
-    public function hasApplicationSecrets(): bool
+    public function canDeriveApplicationSecrets(): bool
     {
-        return $this->keySchedule && $this->keySchedule->hasApplicationSecrets();
+        return $this->keySchedule && $this->keySchedule->hasMasterSecret();
     }
 
     public function isHandshakeComplete(): bool
