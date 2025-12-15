@@ -9,6 +9,7 @@ use const OPENSSL_ALGO_SHA256;
 use const OPENSSL_ALGO_SHA384;
 use const OPENSSL_ALGO_SHA512;
 use const OPENSSL_PKCS1_PSS_PADDING;
+use const OPENSSL_RSA_PSS_SALTLEN_DIGEST;
 
 class CertificateSigner
 {
