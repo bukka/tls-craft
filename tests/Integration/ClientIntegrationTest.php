@@ -324,6 +324,43 @@ class ClientIntegrationTest extends TestCase
         $session->close();
     }
 
+    #[Test]
+    public function testClientCertificateProvision(): void
+    {
+        $generator = TestCertificateGenerator::forECC();
+
+        // Generate server cert
+        $serverCerts = $generator->generateServerCertificateFiles('localhost');
+
+        // Generate client cert (signed by same CA)
+        $clientCerts = $generator->generateClientCertificateFiles('client');
+
+        // PHP server that REQUESTS client certificate
+        $serverCode = $this->createMutualTlsServerCode($serverCerts, $generator->getCACertificateFile());
+        $serverAddress = $this->runner->startServerProcess($serverCode);
+        [$hostname, $port] = explode(':', $serverAddress);
+
+        // TlsCraft client that PROVIDES certificate
+        $config = new Config(
+            supportedVersions: ['TLS 1.3'],
+            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+            supportedGroups: ['P-256'],
+            signatureAlgorithms: ['ecdsa_secp256r1_sha256'],
+        );
+        $config->withCertificate($clientCerts['cert_file'], $clientCerts['key_file'])
+            ->withCustomCa(caFile: $serverCerts['ca_file']);
+
+        $client = new Client($hostname, (int) $port, $config);
+        $session = $client->connect();
+
+        $testMessage = 'Mutual TLS test';
+        $session->send($testMessage);
+        $response = $session->receive();
+
+        $this->assertEquals("Echo: {$testMessage}", $response);
+        $session->close();
+    }
+
     /**
      * Create server code for stream socket server
      */
@@ -369,5 +406,48 @@ class ClientIntegrationTest extends TestCase
             fclose($client);
             fclose($server);
         ';
+    }
+
+    private function createMutualTlsServerCode(array $serverCerts, string $clientCaFile): string
+    {
+        $certFile = $serverCerts['cert_file'];
+        $keyFile = $serverCerts['key_file'];
+
+        return '
+        $context = stream_context_create([
+            "ssl" => [
+                "local_cert" => "'.$certFile.'",
+                "local_pk" => "'.$keyFile.'",
+                "verify_peer" => true,              // Request client certificate
+                "verify_peer_name" => false,
+                "allow_self_signed" => false,
+                "cafile" => "'.$clientCaFile.'",    // CA to verify client certs
+                "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
+            ]
+        ]);
+
+        $server = stream_socket_server("tlsv1.3://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+        if (!$server) {
+            die("Failed to create server: $errstr ($errno)");
+        }
+
+        $address = stream_socket_get_name($server, false);
+        $runner = new Php\TlsCraft\Tests\Integration\TestRunner(true);
+        $runner->notifyServerReady($address);
+
+        $client = @stream_socket_accept($server, 30);
+        if (!$client) {
+            fclose($server);
+            die("Failed to accept client connection");
+        }
+
+        $data = fread($client, 1024);
+        if ($data !== false) {
+            fwrite($client, "Echo: " . $data);
+        }
+
+        fclose($client);
+        fclose($server);
+    ';
     }
 }

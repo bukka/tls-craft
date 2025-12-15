@@ -11,7 +11,7 @@ use const OPENSSL_KEYTYPE_RSA;
 
 /**
  * Certificate generator for integration tests
- * Generates CA and server certificates for testing TLS implementations
+ * Generates CA, server, and client certificates for testing TLS implementations
  */
 class TestCertificateGenerator
 {
@@ -79,8 +79,8 @@ class TestCertificateGenerator
         ];
 
         // Create temporary config file for SAN extension
-        $sanConfig = $this->createSANConfig($hostname);
-        $configFile = $this->getTempPath('openssl.cnf');
+        $sanConfig = $this->createServerCertConfig($hostname);
+        $configFile = $this->getTempPath('server_openssl.cnf');
         file_put_contents($configFile, $sanConfig);
         self::$generatedFiles[] = $configFile;
 
@@ -108,9 +108,9 @@ class TestCertificateGenerator
             openssl_x509_export($this->ca, $caCertPem);
 
             // Generate file paths and write files
-            $certFile = $this->getTempPath('cert.pem');
-            $keyFile = $this->getTempPath('key.pem');
-            $combinedFile = $this->getTempPath('combined.pem');
+            $certFile = $this->getTempPath('server_cert.pem');
+            $keyFile = $this->getTempPath('server_key.pem');
+            $combinedFile = $this->getTempPath('server_combined.pem');
             $caFile = $this->getTempPath('ca.pem');
 
             // Include CA cert in chain for PHP's OpenSSL wrapper
@@ -137,6 +137,81 @@ class TestCertificateGenerator
     }
 
     /**
+     * Generate client certificate and save to files
+     *
+     * @return array{cert: string, key: string, cert_file: string, key_file: string, combined_file: string, ca_file: string, commonName: string}
+     */
+    public function generateClientCertificateFiles(string $commonName = 'client'): array
+    {
+        $this->lastKey = $this->generateKey();
+
+        $dn = [
+            'countryName' => 'US',
+            'stateOrProvinceName' => 'Test State',
+            'localityName' => 'Test City',
+            'organizationName' => 'Test Client',
+            'commonName' => $commonName,
+        ];
+
+        // Create temporary config file for client certificate
+        $clientConfig = $this->createClientCertConfig();
+        $configFile = $this->getTempPath('client_openssl.cnf');
+        file_put_contents($configFile, $clientConfig);
+        self::$generatedFiles[] = $configFile;
+
+        $config = [
+            'config' => $configFile,
+            'req_extensions' => 'v3_req',
+            'x509_extensions' => 'usr_cert',
+            'digest_alg' => 'sha256',
+        ];
+
+        try {
+            $csr = openssl_csr_new($dn, $this->lastKey, $config);
+            $this->lastCert = openssl_csr_sign($csr, $this->ca, $this->caKey, 30, $config);
+
+            if (!$this->lastCert) {
+                throw new RuntimeException('Failed to generate client certificate');
+            }
+
+            // Export certificate and key to PEM strings
+            $certPem = '';
+            $keyPem = '';
+            $caCertPem = '';
+            openssl_x509_export($this->lastCert, $certPem);
+            openssl_pkey_export($this->lastKey, $keyPem);
+            openssl_x509_export($this->ca, $caCertPem);
+
+            // Generate file paths and write files
+            $certFile = $this->getTempPath('client_cert.pem');
+            $keyFile = $this->getTempPath('client_key.pem');
+            $combinedFile = $this->getTempPath('client_combined.pem');
+            $caFile = $this->getTempPath('ca.pem');
+
+            // Include CA cert in chain
+            file_put_contents($certFile, $certPem.$caCertPem);
+            file_put_contents($keyFile, $keyPem);
+            file_put_contents($combinedFile, $certPem.$caCertPem.$keyPem);
+            file_put_contents($caFile, $caCertPem);
+
+            // Track generated files for cleanup
+            self::$generatedFiles = array_merge(self::$generatedFiles, [$certFile, $keyFile, $combinedFile, $caFile]);
+
+            return [
+                'cert' => $certPem,
+                'key' => $keyPem,
+                'cert_file' => $certFile,
+                'key_file' => $keyFile,
+                'combined_file' => $combinedFile,
+                'ca_file' => $caFile,
+                'commonName' => $commonName,
+            ];
+        } catch (Exception $e) {
+            throw new RuntimeException('Client certificate generation failed: '.$e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
      * Get CA certificate PEM
      */
     public function getCACertificate(): string
@@ -153,8 +228,12 @@ class TestCertificateGenerator
     public function getCACertificateFile(): string
     {
         $caFile = $this->getTempPath('ca.pem');
-        file_put_contents($caFile, $this->getCACertificate());
-        self::$generatedFiles[] = $caFile;
+
+        // Check if already exists to avoid duplicates
+        if (!in_array($caFile, self::$generatedFiles)) {
+            file_put_contents($caFile, $this->getCACertificate());
+            self::$generatedFiles[] = $caFile;
+        }
 
         return $caFile;
     }
@@ -262,7 +341,7 @@ class TestCertificateGenerator
         ];
     }
 
-    private function createSANConfig(string $hostname): string
+    private function createServerCertConfig(string $hostname): string
     {
         return <<<CONFIG
 [ req ]
@@ -289,6 +368,28 @@ DNS.1 = {$hostname}
 DNS.2 = localhost
 IP.1 = 127.0.0.1
 IP.2 = ::1
+CONFIG;
+    }
+
+    private function createClientCertConfig(): string
+    {
+        return <<<CONFIG
+[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[ req_distinguished_name ]
+
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth
+
+[ usr_cert ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth
 CONFIG;
     }
 
