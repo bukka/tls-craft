@@ -64,7 +64,11 @@ class ProtocolValidator
             HandshakeState::WAIT_CLIENT_HELLO => [HandshakeType::CLIENT_HELLO],
             HandshakeState::WAIT_SERVER_HELLO => [HandshakeType::SERVER_HELLO],
             HandshakeState::WAIT_ENCRYPTED_EXTENSIONS => [HandshakeType::ENCRYPTED_EXTENSIONS],
-            HandshakeState::WAIT_CERTIFICATE => [HandshakeType::CERTIFICATE],
+            HandshakeState::WAIT_CERTIFICATE => $isClient ?
+                // Client can receive CertificateRequest (optional) or Certificate
+                [HandshakeType::CERTIFICATE_REQUEST, HandshakeType::CERTIFICATE] :
+                // Server only expects Certificate from client
+                [HandshakeType::CERTIFICATE],
             HandshakeState::WAIT_CERTIFICATE_VERIFY => [HandshakeType::CERTIFICATE_VERIFY],
             HandshakeState::WAIT_FINISHED => [HandshakeType::FINISHED],
             HandshakeState::WAIT_FLIGHT2 => [
