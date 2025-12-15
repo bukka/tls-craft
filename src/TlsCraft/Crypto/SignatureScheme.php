@@ -15,7 +15,8 @@ enum SignatureScheme: int implements JsonSerializable
     case RSA_PKCS1_SHA384 = 0x0501;
     case RSA_PKCS1_SHA512 = 0x0601;
 
-    // ECDSA
+    // ECDSA - NIST curves
+    case ECDSA_SECP224R1_SHA224 = 0x0303;
     case ECDSA_SECP256R1_SHA256 = 0x0403;
     case ECDSA_SECP384R1_SHA384 = 0x0503;
     case ECDSA_SECP521R1_SHA512 = 0x0603;
@@ -46,13 +47,16 @@ enum SignatureScheme: int implements JsonSerializable
     case RSA_PSS_PSS_SHA384 = 0x080A;
     case RSA_PSS_PSS_SHA512 = 0x080B;
 
-    // ECDSA with SHAKE (RFC 8692)
+    // ECDSA with SHA-1 (legacy)
+    case ECDSA_SHA1 = 0x0203;
+
+    // ECDSA with SHA3 (RFC 8692)
     case ECDSA_SHA3_224 = 0x0810;
     case ECDSA_SHA3_256 = 0x0811;
     case ECDSA_SHA3_384 = 0x0812;
     case ECDSA_SHA3_512 = 0x0813;
 
-    // RSA PSS with SHAKE
+    // RSA PSS with SHA3
     case RSA_PSS_RSAE_SHA3_256 = 0x0814;
     case RSA_PSS_RSAE_SHA3_384 = 0x0815;
     case RSA_PSS_RSAE_SHA3_512 = 0x0816;
@@ -60,7 +64,7 @@ enum SignatureScheme: int implements JsonSerializable
     case RSA_PSS_PSS_SHA3_384 = 0x0818;
     case RSA_PSS_PSS_SHA3_512 = 0x0819;
 
-    // More ECDSA variants
+    // ECDSA Brainpool curves
     case ECDSA_BRAINPOOLP256R1_SHA256 = 0x081A;
     case ECDSA_BRAINPOOLP384R1_SHA384 = 0x081B;
     case ECDSA_BRAINPOOLP512R1_SHA512 = 0x081C;
@@ -80,9 +84,6 @@ enum SignatureScheme: int implements JsonSerializable
     case DSA_SHA384 = 0x0502;
     case DSA_SHA512 = 0x0602;
 
-    // ECDSA with SHA-1 (legacy)
-    case ECDSA_SHA1 = 0x0203;
-
     public function getName(): string
     {
         return match($this) {
@@ -91,9 +92,11 @@ enum SignatureScheme: int implements JsonSerializable
             self::RSA_PKCS1_SHA256 => 'rsa_pkcs1_sha256',
             self::RSA_PKCS1_SHA384 => 'rsa_pkcs1_sha384',
             self::RSA_PKCS1_SHA512 => 'rsa_pkcs1_sha512',
+            self::ECDSA_SECP224R1_SHA224 => 'ecdsa_secp256r1_sha224',
             self::ECDSA_SECP256R1_SHA256 => 'ecdsa_secp256r1_sha256',
             self::ECDSA_SECP384R1_SHA384 => 'ecdsa_secp384r1_sha384',
             self::ECDSA_SECP521R1_SHA512 => 'ecdsa_secp521r1_sha512',
+            self::ECDSA_SHA1 => 'ecdsa_sha1',
             self::GOSTR34102012_256A => 'gostr34102012_256a',
             self::GOSTR34102012_256B => 'gostr34102012_256b',
             self::GOSTR34102012_256C => 'gostr34102012_256c',
@@ -132,7 +135,6 @@ enum SignatureScheme: int implements JsonSerializable
             self::DSA_SHA256 => 'dsa_sha256',
             self::DSA_SHA384 => 'dsa_sha384',
             self::DSA_SHA512 => 'dsa_sha512',
-            self::ECDSA_SHA1 => 'ecdsa_sha1',
         };
     }
 
@@ -144,9 +146,11 @@ enum SignatureScheme: int implements JsonSerializable
             'rsa_pkcs1_sha256' => self::RSA_PKCS1_SHA256,
             'rsa_pkcs1_sha384' => self::RSA_PKCS1_SHA384,
             'rsa_pkcs1_sha512' => self::RSA_PKCS1_SHA512,
+            'ecdsa_secp256r1_sha224' => self::ECDSA_SECP224R1_SHA224,
             'ecdsa_secp256r1_sha256' => self::ECDSA_SECP256R1_SHA256,
             'ecdsa_secp384r1_sha384' => self::ECDSA_SECP384R1_SHA384,
             'ecdsa_secp521r1_sha512' => self::ECDSA_SECP521R1_SHA512,
+            'ecdsa_sha1' => self::ECDSA_SHA1,
             'gostr34102012_256a' => self::GOSTR34102012_256A,
             'gostr34102012_256b' => self::GOSTR34102012_256B,
             'gostr34102012_256c' => self::GOSTR34102012_256C,
@@ -185,7 +189,6 @@ enum SignatureScheme: int implements JsonSerializable
             'dsa_sha256' => self::DSA_SHA256,
             'dsa_sha384' => self::DSA_SHA384,
             'dsa_sha512' => self::DSA_SHA512,
-            'ecdsa_sha1' => self::ECDSA_SHA1,
             default => throw new InvalidArgumentException("Unknown signature scheme: {$name}"),
         };
     }
@@ -218,6 +221,7 @@ enum SignatureScheme: int implements JsonSerializable
             self::ECDSA_SHA1 => 'sha1',
             self::RSA_PKCS1_SHA224,
             self::DSA_SHA224,
+            self::ECDSA_SECP224R1_SHA224,
             self::ECDSA_SHA3_224 => 'sha224',
             self::RSA_PKCS1_SHA256,
             self::ECDSA_SECP256R1_SHA256,
@@ -231,7 +235,6 @@ enum SignatureScheme: int implements JsonSerializable
             self::RSA_PSS_RSAE_SHA3_256,
             self::RSA_PSS_PSS_SHA3_256 => 'sha256',
             self::RSA_PKCS1_SHA384,
-            self::ECDSA_SECP384R1_SHA384,
             self::ECDSA_BRAINPOOLP384R1_SHA384,
             self::ECDSA_BRAINPOOLP384R1TLS13_SHA384,
             self::RSA_PSS_RSAE_SHA384,
@@ -266,9 +269,11 @@ enum SignatureScheme: int implements JsonSerializable
     public function isECDSA(): bool
     {
         return match ($this) {
+            self::ECDSA_SECP224R1_SHA224,
             self::ECDSA_SECP256R1_SHA256,
             self::ECDSA_SECP384R1_SHA384,
             self::ECDSA_SECP521R1_SHA512,
+            self::ECDSA_SHA1,
             self::ECCSI_SHA256,
             self::ECDSA_BRAINPOOLP256R1_SHA256,
             self::ECDSA_BRAINPOOLP384R1_SHA384,
@@ -279,8 +284,7 @@ enum SignatureScheme: int implements JsonSerializable
             self::ECDSA_SHA3_224,
             self::ECDSA_SHA3_256,
             self::ECDSA_SHA3_384,
-            self::ECDSA_SHA3_512,
-            self::ECDSA_SHA1 => true,
+            self::ECDSA_SHA3_512 => true,
             default => false,
         };
     }
@@ -346,6 +350,7 @@ enum SignatureScheme: int implements JsonSerializable
             self::DSA_SHA384,
             self::DSA_SHA512,
             self::ECDSA_SHA1,
+            self::ECDSA_SECP224R1_SHA224,
             self::ECDSA_SHA3_224 => false,
             default => true,
         };
