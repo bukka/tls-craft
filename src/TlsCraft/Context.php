@@ -263,7 +263,7 @@ class Context
 
         $finishedKey = $this->keySchedule->getFinishedKey($trafficSecret);
 
-        return $this->keySchedule->calculateFinishedData($finishedKey);
+        return $this->keySchedule->calculateFinishedData($finishedKey, $forClient);
     }
 
     // === Traffic Key Updates ===
