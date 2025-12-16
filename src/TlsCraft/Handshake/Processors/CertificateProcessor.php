@@ -140,26 +140,54 @@ class CertificateProcessor extends MessageProcessor
 
         if ($this->context->isClient()) {
             // We are client - validating server certificate
-            if (!$certInfo->hasKeyUsage('Digital Signature')
-                && !$certInfo->hasKeyUsage('Key Agreement')) {
-                throw new ProtocolViolationException('Server certificate missing required key usage');
-            }
-
-            if (!$certInfo->hasExtendedKeyUsage('TLS Web Server Authentication')) {
-                throw new ProtocolViolationException('Server certificate missing serverAuth extended key usage');
-            }
+            $this->validateServerCertificatePurpose($certInfo);
         } else {
             // We are server - validating client certificate
-            if (!$certInfo->hasKeyUsage('Digital Signature')) {
-                throw new ProtocolViolationException('Client certificate missing Digital Signature key usage');
-            }
-
-            if (!$certInfo->hasExtendedKeyUsage('TLS Web Client Authentication')) {
-                throw new ProtocolViolationException('Client certificate missing clientAuth extended key usage');
-            }
+            $this->validateClientCertificatePurpose($certInfo);
         }
 
         Logger::debug('Certificate purpose validation passed');
+    }
+
+    private function validateServerCertificatePurpose(CertificateInfo $certInfo): void
+    {
+        $keyUsage = $certInfo->getKeyUsage();
+        $extKeyUsage = $certInfo->getExtendedKeyUsage();
+
+        // If Key Usage extension is present, it must contain required usages
+        if (!empty($keyUsage)) {
+            if (!$certInfo->hasKeyUsage('Digital Signature')
+                && !$certInfo->hasKeyUsage('Key Agreement')) {
+                throw new ProtocolViolationException('Server certificate Key Usage must include Digital Signature or Key Agreement');
+            }
+        }
+
+        // If Extended Key Usage extension is present, it must contain serverAuth
+        if (!empty($extKeyUsage)) {
+            if (!$certInfo->hasExtendedKeyUsage('TLS Web Server Authentication')) {
+                throw new ProtocolViolationException('Server certificate Extended Key Usage must include serverAuth');
+            }
+        }
+    }
+
+    private function validateClientCertificatePurpose(CertificateInfo $certInfo): void
+    {
+        $keyUsage = $certInfo->getKeyUsage();
+        $extKeyUsage = $certInfo->getExtendedKeyUsage();
+
+        // If Key Usage extension is present, it must contain Digital Signature
+        if (!empty($keyUsage)) {
+            if (!$certInfo->hasKeyUsage('Digital Signature')) {
+                throw new ProtocolViolationException('Client certificate Key Usage must include Digital Signature');
+            }
+        }
+
+        // If Extended Key Usage extension is present, it must contain clientAuth
+        if (!empty($extKeyUsage)) {
+            if (!$certInfo->hasExtendedKeyUsage('TLS Web Client Authentication')) {
+                throw new ProtocolViolationException('Client certificate Extended Key Usage must include clientAuth');
+            }
+        }
     }
 
     private function validateCertificateValidity(CertificateInfo $certInfo): void
