@@ -27,6 +27,8 @@ final class AppFactory
         string $certificatePath,
         string $privateKeyPath,
         bool $mutualTls = false,
+        ?string $clientCaFile = null,
+        ?string $clientCaPath = null,
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
     ): Server {
@@ -35,6 +37,10 @@ final class AppFactory
             $config = new Config();
         }
         $config->withCertificate($certificatePath, $privateKeyPath);
+        if ($mutualTls) {
+            $config->setRequestClientCertificate(true);
+            $config->withCustomCa($clientCaPath, $clientCaFile);
+        }
         return new Server($config, $connectionFactory);
     }
 }
