@@ -46,7 +46,11 @@ class CertificateProcessor extends MessageProcessor
         }
 
         // Store certificate chain in context
-        $this->context->setCertificateChain($message->certificateChain);
+        if ($this->context->isClient()) {
+            $this->context->setServerCertificateChain($message->certificateChain);
+        } else {
+            $this->context->setClientCertificateChain($message->certificateChain);
+        }
 
         // Process and validate certificate chain
         $this->processCertificateChain($message->certificateChain);

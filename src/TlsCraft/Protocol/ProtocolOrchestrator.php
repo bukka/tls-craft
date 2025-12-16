@@ -212,6 +212,12 @@ class ProtocolOrchestrator
         // Add to context transcript
         $this->context->addHandshakeMessage($serializedMessage);
 
+        Logger::debug('sendHandshakeMessage: After adding to transcript', [
+            'message_type' => $message->type->name,
+            'transcript_count_after' => $this->context->getHandshakeTranscript()->count(),
+            'transcript_types_after' => $this->context->getHandshakeTranscript()->getAllTypes(),
+        ]);
+
         // Send record
         $record = $this->recordFactory->createHandshake($serializedMessage, $encrypted);
         $this->recordLayer->sendRecord($record);
@@ -250,7 +256,7 @@ class ProtocolOrchestrator
         }
 
         // 4. Certificate (server's certificate)
-        $certificateChain = $this->context->getCertificateChain();
+        $certificateChain = $this->context->getServerCertificateChain();
         $certificate = $this->messageFactory->createCertificate($certificateChain);
         $this->sendHandshakeMessage($certificate);
 
@@ -448,14 +454,10 @@ class ProtocolOrchestrator
      */
     private function sendClientCertificateFlight(): void
     {
-        Logger::debug('Sending client certificate flight');
-
-        // Check if we have a certificate configured
-        $hasCertificate = $this->context->getCertificateChain() && $this->context->getPrivateKey();
-
-        if ($hasCertificate) {
+        // Check if we have a private key configured
+        if ($this->context->getClientPrivateKey()) {
             // Send Certificate with the context from CertificateRequest
-            $certificateChain = $this->context->getCertificateChain();
+            $certificateChain = $this->context->getClientCertificateChain();
             $certificate = $this->messageFactory->createCertificate($certificateChain);
             $this->sendHandshakeMessage($certificate);
 
@@ -520,12 +522,13 @@ class ProtocolOrchestrator
     private function createServerCertificateVerifySignature(): string
     {
         $transcript = $this->context->getHandshakeTranscript();
+
         $signatureContext = $this->buildSignatureContext(
             $transcript->getThrough(HandshakeType::CERTIFICATE),
             false, // server
         );
 
-        $privateKey = $this->context->getPrivateKey();
+        $privateKey = $this->context->getServerPrivateKey();
         $signatureScheme = $this->context->getNegotiatedSignatureScheme();
 
         if (!$privateKey || !$signatureScheme) {
@@ -541,12 +544,19 @@ class ProtocolOrchestrator
     private function createClientCertificateVerifySignature(): string
     {
         $transcript = $this->context->getHandshakeTranscript();
+        $transcriptData = $transcript->getAll();
+
         $signatureContext = $this->buildSignatureContext(
-            $transcript->getThrough(HandshakeType::CERTIFICATE),
+            $transcriptData,
             true, // client
         );
 
-        $privateKey = $this->context->getPrivateKey();
+        Logger::debug('Built signature context', [
+            'context_length' => strlen($signatureContext),
+            'context' => bin2hex($signatureContext),
+        ]);
+
+        $privateKey = $this->context->getClientPrivateKey();
 
         // Choose signature scheme that matches both:
         // 1. Client certificate's key type
@@ -557,7 +567,11 @@ class ProtocolOrchestrator
             throw new CraftException('Missing client private key or signature scheme for CertificateVerify');
         }
 
-        return $this->certificateSigner->createSignature($signatureContext, $privateKey, $signatureScheme);
+        Logger::debug('Using signature scheme for client CertificateVerify', [
+            'scheme' => $signatureScheme->name,
+        ]);
+
+        return $this->certificateSigner->createSignature($signatureContext, $privateKey, $signatureScheme, $this->context->getClientCertificateChain()->getLeafCertificate());
     }
 
     /**
@@ -571,10 +585,22 @@ class ProtocolOrchestrator
 
         $hashAlgo = $this->context->getNegotiatedCipherSuite()->getHashAlgorithm();
 
-        return str_repeat("\x20", 64).
+        $transcriptHash = hash($hashAlgo, $transcript, true);
+
+        $context = str_repeat("\x20", 64).
             $contextString.
             "\x00".
-            hash($hashAlgo, $transcript, true);
+            $transcriptHash;
+
+        Logger::debug('Building signature context', [
+            'is_client' => $isClient,
+            'hash_algo' => $hashAlgo,
+            'transcript_length' => strlen($transcript),
+            'transcript_hash' => bin2hex($transcriptHash),
+            'context' => bin2hex($context),
+        ]);
+
+        return $context;
     }
 
     /**
@@ -582,7 +608,7 @@ class ProtocolOrchestrator
      */
     private function selectClientSignatureScheme(): ?SignatureScheme
     {
-        $clientCert = $this->context->getCertificateChain();
+        $clientCert = $this->context->getClientCertificateChain();
         if (!$clientCert) {
             return null;
         }

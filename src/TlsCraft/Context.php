@@ -36,8 +36,10 @@ class Context
     private ?string $serverRandom = null;
 
     // Certificate chain and private key
-    private ?CertificateChain $certificateChain = null;
-    private ?PrivateKey $privateKey = null;
+    private ?CertificateChain $serverCertificateChain = null;
+    private ?PrivateKey $serverPrivateKey = null;
+    private ?CertificateChain $clientCertificateChain = null;
+    private ?PrivateKey $clientPrivateKey = null;
     private array $clientSignatureAlgorithms = [];
     private array $serverSignatureAlgorithms = [];
 
@@ -372,11 +374,6 @@ class Context
         return $this->peerPublicKey;
     }
 
-    public function addIntermediateCertificate(array $parsedCert)
-    {
-        $this->certificateChain[] = $parsedCert;
-    }
-
     public function setCertificateRequestContext(string $context)
     {
         $this->certificateRequestContext = $context;
@@ -409,39 +406,62 @@ class Context
 
     // === Certificate and keys ===
 
-    public function setCertificateChain(CertificateChain $certificateChain): void
-    {
-        $this->certificateChain = $certificateChain;
-    }
-
-    public function setCertificateChainFromPEM(string $pemData): void
-    {
-        $this->certificateChain = $this->cryptoFactory->createCertificateChainFromPEM($pemData);
-    }
-
     public function setCertificateChainFromFile(string $path): void
     {
-        $this->certificateChain = $this->cryptoFactory->createCertificateChainFromFile($path);
-    }
-
-    public function setPrivateKeyFromPEM(string $pemData, ?string $passphrase = null): void
-    {
-        $this->privateKey = $this->cryptoFactory->createPrivateKeyFromPEM($pemData, $passphrase);
-
-        // Validate that key matches certificate if both are set
-        if ($this->certificateChain
-            && !$this->privateKey->matchesCertificate($this->certificateChain->getLeafCertificate())) {
-            throw new CryptoException('Private key does not match leaf certificate');
+        if ($this->isClient()) {
+            $this->setClientCertificateChainFromFile($path);
+        } else {
+            $this->setServerCertificateChainFromFile($path);
         }
     }
 
     public function setPrivateKeyFromFile(string $path, ?string $passphrase = null): void
     {
-        $this->privateKey = $this->cryptoFactory->createPrivateKeyFromFile($path, $passphrase);
+        if ($this->isClient()) {
+            $this->setClientPrivateKeyFromFile($path, $passphrase);
+        } else {
+            $this->setServerPrivateKeyFromFile($path, $passphrase);
+        }
+    }
+
+    public function setServerCertificateChain(CertificateChain $certificateChain): void
+    {
+        $this->serverCertificateChain = $certificateChain;
+    }
+
+    public function setServerCertificateChainFromFile(string $path): void
+    {
+        $this->serverCertificateChain = $this->cryptoFactory->createCertificateChainFromFile($path);
+    }
+
+    public function setServerPrivateKeyFromFile(string $path, ?string $passphrase = null): void
+    {
+        $this->serverPrivateKey = $this->cryptoFactory->createPrivateKeyFromFile($path, $passphrase);
 
         // Validate that key matches certificate if both are set
-        if ($this->certificateChain
-            && !$this->privateKey->matchesCertificate($this->certificateChain->getLeafCertificate())) {
+        if ($this->serverCertificateChain
+            && !$this->serverPrivateKey->matchesCertificate($this->serverCertificateChain->getLeafCertificate())) {
+            throw new CryptoException('Private key does not match leaf certificate');
+        }
+    }
+
+    public function setClientCertificateChain(CertificateChain $certificateChain): void
+    {
+        $this->clientCertificateChain = $certificateChain;
+    }
+
+    public function setClientCertificateChainFromFile(string $path): void
+    {
+        $this->clientCertificateChain = $this->cryptoFactory->createCertificateChainFromFile($path);
+    }
+
+    public function setClientPrivateKeyFromFile(string $path, ?string $passphrase = null): void
+    {
+        $this->clientPrivateKey = $this->cryptoFactory->createPrivateKeyFromFile($path, $passphrase);
+
+        // Validate that key matches certificate if both are set
+        if ($this->clientCertificateChain
+            && !$this->clientPrivateKey->matchesCertificate($this->clientCertificateChain->getLeafCertificate())) {
             throw new CryptoException('Private key does not match leaf certificate');
         }
     }
@@ -471,25 +491,34 @@ class Context
 
         // Load private key
         $this->setPrivateKeyFromFile($keyFile, $passphrase);
-
-        Logger::debug('Certificate loaded from config', [
-            'Chain length' => $this->certificateChain->getLength(),
-            'Key type' => $this->certificateChain->getKeyTypeName(),
-        ]);
     }
 
-    public function getCertificateChain(): CertificateChain
+    public function getServerCertificateChain(): CertificateChain
     {
-        if (!$this->certificateChain) {
+        if (!$this->serverCertificateChain) {
             throw new CraftException('Certificate chain not set');
         }
 
-        return $this->certificateChain;
+        return $this->serverCertificateChain;
     }
 
-    public function getPrivateKey(): ?PrivateKey
+    public function getServerPrivateKey(): ?PrivateKey
     {
-        return $this->privateKey;
+        return $this->serverPrivateKey;
+    }
+
+    public function getClientCertificateChain(): CertificateChain
+    {
+        if (!$this->clientCertificateChain) {
+            throw new CraftException('Certificate chain not set');
+        }
+
+        return $this->clientCertificateChain;
+    }
+
+    public function getClientPrivateKey(): ?PrivateKey
+    {
+        return $this->clientPrivateKey;
     }
 
     public function setClientSignatureAlgorithms(array $algorithms): void

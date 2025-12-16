@@ -148,7 +148,7 @@ class ClientHelloProcessor extends MessageProcessor
 
     private function selectSignatureScheme(array $clientSigAlgs): ?SignatureScheme
     {
-        $certificateChain = $this->context->getCertificateChain();
+        $certificateChain = $this->context->getServerCertificateChain();
         if (!$certificateChain) {
             Logger::error('No certificate chain configured');
 

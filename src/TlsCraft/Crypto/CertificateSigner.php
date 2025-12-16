@@ -5,12 +5,6 @@ namespace Php\TlsCraft\Crypto;
 use Php\TlsCraft\Exceptions\CryptoException;
 use Php\TlsCraft\Logger;
 
-use const OPENSSL_ALGO_SHA256;
-use const OPENSSL_ALGO_SHA384;
-use const OPENSSL_ALGO_SHA512;
-use const OPENSSL_PKCS1_PSS_PADDING;
-use const OPENSSL_RSA_PSS_SALTLEN_DIGEST;
-
 class CertificateSigner
 {
     public function createSignature(
@@ -37,7 +31,8 @@ class CertificateSigner
         Logger::debug('Signature created', [
             'Scheme' => $scheme->name,
             'Signature length' => strlen($signature),
-            'Signature (prefix)' => bin2hex(substr($signature, 0, 32)),
+            'Signature (raw)' => $signature,
+            'Signature (hex)' => bin2hex($signature),
         ]);
 
         return $signature;

@@ -71,7 +71,7 @@ class CertificateRequestProcessor extends MessageProcessor
      */
     private function negotiateSignatureScheme(array $serverSignatureAlgorithms): ?SignatureScheme
     {
-        $certificateChain = $this->context->getCertificateChain();
+        $certificateChain = $this->context->getClientCertificateChain();
         if (!$certificateChain) {
             Logger::error('No client certificate configured for mutual TLS');
 
