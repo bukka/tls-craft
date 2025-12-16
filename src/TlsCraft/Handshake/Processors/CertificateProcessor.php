@@ -31,12 +31,19 @@ class CertificateProcessor extends MessageProcessor
             'Chain length' => $message->certificateChain->getLength(),
         ]);
 
-        // Validate certificate request context (should be empty for server cert)
-        if (!empty($message->certificateRequestContext)) {
-            if (!$this->context->isClient()) {
+        // Validate certificate request context based on our role
+        if ($this->context->isClient()) {
+            // We are client - processing server's certificate
+            // Server certificates MUST have empty context
+            if (!empty($message->certificateRequestContext)) {
                 throw new ProtocolViolationException('Server Certificate message must have empty certificate_request_context');
             }
-            // For client certificates, context should match CertificateRequest
+        } else {
+            // We are server - processing client's certificate
+            // Client certificates MUST echo the context from our CertificateRequest
+            if (empty($message->certificateRequestContext)) {
+                throw new ProtocolViolationException('Client Certificate message must include certificate_request_context');
+            }
             $this->validateCertificateRequestContext($message->certificateRequestContext);
         }
 
@@ -62,6 +69,12 @@ class CertificateProcessor extends MessageProcessor
     private function validateCertificateRequestContext(string $context): void
     {
         $expectedContext = $this->context->getCertificateRequestContext();
+
+        Logger::debug('Validating certificate request context', [
+            'Actual Context' => $context,
+            'Expected Context' => $expectedContext,
+        ]);
+
         if ($context !== $expectedContext) {
             throw new ProtocolViolationException('Certificate request context mismatch');
         }
