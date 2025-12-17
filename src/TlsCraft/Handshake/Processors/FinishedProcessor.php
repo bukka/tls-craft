@@ -40,9 +40,8 @@ class FinishedProcessor extends MessageProcessor
             $handshakeSecret = $keySchedule->getServerHandshakeTrafficSecret();
         } else {
             // Get transcript hash including the client FinishedMessage message
-            $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
+            $transcriptHash = $this->context->getHandshakeTranscript()->getHashAllExceptLast(
                 $cipherSuite->getHashAlgorithm(),
-                HandshakeType::FINISHED,
             );
             // We're server verifying client's FinishedMessage
             $handshakeSecret = $keySchedule->getClientHandshakeTrafficSecret();
