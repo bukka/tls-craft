@@ -9,10 +9,12 @@ use Php\TlsCraft\Crypto\{CertificateChain,
     KeyPair,
     KeyShare,
     NamedGroup,
+    PreSharedKey,
     PrivateKey,
     RandomGenerator,
     SignatureScheme};
 use Php\TlsCraft\Exceptions\{CraftException, CryptoException, ProtocolViolationException};
+use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\HandshakeTranscript;
 use Php\TlsCraft\Handshake\KeySchedule;
 use Php\TlsCraft\Protocol\Version;
@@ -56,6 +58,16 @@ class Context
     private ?string $certificateRequestContext = null;
     private bool $certificateVerified;
     private bool $handshakeComplete = false;
+
+    // PSK/Session Resumption state
+    /** @var PreSharedKey[] */
+    private array $offeredPsks = [];
+    private ?PreSharedKey $selectedPsk = null;
+    private ?int $selectedPskIndex = null;
+    private bool $isResuming = false;
+    private ?string $resumptionMasterSecret = null;
+    /** @var int[] */
+    private array $pskKeyExchangeModes = [];
 
     private array $currentDecryptionKeys = [];
     private array $currentEncryptionKeys = [];
@@ -597,6 +609,125 @@ class Context
     public function resetWriteSequenceNumber(): void
     {
         $this->writeSequenceNumber = 0;
+    }
+
+    // === PSK Management ===
+    /**
+     * Add a PSK to be offered in ClientHello
+     */
+    public function addOfferedPsk(PreSharedKey $psk): void
+    {
+        $this->offeredPsks[] = $psk;
+    }
+
+    /**
+     * Get all offered PSKs
+     *
+     * @return PreSharedKey[]
+     */
+    public function getOfferedPsks(): array
+    {
+        return $this->offeredPsks;
+    }
+
+    /**
+     * Set the selected PSK (after server chooses one)
+     */
+    public function setSelectedPsk(PreSharedKey $psk, int $index): void
+    {
+        $this->selectedPsk = $psk;
+        $this->selectedPskIndex = $index;
+        $this->isResuming = true;
+    }
+
+    /**
+     * Get selected PSK
+     */
+    public function getSelectedPsk(): ?PreSharedKey
+    {
+        return $this->selectedPsk;
+    }
+
+    /**
+     * Get selected PSK index
+     */
+    public function getSelectedPskIndex(): ?int
+    {
+        return $this->selectedPskIndex;
+    }
+
+    /**
+     * Check if this is a PSK resumption handshake
+     */
+    public function isResuming(): bool
+    {
+        return $this->isResuming;
+    }
+
+    /**
+     * Set resumption flag
+     */
+    public function setIsResuming(bool $resuming): void
+    {
+        $this->isResuming = $resuming;
+    }
+
+    /**
+     * Check if any PSKs are configured
+     */
+    public function hasPsk(): bool
+    {
+        return !empty($this->offeredPsks) || $this->selectedPsk !== null;
+    }
+
+    /**
+     * Set resumption master secret (after handshake completes)
+     */
+    public function setResumptionMasterSecret(string $secret): void
+    {
+        $this->resumptionMasterSecret = $secret;
+    }
+
+    /**
+     * Get resumption master secret
+     */
+    public function getResumptionMasterSecret(): ?string
+    {
+        return $this->resumptionMasterSecret;
+    }
+
+    /**
+     * Set PSK key exchange modes from client
+     */
+    public function setPskKeyExchangeModes(array $modes): void
+    {
+        $this->pskKeyExchangeModes = $modes;
+    }
+
+    /**
+     * Get PSK key exchange modes
+     *
+     * @return int[]
+     */
+    public function getPskKeyExchangeModes(): array
+    {
+        return $this->pskKeyExchangeModes;
+    }
+
+    /**
+     * Check if client supports PSK with (EC)DHE
+     */
+    public function supportsPskDhe(): bool
+    {
+        return in_array(PskKeyExchangeModesExtension::PSK_DHE_KE, $this->pskKeyExchangeModes, true);
+    }
+
+    /**
+     * Check if client supports PSK-only mode
+     */
+    public function supportsPskOnly(): bool
+    {
+        return in_array(PskKeyExchangeModesExtension::PSK_KE, $this->pskKeyExchangeModes, true);
     }
 
     // === KeyUpdateMessage Response Flag ===

@@ -6,6 +6,7 @@ use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Crypto\KeyDerivation;
 use Php\TlsCraft\Logger;
 use Php\TlsCraft\Protocol\HandshakeType;
+use RuntimeException;
 
 class KeySchedule
 {
@@ -26,6 +27,15 @@ class KeySchedule
         $this->hashLength = $cipherSuite->getHashLength();
     }
 
+    // =========================================================================
+    // EARLY SECRET DERIVATION (PSK/Resumption)
+    // =========================================================================
+
+    /**
+     * Derive early secret without PSK (standard handshake)
+     *
+     * Early Secret = HKDF-Extract(salt=0, IKM=0)
+     */
     public function deriveEarlySecret(?string $psk = null): void
     {
         $ikm = $psk ?? str_repeat("\x00", $this->hashLength);
@@ -37,6 +47,128 @@ class KeySchedule
         ]);
     }
 
+    /**
+     * Derive early secret with PSK (resumption handshake)
+     *
+     * Early Secret = HKDF-Extract(salt=0, IKM=PSK or 0)
+     *
+     * @param string|null $psk Pre-shared key or null for zero IKM
+     */
+    public function deriveEarlySecretWithPsk(?string $psk): void
+    {
+        $ikm = $psk ?? str_repeat("\x00", $this->hashLength);
+        $this->earlySecret = $this->keyDerivation->hkdfExtract('', $ikm, $this->hashAlgorithm);
+
+        Logger::debug('EARLY SECRET (with PSK)', [
+            'has_psk' => $psk !== null,
+            'IKM' => $ikm,
+            'Early Secret' => $this->earlySecret,
+        ]);
+    }
+
+    /**
+     * Get early secret (for PSK binder derivation)
+     */
+    public function getEarlySecret(): ?string
+    {
+        return $this->earlySecret;
+    }
+
+    /**
+     * Check if early secret has been derived
+     */
+    public function hasEarlySecret(): bool
+    {
+        return $this->earlySecret !== null;
+    }
+
+    // =========================================================================
+    // PSK BINDER DERIVATION
+    // =========================================================================
+
+    /**
+     * Derive PSK binder key from early secret
+     *
+     * binder_key = Derive-Secret(early_secret, "ext binder" | "res binder", "")
+     *
+     * @param bool $isExternal True for external PSK, false for resumption PSK
+     */
+    public function derivePskBinderKey(bool $isExternal = false): string
+    {
+        if ($this->earlySecret === null) {
+            throw new RuntimeException('Cannot derive binder key: early secret not set');
+        }
+
+        $label = $isExternal ? 'ext binder' : 'res binder';
+        $binderKey = $this->keyDerivation->deriveSecret(
+            $this->earlySecret,
+            $label,
+            '',
+            $this->cipherSuite,
+        );
+
+        Logger::debug('PSK BINDER KEY', [
+            'is_external' => $isExternal,
+            'label' => $label,
+            'Binder Key' => $binderKey,
+        ]);
+
+        return $binderKey;
+    }
+
+    /**
+     * Derive finished key for PSK binder
+     *
+     * finished_key = HKDF-Expand-Label(binder_key, "finished", "", Hash.length)
+     */
+    public function deriveFinishedKeyForBinder(string $binderKey): string
+    {
+        $finishedKey = $this->keyDerivation->expandLabel(
+            $binderKey,
+            'finished',
+            '',
+            $this->hashLength,
+            $this->cipherSuite,
+        );
+
+        Logger::debug('PSK BINDER FINISHED KEY', [
+            'Finished Key' => $finishedKey,
+        ]);
+
+        return $finishedKey;
+    }
+
+    /**
+     * Calculate PSK binder value
+     *
+     * binder = HMAC(finished_key, Transcript-Hash(partial_transcript))
+     *
+     * @param string $finishedKey    The finished key derived from binder key
+     * @param string $transcriptData Raw transcript data (ClientHello without binders)
+     */
+    public function calculatePskBinder(string $finishedKey, string $transcriptData): string
+    {
+        $transcriptHash = hash($this->hashAlgorithm, $transcriptData, true);
+        $binder = hash_hmac($this->hashAlgorithm, $transcriptHash, $finishedKey, true);
+
+        Logger::debug('PSK BINDER', [
+            'Transcript length' => strlen($transcriptData),
+            'Transcript Hash' => $transcriptHash,
+            'Binder' => $binder,
+        ]);
+
+        return $binder;
+    }
+
+    // =========================================================================
+    // HANDSHAKE SECRET DERIVATION
+    // =========================================================================
+
+    /**
+     * Derive handshake secret from ECDHE shared secret
+     *
+     * handshake_secret = HKDF-Extract(Derive-Secret(early_secret, "derived", ""), ECDHE)
+     */
     public function deriveHandshakeSecret(string $sharedSecret): void
     {
         if ($this->earlySecret === null) {
@@ -63,28 +195,11 @@ class KeySchedule
         ]);
     }
 
-    public function deriveMasterSecret(): void
-    {
-        $derivedSecret = $this->keyDerivation->deriveSecret(
-            $this->handshakeSecret,
-            'derived',
-            '',
-            $this->cipherSuite,
-        );
-
-        // master_secret = HKDF-Extract(derived_secret2, 0^HashLen)
-        $this->masterSecret = $this->keyDerivation->hkdfExtract(
-            $derivedSecret,
-            str_repeat("\x00", $this->hashLength),
-            $this->hashAlgorithm,
-        );
-
-        Logger::debug('MASTER SECRET', [
-            'Derived Secret' => $derivedSecret,
-            'Handshake Secret' => $this->masterSecret,
-        ]);
-    }
-
+    /**
+     * Get client handshake traffic secret
+     *
+     * client_handshake_traffic_secret = Derive-Secret(handshake_secret, "c hs traffic", ClientHello...ServerHello)
+     */
     public function getClientHandshakeTrafficSecret(): string
     {
         $transcript = $this->transcript->getThrough(HandshakeType::SERVER_HELLO);
@@ -105,6 +220,11 @@ class KeySchedule
         return $derivedSecret;
     }
 
+    /**
+     * Get server handshake traffic secret
+     *
+     * server_handshake_traffic_secret = Derive-Secret(handshake_secret, "s hs traffic", ClientHello...ServerHello)
+     */
     public function getServerHandshakeTrafficSecret(): string
     {
         $transcript = $this->transcript->getThrough(HandshakeType::SERVER_HELLO);
@@ -125,6 +245,62 @@ class KeySchedule
         return $derivedSecret;
     }
 
+    /**
+     * Check if handshake keys have been derived
+     */
+    public function hasHandshakeKeys(): bool
+    {
+        return isset($this->handshakeSecret);
+    }
+
+    // =========================================================================
+    // MASTER SECRET DERIVATION
+    // =========================================================================
+
+    /**
+     * Derive master secret
+     *
+     * master_secret = HKDF-Extract(Derive-Secret(handshake_secret, "derived", ""), 0)
+     */
+    public function deriveMasterSecret(): void
+    {
+        $derivedSecret = $this->keyDerivation->deriveSecret(
+            $this->handshakeSecret,
+            'derived',
+            '',
+            $this->cipherSuite,
+        );
+
+        // master_secret = HKDF-Extract(derived_secret, 0^HashLen)
+        $this->masterSecret = $this->keyDerivation->hkdfExtract(
+            $derivedSecret,
+            str_repeat("\x00", $this->hashLength),
+            $this->hashAlgorithm,
+        );
+
+        Logger::debug('MASTER SECRET', [
+            'Derived Secret' => $derivedSecret,
+            'Master Secret' => $this->masterSecret,
+        ]);
+    }
+
+    /**
+     * Check if master secret has been derived
+     */
+    public function hasMasterSecret(): bool
+    {
+        return isset($this->masterSecret);
+    }
+
+    // =========================================================================
+    // APPLICATION TRAFFIC SECRETS
+    // =========================================================================
+
+    /**
+     * Get client application traffic secret
+     *
+     * client_application_traffic_secret = Derive-Secret(master_secret, "c ap traffic", ClientHello...server Finished)
+     */
     public function getClientApplicationTrafficSecret(): string
     {
         // Return stored secret if available (after key update), otherwise derive fresh
@@ -153,6 +329,11 @@ class KeySchedule
         return $secret;
     }
 
+    /**
+     * Get server application traffic secret
+     *
+     * server_application_traffic_secret = Derive-Secret(master_secret, "s ap traffic", ClientHello...server Finished)
+     */
     public function getServerApplicationTrafficSecret(): string
     {
         // Return stored secret if available (after key update), otherwise derive fresh
@@ -181,36 +362,64 @@ class KeySchedule
         return $secret;
     }
 
+    /**
+     * Set client application traffic secret (after key update)
+     */
     public function setClientApplicationTrafficSecret(string $secret): void
     {
         $this->currentClientApplicationTrafficSecret = $secret;
     }
 
+    /**
+     * Set server application traffic secret (after key update)
+     */
     public function setServerApplicationTrafficSecret(string $secret): void
     {
         $this->currentServerApplicationTrafficSecret = $secret;
     }
 
-    public function getFinishedKey(string $trafficSecret): string
+    /**
+     * Check if application secrets have been derived
+     */
+    public function hasApplicationSecrets(): bool
     {
-        return $this->keyDerivation->expandLabel(
+        return isset($this->masterSecret);
+    }
+
+    /**
+     * Update traffic secret (for KeyUpdate)
+     *
+     * application_traffic_secret_N+1 = HKDF-Expand-Label(application_traffic_secret_N, "traffic upd", "", Hash.length)
+     */
+    public function updateTrafficSecret(string $trafficSecret): string
+    {
+        $trafficSecret = $this->keyDerivation->expandLabel(
             $trafficSecret,
-            'finished',
+            'traffic upd',
             '',
             $this->hashLength,
             $this->cipherSuite,
         );
+
+        Logger::debug('UPDATE TRAFFIC SECRET', [
+            'Updated Traffic Secret' => $trafficSecret,
+            'Hash length' => $this->hashLength,
+            'Cipher suite' => $this->cipherSuite->name,
+        ]);
+
+        return $trafficSecret;
     }
 
-    public function calculateFinishedData(string $finishedKey, bool $forClient): string
-    {
-        // Hash the transcript up to and including the FINISHED message (should be only called by the client when creating FinishedMessage)
-        $transcriptData = $forClient ? $this->transcript->getAll() : $this->transcript->getThrough(HandshakeType::FINISHED);
-        $transcript = hash($this->hashAlgorithm, $transcriptData, true);
+    // =========================================================================
+    // TRAFFIC KEY DERIVATION
+    // =========================================================================
 
-        return hash_hmac($this->hashAlgorithm, $transcript, $finishedKey, true);
-    }
-
+    /**
+     * Derive traffic keys (key and IV) from traffic secret
+     *
+     * key = HKDF-Expand-Label(traffic_secret, "key", "", key_length)
+     * iv = HKDF-Expand-Label(traffic_secret, "iv", "", iv_length)
+     */
     public function deriveTrafficKeys(string $trafficSecret): array
     {
         $key = $this->keyDerivation->expandLabel(
@@ -239,37 +448,101 @@ class KeySchedule
         return ['key' => $key, 'iv' => $iv];
     }
 
-    public function updateTrafficSecret(string $trafficSecret): string
+    // =========================================================================
+    // FINISHED MESSAGE
+    // =========================================================================
+
+    /**
+     * Get finished key from traffic secret
+     *
+     * finished_key = HKDF-Expand-Label(traffic_secret, "finished", "", Hash.length)
+     */
+    public function getFinishedKey(string $trafficSecret): string
     {
-        $trafficSecret = $this->keyDerivation->expandLabel(
+        return $this->keyDerivation->expandLabel(
             $trafficSecret,
-            'traffic upd',
+            'finished',
             '',
             $this->hashLength,
             $this->cipherSuite,
         );
+    }
 
-        Logger::debug('DERIVE TRAFFIC KEYS', [
-            'Traffic secret' => $trafficSecret,
-            'Hash length' => $this->hashLength,
-            'Cipher suite' => $this->cipherSuite->name,
+    /**
+     * Calculate finished data (verify_data)
+     *
+     * verify_data = HMAC(finished_key, Transcript-Hash(messages))
+     *
+     * @param string $finishedKey The finished key
+     * @param bool   $forClient   True if calculating for client Finished, false for server
+     */
+    public function calculateFinishedData(string $finishedKey, bool $forClient): string
+    {
+        // Hash the transcript up to (but not including) the Finished message being created
+        $transcriptData = $forClient
+            ? $this->transcript->getAll()  // Client: all messages before client Finished
+            : $this->transcript->getThrough(HandshakeType::FINISHED);  // Server: up to server Finished
+
+        $transcript = hash($this->hashAlgorithm, $transcriptData, true);
+
+        return hash_hmac($this->hashAlgorithm, $transcript, $finishedKey, true);
+    }
+
+    // =========================================================================
+    // RESUMPTION (SESSION TICKETS)
+    // =========================================================================
+
+    /**
+     * Derive resumption master secret (used for creating session tickets)
+     *
+     * resumption_master_secret = Derive-Secret(master_secret, "res master", ClientHello...server Finished)
+     */
+    public function deriveResumptionMasterSecret(): string
+    {
+        if (!isset($this->masterSecret)) {
+            throw new RuntimeException('Cannot derive resumption master secret: master secret not set');
+        }
+
+        $transcript = $this->transcript->getThrough(HandshakeType::FINISHED);
+
+        $resumptionMasterSecret = $this->keyDerivation->deriveSecret(
+            $this->masterSecret,
+            'res master',
+            $transcript,
+            $this->cipherSuite,
+        );
+
+        Logger::debug('RESUMPTION MASTER SECRET', [
+            'Resumption Master Secret' => $resumptionMasterSecret,
+            'Transcript' => $transcript,
+            'Types' => $this->transcript->getTypesThrough(HandshakeType::FINISHED),
         ]);
 
-        return $trafficSecret;
+        return $resumptionMasterSecret;
     }
 
-    public function hasApplicationSecrets(): bool
+    /**
+     * Derive resumption secret from resumption master secret and ticket nonce
+     *
+     * PSK = HKDF-Expand-Label(resumption_master_secret, "resumption", ticket_nonce, Hash.length)
+     *
+     * This is the actual PSK that will be used in a resumed handshake
+     */
+    public function deriveResumptionSecret(string $resumptionMasterSecret, string $ticketNonce): string
     {
-        return isset($this->masterSecret);
-    }
+        $resumptionSecret = $this->keyDerivation->expandLabel(
+            $resumptionMasterSecret,
+            'resumption',
+            $ticketNonce,
+            $this->hashLength,
+            $this->cipherSuite,
+        );
 
-    public function hasMasterSecret(): bool
-    {
-        return isset($this->masterSecret);
-    }
+        Logger::debug('RESUMPTION SECRET (PSK)', [
+            'Ticket Nonce' => $ticketNonce,
+            'Resumption Secret' => $resumptionSecret,
+        ]);
 
-    public function hasHandshakeKeys(): bool
-    {
-        return isset($this->handshakeSecret);
+        return $resumptionSecret;
     }
 }

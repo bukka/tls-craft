@@ -73,6 +73,7 @@ enum ExtensionType: int
     case SESSION_TICKET = 35;
 
     // RFC 8446 (TLS 1.3)
+    case PRE_SHARED_KEY = 41;
     case SUPPORTED_VERSIONS = 43;
     case COOKIE = 44;
     case PSK_KEY_EXCHANGE_MODES = 45;

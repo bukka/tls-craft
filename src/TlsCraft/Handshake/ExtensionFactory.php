@@ -8,6 +8,8 @@ use Php\TlsCraft\Handshake\ExtensionParsers\{
     AlpnExtensionParser,
     CustomExtensionParser,
     KeyShareExtensionParser,
+    PreSharedKeyExtensionParser,
+    PskKeyExchangeModesExtensionParser,
     ServerNameExtensionParser,
     SignatureAlgorithmsExtensionParser,
     SupportedGroupsExtensionParser,
@@ -18,6 +20,8 @@ use Php\TlsCraft\Handshake\Extensions\{
     CustomExtension,
     Extension,
     KeyShareExtension,
+    PreSharedKeyExtension,
+    PskKeyExchangeModesExtension,
     ServerNameExtension,
     SignatureAlgorithmsExtension,
     SupportedGroupsExtension,
@@ -27,6 +31,8 @@ use Php\TlsCraft\Handshake\ExtensionSerializers\{
     AlpnExtensionSerializer,
     CustomExtensionSerializer,
     KeyShareExtensionSerializer,
+    PreSharedKeyExtensionSerializer,
+    PskKeyExchangeModesExtensionSerializer,
     ServerNameExtensionSerializer,
     SignatureAlgorithmsExtensionSerializer,
     SupportedGroupsExtensionSerializer,
@@ -39,6 +45,8 @@ class ExtensionFactory
     private ?AlpnExtensionParser $alpnExtensionParser = null;
     private ?CustomExtensionParser $customExtensionParser = null;
     private ?KeyShareExtensionParser $keyShareExtensionParser = null;
+    private ?PreSharedKeyExtensionParser $preSharedKeyExtensionParser = null;
+    private ?PskKeyExchangeModesExtensionParser $pskKeyExchangeModesExtensionParser = null;
     private ?ServerNameExtensionParser $serverNameExtensionParser = null;
     private ?SignatureAlgorithmsExtensionParser $signatureAlgorithmsExtensionParser = null;
     private ?SupportedGroupsExtensionParser $supportedGroupsExtensionParser = null;
@@ -48,6 +56,8 @@ class ExtensionFactory
     private ?AlpnExtensionSerializer $alpnExtensionSerializer = null;
     private ?CustomExtensionSerializer $customExtensionSerializer = null;
     private ?KeyShareExtensionSerializer $keyShareExtensionSerializer = null;
+    private ?PreSharedKeyExtensionSerializer $preSharedKeyExtensionSerializer = null;
+    private ?PskKeyExchangeModesExtensionSerializer $pskKeyExchangeModesExtensionSerializer = null;
     private ?ServerNameExtensionSerializer $serverNameExtensionSerializer = null;
     private ?SignatureAlgorithmsExtensionSerializer $signatureAlgorithmsExtensionSerializer = null;
     private ?SupportedGroupsExtensionSerializer $supportedGroupsExtensionSerializer = null;
@@ -72,6 +82,16 @@ class ExtensionFactory
     private function getKeyShareExtensionParser(): KeyShareExtensionParser
     {
         return $this->keyShareExtensionParser ??= new KeyShareExtensionParser($this->context);
+    }
+
+    private function getPreSharedKeyExtensionParser(): PreSharedKeyExtensionParser
+    {
+        return $this->preSharedKeyExtensionParser ??= new PreSharedKeyExtensionParser($this->context);
+    }
+
+    private function getPskKeyExchangeModesExtensionParser(): PskKeyExchangeModesExtensionParser
+    {
+        return $this->pskKeyExchangeModesExtensionParser ??= new PskKeyExchangeModesExtensionParser($this->context);
     }
 
     private function getServerNameExtensionParser(): ServerNameExtensionParser
@@ -109,6 +129,16 @@ class ExtensionFactory
     private function getKeyShareExtensionSerializer(): KeyShareExtensionSerializer
     {
         return $this->keyShareExtensionSerializer ??= new KeyShareExtensionSerializer($this->context);
+    }
+
+    private function getPreSharedKeyExtensionSerializer(): PreSharedKeyExtensionSerializer
+    {
+        return $this->preSharedKeyExtensionSerializer ??= new PreSharedKeyExtensionSerializer($this->context);
+    }
+
+    private function getPskKeyExchangeModesExtensionSerializer(): PskKeyExchangeModesExtensionSerializer
+    {
+        return $this->pskKeyExchangeModesExtensionSerializer ??= new PskKeyExchangeModesExtensionSerializer($this->context);
     }
 
     private function getServerNameExtensionSerializer(): ServerNameExtensionSerializer
@@ -190,7 +220,9 @@ class ExtensionFactory
             ExtensionType::SIGNATURE_ALGORITHMS => $this->getSignatureAlgorithmsExtensionParser()->parse($data),
             ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION => $this->getAlpnExtensionParser()->parse($data),
             ExtensionType::SUPPORTED_VERSIONS => $this->getSupportedVersionsExtensionParser()->parse($data),
+            ExtensionType::PSK_KEY_EXCHANGE_MODES => $this->getPskKeyExchangeModesExtensionParser()->parse($data),
             ExtensionType::KEY_SHARE => $this->getKeyShareExtensionParser()->parse($data),
+            ExtensionType::PRE_SHARED_KEY => $this->getPreSharedKeyExtensionParser()->parse($data),
             default => $this->getCustomExtensionParser()->parse($data, $type),
         };
     }
@@ -230,6 +262,8 @@ class ExtensionFactory
         return match (true) {
             $ext instanceof AlpnExtension => $this->getAlpnExtensionSerializer()->serialize($ext),
             $ext instanceof KeyShareExtension => $this->getKeyShareExtensionSerializer()->serialize($ext),
+            $ext instanceof PreSharedKeyExtension => $this->getPreSharedKeyExtensionSerializer()->serialize($ext),
+            $ext instanceof PskKeyExchangeModesExtension => $this->getPskKeyExchangeModesExtensionSerializer()->serialize($ext),
             $ext instanceof ServerNameExtension => $this->getServerNameExtensionSerializer()->serialize($ext),
             $ext instanceof SignatureAlgorithmsExtension => $this->getSignatureAlgorithmsExtensionSerializer()->serialize($ext),
             $ext instanceof SupportedGroupsExtension => $this->getSupportedGroupsExtensionSerializer()->serialize($ext),
