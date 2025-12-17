@@ -82,6 +82,7 @@ class HandshakeTranscript
      * Get all messages except the last N messages
      *
      * @param int $excludeCount Number of messages to exclude from the end
+     *
      * @return string Concatenated wire format
      */
     public function getAllExceptLast(int $excludeCount = 1): string
@@ -96,6 +97,7 @@ class HandshakeTranscript
         }
 
         $messages = array_slice($this->messages, 0, $count - $excludeCount);
+
         return $this->getMessagesData($messages);
     }
 
@@ -103,6 +105,7 @@ class HandshakeTranscript
      * Get types of all messages except the last N messages
      *
      * @param int $excludeCount Number of messages to exclude from the end
+     *
      * @return string Comma-separated message types
      */
     public function getAllTypesExceptLast(int $excludeCount = 1): string
@@ -117,6 +120,7 @@ class HandshakeTranscript
         }
 
         $messages = array_slice($this->messages, 0, $count - $excludeCount);
+
         return $this->getMessagesTypes($messages);
     }
 

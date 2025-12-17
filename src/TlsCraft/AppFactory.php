@@ -19,6 +19,7 @@ final class AppFactory
         if ($certificatePath && $privateKeyPath) {
             $config = ($config ?? new Config())->withCertificate($certificatePath, $privateKeyPath);
         }
+
         // You can still pass config/factory through; Client will build from them.
         return new Client($hostname, $port, $config, $connectionFactory, debug: $debug);
     }
@@ -41,6 +42,7 @@ final class AppFactory
             $config->setRequestClientCertificate(true);
             $config->withCustomCa($clientCaPath, $clientCaFile);
         }
+
         return new Server($config, $connectionFactory);
     }
 }
