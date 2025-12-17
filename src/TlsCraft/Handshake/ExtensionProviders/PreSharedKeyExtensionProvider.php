@@ -14,7 +14,7 @@ use Php\TlsCraft\Handshake\ExtensionType;
  * Binders must be calculated separately after the full ClientHello
  * (minus binders) is serialized.
  */
-class PreSharedKeyProvider implements ExtensionProvider
+class PreSharedKeyExtensionProvider implements ExtensionProvider
 {
     /**
      * @param PskIdentity[] $identities

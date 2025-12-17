@@ -9,7 +9,7 @@ use Php\TlsCraft\Handshake\Extensions\SignatureAlgorithmsExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Logger;
 
-class SignatureAlgorithmsProvider implements ExtensionProvider
+class SignatureAlgorithmsExtensionProvider implements ExtensionProvider
 {
     public function __construct(
         private array $signatureAlgorithms,
@@ -18,7 +18,7 @@ class SignatureAlgorithmsProvider implements ExtensionProvider
 
     public function create(Context $context): ?Extension
     {
-        Logger::debug('SignatureAlgorithmsProvider: Creating extension', [
+        Logger::debug('SignatureAlgorithmsExtensionProvider: Creating extension', [
             'algorithms' => $this->signatureAlgorithms,
             'is_client' => $context->isClient(),
         ]);

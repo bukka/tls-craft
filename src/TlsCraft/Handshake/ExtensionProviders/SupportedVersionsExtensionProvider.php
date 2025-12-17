@@ -9,7 +9,7 @@ use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Logger;
 use Php\TlsCraft\Protocol\Version;
 
-class SupportedVersionsProvider implements ExtensionProvider
+class SupportedVersionsExtensionProvider implements ExtensionProvider
 {
     public function __construct(
         private array $supportedVersions,
@@ -18,7 +18,7 @@ class SupportedVersionsProvider implements ExtensionProvider
 
     public function create(Context $context): ?Extension
     {
-        Logger::debug('SupportedVersionsProvider: Creating extension', [
+        Logger::debug('SupportedVersionsExtensionProvider: Creating extension', [
             'versions' => $this->supportedVersions,
             'is_client' => $context->isClient(),
         ]);

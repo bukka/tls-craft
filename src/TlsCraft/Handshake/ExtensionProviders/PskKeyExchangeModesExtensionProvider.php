@@ -9,7 +9,7 @@ use Php\TlsCraft\Handshake\ExtensionType;
 /**
  * Provider for PskKeyExchangeModes extension
  */
-class PskKeyExchangeModesProvider implements ExtensionProvider
+class PskKeyExchangeModesExtensionProvider implements ExtensionProvider
 {
     /**
      * @param int[] $modes

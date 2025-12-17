@@ -10,11 +10,11 @@ use Php\TlsCraft\Handshake\ClientHelloExtensionProviders;
 use Php\TlsCraft\Handshake\EncryptedExtensionsProviders;
 use Php\TlsCraft\Handshake\ExtensionProviders\AlpnExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
-use Php\TlsCraft\Handshake\ExtensionProviders\PskKeyExchangeModesProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\PskKeyExchangeModesExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\ServerNameExtensionProvider;
-use Php\TlsCraft\Handshake\ExtensionProviders\SignatureAlgorithmsProvider;
-use Php\TlsCraft\Handshake\ExtensionProviders\SupportedGroupsProvider;
-use Php\TlsCraft\Handshake\ExtensionProviders\SupportedVersionsProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\SignatureAlgorithmsExtensionProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\SupportedGroupsExtensionProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\SupportedVersionsExtensionProvider;
 use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\ServerHelloExtensionProviders;
 use Php\TlsCraft\Session\SessionStorage;
@@ -747,16 +747,16 @@ class Config
     {
         // MANDATORY TLS 1.3 extensions
         $this->clientHelloExtensions->addMany([
-            new SupportedVersionsProvider($this->supportedVersions),
-            new SupportedGroupsProvider($this->supportedGroups),
+            new SupportedVersionsExtensionProvider($this->supportedVersions),
+            new SupportedGroupsExtensionProvider($this->supportedGroups),
             new KeyShareExtensionProvider($this->supportedGroups),
-            new SignatureAlgorithmsProvider($this->signatureAlgorithms),
+            new SignatureAlgorithmsExtensionProvider($this->signatureAlgorithms),
         ]);
 
         // Add PSK key exchange modes if session resumption is enabled
         if ($this->enableSessionResumption) {
             $this->clientHelloExtensions->add(
-                new PskKeyExchangeModesProvider($this->pskKeyExchangeModes),
+                new PskKeyExchangeModesExtensionProvider($this->pskKeyExchangeModes),
             );
         }
 
@@ -795,7 +795,7 @@ class Config
     {
         // Server HelloExtensions - typically echo client's selections
         $this->serverHelloExtensions->addMany([
-            new SupportedVersionsProvider($this->supportedVersions),
+            new SupportedVersionsExtensionProvider($this->supportedVersions),
             new KeyShareExtensionProvider($this->supportedGroups),
         ]);
     }

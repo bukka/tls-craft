@@ -4,7 +4,7 @@ namespace Php\TlsCraft\Handshake\ExtensionParsers;
 
 use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 
-class PskKeyExchangeModesParser
+class PskKeyExchangeModesExtensionParser
 {
     public function parse(string $data): PskKeyExchangeModesExtension
     {

@@ -5,7 +5,7 @@ namespace Php\TlsCraft\Handshake\ExtensionParsers;
 use Php\TlsCraft\Crypto\PskIdentity;
 use Php\TlsCraft\Handshake\Extensions\PreSharedKeyExtension;
 
-class PreSharedKeyParser
+class PreSharedKeyExtensionParser
 {
     public function parse(string $data, bool $isClientHello): PreSharedKeyExtension
     {
