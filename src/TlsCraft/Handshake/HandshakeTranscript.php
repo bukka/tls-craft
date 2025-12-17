@@ -174,6 +174,14 @@ class HandshakeTranscript
     }
 
     /**
+     * Get transcript hash over all messages
+     */
+    public function getHashAllExceptLast(string $hashAlgorithm, int $excludeCount = 1): string
+    {
+        return hash($hashAlgorithm, $this->getAllExceptLast($excludeCount), true);
+    }
+
+    /**
      * Get transcript hash through (and including) a specific message type
      */
     public function getHashThrough(string $hashAlgorithm, HandshakeType $throughType): string

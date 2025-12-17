@@ -117,10 +117,16 @@ class CertificateVerifyProcessor extends MessageProcessor
         // - Transcript hash
 
         $contextString = $this->getContextString();
-        $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
-            $this->context->getNegotiatedCipherSuite()->getHashAlgorithm(),
-            HandshakeType::CERTIFICATE,
-        );
+        $hashAlgorithm = $this->context->getNegotiatedCipherSuite()->getHashAlgorithm();
+        $handshakeTranscript = $this->context->getHandshakeTranscript();
+        if ($this->context->isClient()) {
+            $transcriptHash = $handshakeTranscript->getHashThrough(
+                $hashAlgorithm,
+                HandshakeType::CERTIFICATE,
+            );
+        } else {
+            $transcriptHash = $handshakeTranscript->getHashAllExceptLast($hashAlgorithm);
+        }
 
         return str_repeat("\x20", 64).
             $contextString.
