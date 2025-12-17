@@ -5,15 +5,19 @@ namespace Php\TlsCraft;
 use Closure;
 use InvalidArgumentException;
 use Php\TlsCraft\Crypto\CipherSuite;
+use Php\TlsCraft\Crypto\PreSharedKey;
 use Php\TlsCraft\Handshake\ClientHelloExtensionProviders;
 use Php\TlsCraft\Handshake\EncryptedExtensionsProviders;
 use Php\TlsCraft\Handshake\ExtensionProviders\AlpnExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\PskKeyExchangeModesProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\ServerNameExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SignatureAlgorithmsProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SupportedGroupsProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SupportedVersionsProvider;
+use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\ServerHelloExtensionProviders;
+use Php\TlsCraft\Session\SessionStorage;
 use Php\TlsCraft\State\ProtocolValidator;
 
 class Config
@@ -55,6 +59,33 @@ class Config
 
     // Client certificate request (server-side only)
     private bool $requestClientCertificate = false;
+
+    // === PSK / Session Resumption Configuration ===
+
+    // Enable/disable session resumption
+    private bool $enableSessionResumption = true;
+
+    // Session ticket lifetime in seconds (default 24 hours)
+    private int $sessionLifetimeSeconds = 86400;
+
+    // Maximum early data size (0 = disabled, for future 0-RTT support)
+    private int $maxEarlyDataSize = 0;
+
+    // PSK key exchange modes (default: PSK with (EC)DHE)
+    private array $pskKeyExchangeModes = [PskKeyExchangeModesExtension::PSK_DHE_KE];
+
+    // Session storage backend (null = no storage, tickets won't be saved)
+    private ?SessionStorage $sessionStorage = null;
+
+    // External PSKs (manually configured pre-shared keys)
+    /** @var PreSharedKey[] */
+    private array $externalPsks = [];
+
+    // Callback for session ticket received (client-side)
+    private ?Closure $onSessionTicket = null;
+
+    // Callback for PSK selection (server-side)
+    private ?Closure $onPskSelection = null;
 
     public function __construct(
         ?array $supportedVersions = null,
@@ -411,6 +442,178 @@ class Config
         return $this->requestClientCertificate;
     }
 
+    // === PSK / Session Resumption Configuration ===
+
+    /**
+     * Enable or disable session resumption
+     */
+    public function setEnableSessionResumption(bool $enable): self
+    {
+        $this->enableSessionResumption = $enable;
+
+        return $this;
+    }
+
+    public function isSessionResumptionEnabled(): bool
+    {
+        return $this->enableSessionResumption;
+    }
+
+    /**
+     * Set session ticket lifetime in seconds
+     */
+    public function setSessionLifetime(int $seconds): self
+    {
+        if ($seconds < 0) {
+            throw new InvalidArgumentException('Session lifetime must be non-negative');
+        }
+
+        $this->sessionLifetimeSeconds = $seconds;
+
+        return $this;
+    }
+
+    public function getSessionLifetime(): int
+    {
+        return $this->sessionLifetimeSeconds;
+    }
+
+    /**
+     * Set maximum early data size (0 = disabled)
+     * For future 0-RTT support
+     */
+    public function setMaxEarlyDataSize(int $size): self
+    {
+        if ($size < 0) {
+            throw new InvalidArgumentException('Max early data size must be non-negative');
+        }
+
+        $this->maxEarlyDataSize = $size;
+
+        return $this;
+    }
+
+    public function getMaxEarlyDataSize(): int
+    {
+        return $this->maxEarlyDataSize;
+    }
+
+    /**
+     * Set PSK key exchange modes
+     *
+     * @param int[] $modes Array of PskKeyExchangeModesExtension constants
+     */
+    public function setPskKeyExchangeModes(array $modes): self
+    {
+        if (empty($modes)) {
+            throw new InvalidArgumentException('At least one PSK key exchange mode must be specified');
+        }
+
+        $this->pskKeyExchangeModes = $modes;
+
+        return $this;
+    }
+
+    /**
+     * @return int[]
+     */
+    public function getPskKeyExchangeModes(): array
+    {
+        return $this->pskKeyExchangeModes;
+    }
+
+    /**
+     * Set session storage backend
+     */
+    public function setSessionStorage(?SessionStorage $storage): self
+    {
+        $this->sessionStorage = $storage;
+
+        return $this;
+    }
+
+    public function getSessionStorage(): ?SessionStorage
+    {
+        return $this->sessionStorage;
+    }
+
+    public function hasSessionStorage(): bool
+    {
+        return $this->sessionStorage !== null;
+    }
+
+    /**
+     * Add an external PSK (manually configured pre-shared key)
+     */
+    public function addExternalPsk(PreSharedKey $psk): self
+    {
+        $this->externalPsks[] = $psk;
+
+        return $this;
+    }
+
+    /**
+     * Add external PSK by identity and secret
+     */
+    public function addExternalPskByIdentity(
+        string $identity,
+        string $secret,
+        CipherSuite $cipherSuite,
+    ): self {
+        return $this->addExternalPsk(PreSharedKey::external($identity, $secret, $cipherSuite));
+    }
+
+    /**
+     * Get all configured external PSKs
+     *
+     * @return PreSharedKey[]
+     */
+    public function getExternalPsks(): array
+    {
+        return $this->externalPsks;
+    }
+
+    /**
+     * Check if any external PSKs are configured
+     */
+    public function hasExternalPsks(): bool
+    {
+        return !empty($this->externalPsks);
+    }
+
+    /**
+     * Set callback for when session ticket is received (client-side)
+     * Callback signature: function(NewSessionTicketMessage $ticket): void
+     */
+    public function setOnSessionTicket(?Closure $callback): self
+    {
+        $this->onSessionTicket = $callback;
+
+        return $this;
+    }
+
+    public function getOnSessionTicket(): ?Closure
+    {
+        return $this->onSessionTicket;
+    }
+
+    /**
+     * Set callback for PSK selection (server-side)
+     * Callback signature: function(array $offeredIdentities): ?int
+     * Should return the index of the selected PSK or null to reject all
+     */
+    public function setOnPskSelection(?Closure $callback): self
+    {
+        $this->onPskSelection = $callback;
+
+        return $this;
+    }
+
+    public function getOnPskSelection(): ?Closure
+    {
+        return $this->onPskSelection;
+    }
+
     // === Convenience Methods for Common Configurations ===
 
     /**
@@ -495,6 +698,44 @@ class Config
         return $this;
     }
 
+    /**
+     * Configure session resumption with storage backend
+     */
+    public function withSessionResumption(SessionStorage $storage, int $lifetimeSeconds = 86400): self
+    {
+        return $this->setEnableSessionResumption(true)
+            ->setSessionStorage($storage)
+            ->setSessionLifetime($lifetimeSeconds);
+    }
+
+    /**
+     * Disable session resumption
+     */
+    public function withoutSessionResumption(): self
+    {
+        return $this->setEnableSessionResumption(false)
+            ->setSessionStorage(null);
+    }
+
+    /**
+     * Configure to support PSK-only mode (no (EC)DHE)
+     */
+    public function withPskOnlyMode(): self
+    {
+        return $this->setPskKeyExchangeModes([PskKeyExchangeModesExtension::PSK_KE]);
+    }
+
+    /**
+     * Configure to support both PSK modes (with and without DHE)
+     */
+    public function withBothPskModes(): self
+    {
+        return $this->setPskKeyExchangeModes([
+            PskKeyExchangeModesExtension::PSK_KE,
+            PskKeyExchangeModesExtension::PSK_DHE_KE,
+        ]);
+    }
+
     // Original extension setup methods - kept intact
     private function addDefaultExtensions(): void
     {
@@ -511,6 +752,14 @@ class Config
             new KeyShareExtensionProvider($this->supportedGroups),
             new SignatureAlgorithmsProvider($this->signatureAlgorithms),
         ]);
+
+        // Add PSK key exchange modes if session resumption is enabled
+        if ($this->enableSessionResumption) {
+            $this->clientHelloExtensions->add(
+                new PskKeyExchangeModesProvider($this->pskKeyExchangeModes),
+            );
+        }
+
         if (null !== $this->serverName) {
             $this->addServerName($this->serverName);
         }
