@@ -249,6 +249,98 @@ class ServerIntegrationTest extends TestCase
     }
 
     /**
+     * Test server requesting and verifying client certificate (mutual TLS)
+     */
+    #[Test]
+    public function testServerRequestsClientCertificate(): void
+    {
+        $generator = TestCertificateGenerator::forECC('prime256v1');
+
+        // Generate server certificate
+        $serverCerts = $generator->generateServerCertificateFiles('localhost');
+
+        // Generate client certificate (signed by same CA)
+        $clientCerts = $generator->generateClientCertificateFiles('client');
+
+        // Configure TlsCraft server to REQUEST client certificate
+        $config = new Config(
+            supportedVersions: ['TLS 1.3'],
+            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+        );
+        $config->withCertificate($serverCerts['cert_file'], $serverCerts['key_file'])
+            ->withCustomCa(caFile: $generator->getCACertificateFile())  // Use caFile parameter
+            ->setRequestClientCertificate(true);  // Enable mutual TLS
+
+        // Create TlsCraft server
+        $server = new Server($config);
+        $server->listen('127.0.0.1', 0);
+        $serverAddress = $server->getAddress();
+
+        // Start OpenSSL client that PROVIDES certificate
+        $clientCode = $this->createMutualTlsClientCode(
+            $clientCerts['cert_file'],
+            $clientCerts['key_file'],
+            $generator->getCACertificateFile(),
+        );
+        $this->runner->startClientProcess($clientCode, $serverAddress);
+        $this->runner->notifyClientReady();
+
+        // Accept connection - should succeed with client cert
+        $session = $server->accept(30.0);
+
+        // Verify client certificate was provided and validated
+        $context = $session->getContext();
+        $this->assertTrue(
+            $context->isCertificateVerified(),
+            'Client certificate should be verified',
+        );
+
+        $testMessage = $session->receive(5);
+        $this->assertEquals('mTLS!', $testMessage, 'Server should receive test message');
+
+        $session->send('Echo: '.$testMessage);
+        $session->close();
+        $server->close();
+
+        $this->assertTrue(
+            $this->runner->waitForCompletion(TestRunner::ROLE_CLIENT, 15),
+            'Client should complete successfully',
+        );
+    }
+
+    /**
+     * Test server rejects connection when client doesn't provide required certificate
+     */
+    #[Test]
+    public function testServerRejectsConnectionWithoutClientCertificate(): void
+    {
+        $generator = TestCertificateGenerator::forECC('prime256v1');
+        $serverCerts = $generator->generateServerCertificateFiles('localhost');
+
+        // Configure server to REQUIRE client certificate
+        $config = new Config(
+            supportedVersions: ['TLS 1.3'],
+            cipherSuites: [CipherSuite::TLS_AES_128_GCM_SHA256->value],
+        );
+        $config->withCertificate($serverCerts['cert_file'], $serverCerts['key_file'])
+            ->withCustomCa(caFile: $generator->getCACertificateFile())
+            ->setRequestClientCertificate(true);
+
+        $server = new Server($config);
+        $server->listen('127.0.0.1', 0);
+        $serverAddress = $server->getAddress();
+
+        // Start client WITHOUT certificate
+        $clientCode = $this->createClientCode('test');
+        $this->runner->startClientProcess($clientCode, $serverAddress);
+        $this->runner->notifyClientReady();
+
+        // Server should reject the connection
+        $this->expectException(CraftException::class);
+        $server->accept(30.0);
+    }
+
+    /**
      * Create OpenSSL stream client code for subprocess
      * Client waits for server to notify it's ready before connecting
      */
@@ -308,5 +400,60 @@ class ServerIntegrationTest extends TestCase
 
             '.$sendReceive.'
         ';
+    }
+
+    /**
+     * Create OpenSSL client code that provides client certificate for mutual TLS
+     */
+    private function createMutualTlsClientCode(
+        string $clientCertFile,
+        string $clientKeyFile,
+        string $serverCaFile,
+    ): string {
+        return '
+        // Wait for server to notify it is ready
+        $runner = new Php\TlsCraft\Tests\Integration\TestRunner(true);
+        $runner->waitForServerNotification();
+
+        $context = stream_context_create([
+            "ssl" => [
+                "local_cert" => "'.$clientCertFile.'",
+                "local_pk" => "'.$clientKeyFile.'",
+                "verify_peer" => true,
+                "verify_peer_name" => false,
+                "allow_self_signed" => false,
+                "cafile" => "'.$serverCaFile.'",
+                "crypto_method" => STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT,
+            ]
+        ]);
+
+        $client = @stream_socket_client(
+            "tls://{{ADDR}}",
+            $errno,
+            $errstr,
+            10,
+            STREAM_CLIENT_CONNECT,
+            $context
+        );
+
+        if ($client === false) {
+            $errors = [];
+            while ($error = openssl_error_string()) {
+                $errors[] = $error;
+            }
+            die("Failed to connect: $errstr ($errno). OpenSSL errors: " . implode(", ", $errors));
+        }
+
+        // Send test message
+        fwrite($client, "mTLS!");
+        $response = fread($client, 1024);
+
+        if ($response !== "Echo: mTLS!") {
+            fclose($client);
+            die("Unexpected response: $response");
+        }
+
+        fclose($client);
+    ';
     }
 }
