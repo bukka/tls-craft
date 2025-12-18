@@ -10,6 +10,7 @@ use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\MessageSerializer;
 use Php\TlsCraft\Handshake\ProcessorFactory;
 use Php\TlsCraft\Handshake\ProcessorManager;
+use Php\TlsCraft\Handshake\PskBinderCalculator;
 use Php\TlsCraft\Record\LayerFactory;
 use Php\TlsCraft\Record\RecordFactory;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -64,12 +65,25 @@ final class DependencyContainer
 
     public function getContext(): Context
     {
-        return $this->context ??= new Context(
+        if ($this->context !== null) {
+            return $this->context;
+        }
+
+        $context = new Context(
             $this->isClient,
             $this->getConfig(),
             $this->getCryptoFactory(),
             new HandshakeTranscript(),
         );
+
+        // Set PSK binder calculator after KeySchedule is available
+        // Note: KeySchedule is created when cipher suite is negotiated,
+        // so we create a lazy wrapper here
+        $context->setPskBinderCalculator(
+            new PskBinderCalculator($context),
+        );
+
+        return $this->context = $context;
     }
 
     public function getValidator(): ProtocolValidator

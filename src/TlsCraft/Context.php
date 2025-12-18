@@ -17,7 +17,9 @@ use Php\TlsCraft\Exceptions\{CraftException, CryptoException, ProtocolViolationE
 use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\HandshakeTranscript;
 use Php\TlsCraft\Handshake\KeySchedule;
+use Php\TlsCraft\Handshake\PskBinderCalculator;
 use Php\TlsCraft\Protocol\Version;
+use Php\TlsCraft\Session\SessionTicket;
 
 /**
  * Updated Context with missing methods
@@ -66,8 +68,11 @@ class Context
     private ?int $selectedPskIndex = null;
     private bool $isResuming = false;
     private ?string $resumptionMasterSecret = null;
+    private ?PskBinderCalculator $pskBinderCalculator = null;
     /** @var int[] */
     private array $pskKeyExchangeModes = [];
+    /** @var SessionTicket[] */
+    private array $sessionTickets = [];
 
     private array $currentDecryptionKeys = [];
     private array $currentEncryptionKeys = [];
@@ -611,7 +616,7 @@ class Context
         $this->writeSequenceNumber = 0;
     }
 
-    // === PSK Management ===
+    // === PSK / Session Management ===
     /**
      * Add a PSK to be offered in ClientHello
      */
@@ -673,11 +678,49 @@ class Context
     }
 
     /**
+     * Set PSK binder calculator
+     */
+    public function setPskBinderCalculator(PskBinderCalculator $calculator): void
+    {
+        $this->pskBinderCalculator = $calculator;
+    }
+
+    /**
+     * Get PSK binder calculator
+     */
+    public function getPskBinderCalculator(): PskBinderCalculator
+    {
+        if ($this->pskBinderCalculator === null) {
+            throw new CraftException('PSK binder calculator not initialized');
+        }
+
+        return $this->pskBinderCalculator;
+    }
+
+    /**
      * Check if any PSKs are configured
      */
     public function hasPsk(): bool
     {
         return !empty($this->offeredPsks) || $this->selectedPsk !== null;
+    }
+
+    /**
+     * Add session ticket metadata (for obfuscated age calculation)
+     */
+    public function addSessionTicket(SessionTicket $ticket): void
+    {
+        $this->sessionTickets[] = $ticket;
+    }
+
+    /**
+     * Get all session tickets
+     *
+     * @return SessionTicket[]
+     */
+    public function getSessionTickets(): array
+    {
+        return $this->sessionTickets;
     }
 
     /**

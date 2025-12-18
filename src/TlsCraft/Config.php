@@ -10,6 +10,7 @@ use Php\TlsCraft\Handshake\ClientHelloExtensionProviders;
 use Php\TlsCraft\Handshake\EncryptedExtensionsProviders;
 use Php\TlsCraft\Handshake\ExtensionProviders\AlpnExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\PreSharedKeyExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\PskKeyExchangeModesExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\ServerNameExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SignatureAlgorithmsExtensionProvider;
@@ -765,6 +766,12 @@ class Config
         }
         if (!empty($this->supportedProtocols)) {
             $this->addAlpn($this->supportedProtocols);
+        }
+
+        // Add PSK extension provider LAST (will be skipped if no PSKs available)
+        // This MUST be the last extension per RFC 8446
+        if ($this->enableSessionResumption) {
+            $this->clientHelloExtensions->add(new PreSharedKeyExtensionProvider());
         }
     }
 

@@ -26,21 +26,33 @@ class PreSharedKeyExtensionSerializer extends AbstractExtensionSerializer
         // Identities
         $identitiesData = '';
         foreach ($extension->identities as $identity) {
-            // identity length (2 bytes) + identity + obfuscated_ticket_age (4 bytes)
             $identitiesData .= pack('n', $identity->getLength());
             $identitiesData .= $identity->identity;
             $identitiesData .= pack('N', $identity->obfuscatedTicketAge);
         }
 
-        // Binders
+        // Binders (use actual binders or zeros if not set)
         $bindersData = '';
-        foreach ($extension->binders as $binder) {
-            // binder length (1 byte) + binder
-            $bindersData .= pack('C', strlen($binder));
-            $bindersData .= $binder;
+        $binderCount = count($extension->identities);
+
+        if ($extension->hasBinders()) {
+            // Use actual binders
+            foreach ($extension->binders as $binder) {
+                $bindersData .= pack('C', strlen($binder));
+                $bindersData .= $binder;
+            }
+        } else {
+            // Use placeholder zeros (for first pass calculation)
+            // Binder length depends on the hash algorithm of the cipher suite
+            // For now, use 32 bytes (SHA256) as default
+            $binderLength = $this->getBinderLength();
+            for ($i = 0; $i < $binderCount; ++$i) {
+                $bindersData .= pack('C', $binderLength);
+                $bindersData .= str_repeat("\x00", $binderLength);
+            }
         }
 
-        // Combine: identities_length (2 bytes) + identities + binders_length (2 bytes) + binders
+        // Combine
         $data = pack('n', strlen($identitiesData)).$identitiesData;
         $data .= pack('n', strlen($bindersData)).$bindersData;
 
@@ -52,15 +64,14 @@ class PreSharedKeyExtensionSerializer extends AbstractExtensionSerializer
      */
     private function serializeServerExtension(PreSharedKeyExtension $extension): string
     {
-        // Just the selected identity index (2 bytes)
         return pack('n', $extension->selectedIdentity);
     }
 
     /**
-     * Serialize without binders (for binder calculation)
-     * Returns serialized identities portion only
+     * Serialize only identities portion (without binders section)
+     * Used for binder calculation
      */
-    public function serializeWithoutBinders(PreSharedKeyExtension $extension): string
+    public function serializeIdentitiesOnly(PreSharedKeyExtension $extension): string
     {
         $identitiesData = '';
         foreach ($extension->identities as $identity) {
@@ -70,5 +81,22 @@ class PreSharedKeyExtensionSerializer extends AbstractExtensionSerializer
         }
 
         return pack('n', strlen($identitiesData)).$identitiesData;
+    }
+
+    /**
+     * Get binder length based on cipher suite hash algorithm
+     */
+    private function getBinderLength(): int
+    {
+        // Get from context's negotiated cipher suite or offered PSKs
+        $offeredPsks = $this->context->getOfferedPsks();
+
+        if (!empty($offeredPsks)) {
+            // Use first PSK's cipher suite to determine hash length
+            return $offeredPsks[0]->cipherSuite->getHashLength();
+        }
+
+        // Default to SHA256 (32 bytes)
+        return 32;
     }
 }

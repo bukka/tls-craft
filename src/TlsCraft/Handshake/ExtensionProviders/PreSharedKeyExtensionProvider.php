@@ -16,39 +16,35 @@ use Php\TlsCraft\Handshake\ExtensionType;
  */
 class PreSharedKeyExtensionProvider implements ExtensionProvider
 {
-    /**
-     * @param PskIdentity[] $identities
-     */
-    public function __construct(
-        private readonly array $identities,
-    ) {
-    }
-
     public function create(Context $context): ?PreSharedKeyExtension
     {
-        if (empty($this->identities)) {
+        // Collect PSK identities from context
+        $offeredPsks = $context->getOfferedPsks();
+
+        if (empty($offeredPsks)) {
+            // No PSKs available
             return null;
+        }
+
+        // Build identity array from PSKs
+        $identities = [];
+        foreach ($offeredPsks as $psk) {
+            if ($psk->identity === $psk->identity) { // Session ticket
+                // Create identity from ticket
+                $identities[] = PskIdentity::fromTicket(
+                    $psk->identity,
+                    0, // ageAdd - will be set from ticket metadata
+                    time(), // timestamp - will be set from ticket metadata
+                );
+            } else {
+                // External PSK
+                $identities[] = PskIdentity::external($psk->identity);
+            }
         }
 
         // Return extension without binders
         // Binders will be added later during ClientHello construction
-        return PreSharedKeyExtension::forClient($this->identities);
-    }
-
-    /**
-     * Check if this provider has identities to offer
-     */
-    public function hasIdentities(): bool
-    {
-        return !empty($this->identities);
-    }
-
-    /**
-     * Get identity count
-     */
-    public function getIdentityCount(): int
-    {
-        return count($this->identities);
+        return PreSharedKeyExtension::forClient($identities);
     }
 
     public function getExtensionType(): ExtensionType
