@@ -28,6 +28,6 @@ if ($client === false) {
         echo $error."\n";
     }
 } else {
-    fwrite($client, 'ctest');
+    fwrite($client, "test\n");
     var_dump(fread($client, 5));
 }

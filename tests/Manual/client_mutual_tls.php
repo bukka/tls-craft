@@ -14,7 +14,7 @@ $keyFile = __DIR__."/certs/client_$type.key";
 $client = AppFactory::createClient('localhost', 4433, $certFile, $keyFile, debug: true);
 $session = $client->connect(30000);
 
-$session->send('ctest');
+$session->send("test\n");
 var_dump($session->receive(5));
 
 $session->close();

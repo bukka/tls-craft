@@ -10,7 +10,7 @@ Logger::enable();
 $client = AppFactory::createClient('localhost', 4433, debug: true);
 $session = $client->connect(30000);
 
-$session->send('ctest');
+$session->send("test\n");
 var_dump($session->receive(5));
 
 $session->close();

@@ -4,10 +4,7 @@ require_once __DIR__.'/../../vendor/autoload.php';
 
 use Php\TlsCraft\AppFactory;
 use Php\TlsCraft\Config;
-use Php\TlsCraft\Logger;
 use Php\TlsCraft\Session\Storage\FileSessionStorage;
-
-Logger::enable();
 
 $hostname = 'localhost';
 $port = 4433;
@@ -30,7 +27,7 @@ try {
         hostname: $hostname,
         port: $port,
         config: $config,
-        debug: false,
+        debug: true,
     );
 
     $session = $client->connect();
@@ -42,12 +39,11 @@ try {
         echo "Full handshake completed\n";
     }
 
-    $message = 'client-test-'.time();
+    $message = "testu\n";
     $session->send($message);
     echo "Sent: $message\n";
 
-    $response = $session->receive(1024);
-    echo 'Received: '.var_export($response, true)."\n";
+    echo 'Read: '.$session->receive(6);
 
     $session->close();
     echo "Connection closed\n\n";
@@ -68,7 +64,7 @@ try {
         hostname: $hostname,
         port: $port,
         config: $config,
-        debug: false,
+        debug: true,
     );
 
     $session = $client->connect();
@@ -80,12 +76,9 @@ try {
         echo "Full handshake (resumption failed)\n";
     }
 
-    $message = 'client-test-resumed-'.time();
+    $message = "client-test-resumed\n";
     $session->send($message);
     echo "Sent: $message\n";
-
-    $response = $session->receive(1024);
-    echo 'Received: '.var_export($response, true)."\n";
 
     $session->close();
     echo "Connection closed\n";

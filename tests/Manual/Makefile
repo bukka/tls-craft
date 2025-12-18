@@ -167,13 +167,13 @@ cert-mtls-ec: init ## Generate CA, server, and client ECC certificates for mutua
 # Test servers (TLS 1.3 only)
 test-server-rsa: ## Start OpenSSL s_server with RSA certificate (TLS 1.3)
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, RSA) on port $(PORT)...$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -debug"
-	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -debug
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -debug -rev"
+	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -debug -rev
 
 test-server-ec: ## Start OpenSSL s_server with ECC certificate (TLS 1.3)
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, ECC) on port $(PORT)...$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -debug"
-	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -debug
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -debug -rev"
+	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -debug -rev
 
 test-server: test-server-rsa ## Start OpenSSL s_server (default: RSA)
 
@@ -199,8 +199,8 @@ test-server-mtls-ec: ## Start OpenSSL s_server with mutual TLS using ECC certifi
 
 test-server-verbose: ## Start OpenSSL s_server (TLS 1.3) with verbose output
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3 verbose) on port $(PORT)...$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -state"
-	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -state
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -rev -state"
+	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -rev -state
 
 test-server-groups: ## Start OpenSSL s_server (TLS 1.3) with specific groups
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3 with groups) on port $(PORT)...$(NC)"
@@ -251,19 +251,36 @@ test-client-groups: ## Connect with OpenSSL s_client (TLS 1.3) with specific gro
 test-server-psk: ## Start OpenSSL s_server with PSK support (TLS 1.3)
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, PSK enabled) on port $(PORT)...$(NC)"
 	@$(ECHO) "$(YELLOW)Server supports session resumption$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -num_tickets 2 -debug -state -msg"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -num_tickets 2 -debug -state -msg -rev"
 	@$(OPENSSL) s_server -accept $(PORT) \
 		-cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key \
-		-tls1_3 -num_tickets 2 -debug -state -msg
+		-tls1_3 -num_tickets 2 -debug -state -msg -rev
 
 test-server-psk-verbose: ## Start OpenSSL s_server with PSK and verbose output
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, PSK verbose) on port $(PORT)...$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -num_tickets 2 -keylogfile $(CERT_DIR)/server.keylog -debug -tlsextdebug -state -msg"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -num_tickets 2 -keylogfile $(CERT_DIR)/server.keylog -debug -tlsextdebug -state -msg -rev"
 	@$(OPENSSL) s_server -accept $(PORT) \
 		-cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key \
 		-tls1_3 -num_tickets 2 \
 		-keylogfile $(CERT_DIR)/server.keylog \
-		-debug -tlsextdebug -state -msg
+		-debug -tlsextdebug -state -msg -rev
+
+test-server-psk-ec: ## Start OpenSSL s_server with PSK support (TLS 1.3)
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, PSK enabled) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Server supports session resumption$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -num_tickets 2 -debug -state -msg -rev"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
+		-tls1_3 -num_tickets 2 -debug -state -msg -rev
+
+test-server-psk-ec-verbose: ## Start OpenSSL s_server with PSK and verbose output
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, PSK verbose) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -num_tickets 2 -keylogfile $(CERT_DIR)/server.keylog -debug -tlsextdebug -state -msg -rev"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
+		-tls1_3 -num_tickets 2 \
+		-keylogfile $(CERT_DIR)/server.keylog \
+		-debug -tlsextdebug -state -msg -rev
 
 test-client-psk: ## Connect with OpenSSL s_client and save session for resumption
 	@$(ECHO) "$(GREEN)Connecting with OpenSSL s_client (TLS 1.3, save session)...$(NC)"
