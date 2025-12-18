@@ -11,6 +11,7 @@ use Php\TlsCraft\Handshake\Processors\ClientHelloProcessor;
 use Php\TlsCraft\Handshake\Processors\EncryptedExtensionsProcessor;
 use Php\TlsCraft\Handshake\Processors\FinishedProcessor;
 use Php\TlsCraft\Handshake\Processors\KeyUpdateProcessor;
+use Php\TlsCraft\Handshake\Processors\NewSessionTicketProcessor;
 use Php\TlsCraft\Handshake\Processors\ServerHelloProcessor;
 
 class ProcessorFactory
@@ -55,6 +56,11 @@ class ProcessorFactory
     public function createFinishedProcessor(): FinishedProcessor
     {
         return new FinishedProcessor($this->context, $this->config);
+    }
+
+    public function createNewSessionTicketProcessor(): NewSessionTicketProcessor
+    {
+        return new NewSessionTicketProcessor($this->context, $this->config);
     }
 
     public function createKeyUpdateProcessor(): KeyUpdateProcessor

@@ -118,6 +118,9 @@ class ProtocolOrchestrator
 
         // Derive application traffic secrets
         $this->context->deriveApplicationSecrets();
+
+        // Send a session ticket if resumption is enabled
+        $this->sendNewSessionTicketIfEnabled();
     }
 
     // === Application Data Operations ===
@@ -164,6 +167,18 @@ class ProtocolOrchestrator
     }
 
     // === Post-Handshake Operations ===
+
+    private function sendNewSessionTicketIfEnabled(): void
+    {
+        if (!$this->stateTracker->isClient()
+            && $this->context->getConfig()->isSessionResumptionEnabled()) {
+
+            $ticket = $this->messageFactory->createNewSessionTicket();
+            $this->sendHandshakeMessage($ticket);
+
+            Logger::debug('Sent NewSessionTicket to client');
+        }
+    }
 
     public function sendKeyUpdate(bool $requestUpdate = false): void
     {
@@ -438,9 +453,8 @@ class ProtocolOrchestrator
                 break;
 
             case HandshakeType::NEW_SESSION_TICKET:
-                // For now, just acknowledge and ignore
-                // In the future, it can store the ticket for session resumption
-                Logger::debug('Received NewSessionTicket (ignored)');
+                $newSessionTicket = $this->messageFactory->createNewSessionTicketFromWire($data);
+                $this->processorManager->processNewSessionTicket($newSessionTicket);
                 break;
 
             default:

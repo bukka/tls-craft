@@ -12,6 +12,7 @@ use Php\TlsCraft\Handshake\Messages\{CertificateMessage,
     FinishedMessage,
     KeyUpdateMessage,
     Message,
+    NewSessionTicketMessage,
     ServerHelloMessage};
 use Php\TlsCraft\Handshake\MessageSerializers\{CertificateRequestSerializer,
     CertificateSerializer,
@@ -20,6 +21,7 @@ use Php\TlsCraft\Handshake\MessageSerializers\{CertificateRequestSerializer,
     EncryptedExtensionsSerializer,
     FinishedSerializer,
     KeyUpdateSerializer,
+    NewSessionTicketSerializer,
     ServerHelloSerializer};
 use Php\TlsCraft\Logger;
 
@@ -42,6 +44,7 @@ class MessageSerializer
     private ?CertificateRequestSerializer $certificateRequestSerializer = null;
     private ?CertificateVerifySerializer $certificateVerifySerializer = null;
     private ?FinishedSerializer $finishedSerializer = null;
+    private ?NewSessionTicketSerializer $newSessionTicketSerializer = null;
     private ?KeyUpdateSerializer $keyUpdateSerializer = null;
 
     private function getClientHelloSerializer(): ClientHelloSerializer
@@ -86,6 +89,15 @@ class MessageSerializer
             new FinishedSerializer($this->context, $this->extensionFactory);
     }
 
+    private function getNewSessionTicketSerializer(): NewSessionTicketSerializer
+    {
+        if (!$this->newSessionTicketSerializer) {
+            $this->newSessionTicketSerializer = new NewSessionTicketSerializer($this->context, $this->extensionFactory);
+        }
+
+        return $this->newSessionTicketSerializer;
+    }
+
     private function getKeyUpdateSerializer(): KeyUpdateSerializer
     {
         return $this->keyUpdateSerializer ??=
@@ -105,6 +117,7 @@ class MessageSerializer
             $msg instanceof CertificateRequestMessage => $this->getCertificateRequestSerializer()->serialize($msg),
             $msg instanceof CertificateVerifyMessage => $this->getCertificateVerifySerializer()->serialize($msg),
             $msg instanceof FinishedMessage => $this->getFinishedSerializer()->serialize($msg),
+            $msg instanceof NewSessionTicketMessage => $this->getNewSessionTicketSerializer()->serialize($msg),
             $msg instanceof KeyUpdateMessage => $this->getKeyUpdateSerializer()->serialize($msg),
             default => throw new CraftException('No serializer for message: '.$msg::class),
         };

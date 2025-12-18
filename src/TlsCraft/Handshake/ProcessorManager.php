@@ -11,6 +11,7 @@ use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
 use Php\TlsCraft\Handshake\Messages\FinishedMessage;
 use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
 use Php\TlsCraft\Handshake\Messages\Message;
+use Php\TlsCraft\Handshake\Messages\NewSessionTicketMessage;
 use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Handshake\Processors\{CertificateProcessor,
     CertificateRequestProcessor,
@@ -19,6 +20,7 @@ use Php\TlsCraft\Handshake\Processors\{CertificateProcessor,
     EncryptedExtensionsProcessor,
     FinishedProcessor,
     KeyUpdateProcessor,
+    NewSessionTicketProcessor,
     ServerHelloProcessor};
 
 class ProcessorManager
@@ -33,6 +35,7 @@ class ProcessorManager
     private ?CertificateRequestProcessor $certificateRequestProcessor = null;
     private ?CertificateVerifyProcessor $certificateVerifyProcessor = null;
     private ?FinishedProcessor $finishedProcessor = null;
+    private ?NewSessionTicketProcessor $newSessionTicketProcessor = null;
     private ?KeyUpdateProcessor $keyUpdateProcessor = null;
 
     public function __construct(ProcessorFactory $factory)
@@ -96,6 +99,14 @@ class ProcessorManager
         $this->finishedProcessor->process($message);
     }
 
+    public function processNewSessionTicket(NewSessionTicketMessage $message): void
+    {
+        if (!$this->newSessionTicketProcessor) {
+            $this->newSessionTicketProcessor = $this->factory->createNewSessionTicketProcessor();
+        }
+        $this->newSessionTicketProcessor->process($message);
+    }
+
     public function processKeyUpdate(KeyUpdateMessage $message): void
     {
         if (!$this->keyUpdateProcessor) {
@@ -117,6 +128,7 @@ class ProcessorManager
             CertificateRequestMessage::class => $this->processCertificateRequest($message),
             CertificateVerifyMessage::class => $this->processCertificateVerify($message),
             FinishedMessage::class => $this->processFinished($message),
+            NewSessionTicketMessage::class => $this->processNewSessionTicket($message),
             KeyUpdateMessage::class => $this->processKeyUpdate($message),
             default => throw new InvalidArgumentException('No processor available for message type: '.$message::class),
         };

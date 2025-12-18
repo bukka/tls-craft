@@ -12,6 +12,7 @@ use Php\TlsCraft\Handshake\MessageFactories\{CertificateFactory,
     EncryptedExtensionsFactory,
     FinishedFactory,
     KeyUpdateFactory,
+    NewSessionTicketFactory,
     ServerHelloFactory};
 use Php\TlsCraft\Handshake\MessageParsers\CertificateParser;
 use Php\TlsCraft\Handshake\MessageParsers\CertificateRequestParser;
@@ -20,6 +21,7 @@ use Php\TlsCraft\Handshake\MessageParsers\ClientHelloParser;
 use Php\TlsCraft\Handshake\MessageParsers\EncryptedExtensionsParser;
 use Php\TlsCraft\Handshake\MessageParsers\FinishedParser;
 use Php\TlsCraft\Handshake\MessageParsers\KeyUpdateParser;
+use Php\TlsCraft\Handshake\MessageParsers\NewSessionTicketParser;
 use Php\TlsCraft\Handshake\MessageParsers\ServerHelloParser;
 use Php\TlsCraft\Handshake\Messages\CertificateMessage;
 use Php\TlsCraft\Handshake\Messages\CertificateRequestMessage;
@@ -28,6 +30,7 @@ use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
 use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
 use Php\TlsCraft\Handshake\Messages\FinishedMessage;
 use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
+use Php\TlsCraft\Handshake\Messages\NewSessionTicketMessage;
 use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Protocol\{AlertDescription, AlertLevel};
 
@@ -53,6 +56,8 @@ class MessageFactory
     private ?CertificateVerifyParser $certificateVerifyParser = null;
     private ?FinishedParser $finishedParser = null;
     private ?KeyUpdateParser $keyUpdateParser = null;
+    private ?NewSessionTicketFactory $newSessionTicketFactory = null;
+    private ?NewSessionTicketParser $newSessionTicketParser = null;
 
     public function __construct(private Context $context, private ExtensionFactory $extensionFactory)
     {
@@ -287,5 +292,33 @@ class MessageFactory
     public function createKeyUpdateFromWire(string $data, int &$offset = 0): KeyUpdateMessage
     {
         return $this->getKeyUpdateParser()->parse($data, $offset);
+    }
+
+    private function getNewSessionTicketFactory(): NewSessionTicketFactory
+    {
+        if (!$this->newSessionTicketFactory) {
+            $this->newSessionTicketFactory = new NewSessionTicketFactory($this->context, $this->config);
+        }
+
+        return $this->newSessionTicketFactory;
+    }
+
+    private function getNewSessionTicketParser(): NewSessionTicketParser
+    {
+        if (!$this->newSessionTicketParser) {
+            $this->newSessionTicketParser = new NewSessionTicketParser($this->context, $this->extensionFactory);
+        }
+
+        return $this->newSessionTicketParser;
+    }
+
+    public function createNewSessionTicket(): NewSessionTicketMessage
+    {
+        return $this->getNewSessionTicketFactory()->create();
+    }
+
+    public function createNewSessionTicketFromWire(string $data, int &$offset = 0): NewSessionTicketMessage
+    {
+        return $this->getNewSessionTicketParser()->parse($data, $offset);
     }
 }
