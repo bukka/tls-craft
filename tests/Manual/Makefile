@@ -246,6 +246,75 @@ test-client-groups: ## Connect with OpenSSL s_client (TLS 1.3) with specific gro
 	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -groups X25519:P-256 -showcerts"
 	@$(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -groups X25519:P-256 -showcerts
 
+# PSK / Session Resumption Testing
+
+test-server-psk: ## Start OpenSSL s_server with PSK support (TLS 1.3)
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, PSK enabled) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Server supports session resumption$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -num_tickets 2 -debug -state -msg"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key \
+		-tls1_3 -num_tickets 2 -debug -state -msg
+
+test-server-psk-verbose: ## Start OpenSSL s_server with PSK and verbose output
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, PSK verbose) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -num_tickets 2 -keylogfile $(CERT_DIR)/server.keylog -debug -tlsextdebug -state -msg"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key \
+		-tls1_3 -num_tickets 2 \
+		-keylogfile $(CERT_DIR)/server.keylog \
+		-debug -tlsextdebug -state -msg
+
+test-client-psk: ## Connect with OpenSSL s_client and save session for resumption
+	@$(ECHO) "$(GREEN)Connecting with OpenSSL s_client (TLS 1.3, save session)...$(NC)"
+	@$(ECHO) "$(YELLOW)Session will be saved to $(CERT_DIR)/session.pem$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -sess_out $(CERT_DIR)/session.pem -showcerts"
+	@$(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -sess_out $(CERT_DIR)/session.pem -showcerts
+
+test-client-psk-resume: ## Connect with OpenSSL s_client and resume session
+	@$(ECHO) "$(GREEN)Connecting with OpenSSL s_client (TLS 1.3, resume session)...$(NC)"
+	@$(ECHO) "$(YELLOW)Resuming session from $(CERT_DIR)/session.pem$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -sess_in $(CERT_DIR)/session.pem -showcerts"
+	@$(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -sess_in $(CERT_DIR)/session.pem -showcerts
+
+test-client-psk-verbose: ## Connect with verbose PSK/resumption logging
+	@$(ECHO) "$(GREEN)Connecting with OpenSSL s_client (TLS 1.3, PSK verbose)...$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_client -connect $(HOST):$(PORT) -tls1_3 -sess_out $(CERT_DIR)/session.pem -keylogfile $(CERT_DIR)/client.keylog -debug -state -msg"
+	@$(OPENSSL) s_client -connect $(HOST):$(PORT) \
+		-tls1_3 -sess_out $(CERT_DIR)/session.pem \
+		-keylogfile $(CERT_DIR)/client.keylog \
+		-debug -state -msg
+
+test-php-server: ## Run PHP TLS server
+	@$(ECHO) "$(GREEN)Starting PHP TLS server on port $(PORT)...$(NC)"
+	@php test/manual/test_server.php
+
+test-php-client: ## Run PHP TLS client
+	@$(ECHO) "$(GREEN)Running PHP TLS client connecting to $(HOST):$(PORT)...$(NC)"
+	@php test/manual/test_client.php
+
+test-php-client-native: ## Run native PHP TLS client (stream_socket_client)
+	@$(ECHO) "$(GREEN)Running native PHP TLS client connecting to $(HOST):$(PORT)...$(NC)"
+	@php test/manual/test_client_native.php
+
+# Quick PSK testing scenarios
+quick-test-psk: cert-rsa ## Quick PSK test: generate cert, start server with PSK support
+	@$(ECHO) "$(GREEN)Quick PSK test setup complete!$(NC)"
+	@$(ECHO) "$(YELLOW)Server will issue session tickets for resumption$(NC)"
+	@$(ECHO) "$(YELLOW)Now run in another terminal:$(NC)"
+	@$(ECHO) "  1. First connection:  \$$ make test-client-psk"
+	@$(ECHO) "  2. Resume session:    \$$ make test-client-psk-resume"
+	@$(ECHO) "  3. Or use PHP client: \$$ make test-php-client"
+	@$(ECHO) ""
+	@$(MAKE) test-server-psk
+
+quick-test-php-psk: cert-rsa ## Test PHP client/server PSK resumption
+	@$(ECHO) "$(GREEN)Quick PHP PSK test setup!$(NC)"
+	@$(ECHO) "$(YELLOW)Start server in one terminal:$(NC)"
+	@$(ECHO) "  \$$ make test-php-server"
+	@$(ECHO) "$(YELLOW)Then run client in another:$(NC)"
+	@$(ECHO) "  \$$ make test-php-client"
+
 # PHP test
 run-php: ## Run PHP test client
 	@$(ECHO) "$(GREEN)Running PHP test client...$(NC)"

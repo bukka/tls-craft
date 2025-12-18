@@ -16,11 +16,17 @@ final class AppFactory
         bool $debug = false,
     ): Client {
         RuntimeEnvironment::assertOpenSsl3();
-        if ($certificatePath && $privateKeyPath) {
-            $config = ($config ?? new Config())->withCertificate($certificatePath, $privateKeyPath);
+
+        // If no config provided, create one
+        if ($config === null) {
+            $config = new Config(serverName: $hostname);
         }
 
-        // You can still pass config/factory through; Client will build from them.
+        // Add certificate if provided
+        if ($certificatePath && $privateKeyPath) {
+            $config->withCertificate($certificatePath, $privateKeyPath);
+        }
+
         return new Client($hostname, $port, $config, $connectionFactory, debug: $debug);
     }
 
@@ -32,17 +38,21 @@ final class AppFactory
         ?string $clientCaPath = null,
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
+        bool $debug = false,
     ): Server {
         RuntimeEnvironment::assertOpenSsl3();
+
         if ($config === null) {
             $config = new Config();
         }
+
         $config->withCertificate($certificatePath, $privateKeyPath);
+
         if ($mutualTls) {
             $config->setRequestClientCertificate(true);
             $config->withCustomCa($clientCaPath, $clientCaFile);
         }
 
-        return new Server($config, $connectionFactory);
+        return new Server($config, $connectionFactory, debug: $debug);
     }
 }

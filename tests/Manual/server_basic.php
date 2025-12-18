@@ -7,8 +7,8 @@ use Php\TlsCraft\Logger;
 
 Logger::enable();
 
-$certFile = __DIR__.'/certs/server_rsa.crt';
-$keyFile = __DIR__.'/certs/server_rsa.key';
+$certFile = __DIR__.'/certs/server_ec.crt';
+$keyFile = __DIR__.'/certs/server_ec.key';
 $port = 4433;
 
 $server = AppFactory::createServer($certFile, $keyFile);
