@@ -102,6 +102,10 @@ class SessionTicket
      */
     public function isExpired(): bool
     {
+        if ($this->isOpaque()) {
+            return false;
+        }
+
         return $this->getData()->isExpired($this->lifetime);
     }
 }

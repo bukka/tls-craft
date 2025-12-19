@@ -2,10 +2,13 @@
 
 namespace Php\TlsCraft\Handshake\ExtensionProviders;
 
+use Exception;
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Crypto\PskIdentity;
 use Php\TlsCraft\Handshake\Extensions\PreSharedKeyExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Logger;
+use Php\TlsCraft\Session\PreSharedKey;
+use Php\TlsCraft\Session\PskIdentity;
 
 /**
  * Provider for PreSharedKey extension
@@ -18,33 +21,130 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
 {
     public function create(Context $context): ?PreSharedKeyExtension
     {
-        // Collect PSK identities from context
+        // First, check for manually configured external PSKs
         $offeredPsks = $context->getOfferedPsks();
 
+        // If no external PSKs, try to load session tickets from storage
         if (empty($offeredPsks)) {
-            // No PSKs available
+            $offeredPsks = $this->loadSessionTicketsFromStorage($context);
+
+            if (!empty($offeredPsks)) {
+                // Set loaded PSKs in context for later use (binder calculation)
+                $context->setOfferedPsks($offeredPsks);
+
+                Logger::debug('Loaded session tickets from storage', [
+                    'count' => count($offeredPsks),
+                    'server_name' => $context->getConfig()->getServerName(),
+                ]);
+            }
+        }
+
+        if (empty($offeredPsks)) {
+            // No PSKs available (neither external nor from storage)
+            Logger::debug('No PSKs available - skipping pre_shared_key extension');
+
             return null;
         }
 
         // Build identity array from PSKs
         $identities = [];
         foreach ($offeredPsks as $psk) {
-            if ($psk->identity === $psk->identity) { // Session ticket
-                // Create identity from ticket
+            if ($psk->isResumption()) {
+                // Session ticket resumption - calculate obfuscated ticket age
                 $identities[] = PskIdentity::fromTicket(
                     $psk->identity,
-                    0, // ageAdd - will be set from ticket metadata
-                    time(), // timestamp - will be set from ticket metadata
+                    $psk->getTicketAgeAdd(),
+                    $psk->getTicketTimestamp(),
                 );
             } else {
-                // External PSK
+                // External PSK - no ticket age
                 $identities[] = PskIdentity::external($psk->identity);
             }
         }
 
+        Logger::debug('Creating pre_shared_key extension', [
+            'identity_count' => count($identities),
+            'psk_types' => array_map(fn ($psk) => $psk->isResumption() ? 'resumption' : 'external', $offeredPsks),
+        ]);
+
         // Return extension without binders
-        // Binders will be added later during ClientHello construction
+        // Binders will be calculated and added during ClientHello serialization
         return PreSharedKeyExtension::forClient($identities);
+    }
+
+    /**
+     * Load session tickets from storage and convert to PreSharedKey objects
+     *
+     * @return PreSharedKey[]
+     */
+    private function loadSessionTicketsFromStorage(Context $context): array
+    {
+        $config = $context->getConfig();
+
+        // Check if session resumption is enabled and storage is configured
+        if (!$config->isSessionResumptionEnabled() || !$config->hasSessionStorage()) {
+            return [];
+        }
+
+        $storage = $config->getSessionStorage();
+        $serverName = $config->getServerName();
+
+        if (!$serverName) {
+            Logger::debug('Cannot load session tickets: no server name configured');
+
+            return [];
+        }
+
+        // Retrieve all valid tickets for this server
+        $tickets = $storage->retrieveAll($serverName);
+
+        if (empty($tickets)) {
+            Logger::debug('No session tickets found in storage', [
+                'server_name' => $serverName,
+            ]);
+
+            return [];
+        }
+
+        // Convert SessionTicket objects to PreSharedKey objects
+        $psks = [];
+        foreach ($tickets as $ticket) {
+            // Skip invalid/expired tickets
+            if (!$ticket->isValid()) {
+                Logger::debug('Skipping invalid/expired ticket');
+                continue;
+            }
+
+            // Skip opaque tickets that we can't decrypt
+            if ($ticket->isOpaque()) {
+                Logger::debug('Skipping opaque ticket (cannot decrypt resumption secret)');
+                continue;
+            }
+
+            // Create PSK from ticket
+            try {
+                $psk = PreSharedKey::fromSessionTicket($ticket);
+                $psks[] = $psk;
+
+                $ticketAge = (time() - $ticket->getData()->timestamp) * 1000;
+                $obfuscatedAge = ($ticketAge + $ticket->ageAdd) & 0xFFFFFFFF;
+
+                Logger::debug('Loaded session ticket for resumption', [
+                    'server_name' => $serverName,
+                    'ticket_age_ms' => $ticketAge,
+                    'obfuscated_age' => $obfuscatedAge,
+                    'cipher_suite' => $ticket->getCipherSuite()->name,
+                    'ticket_id' => substr($ticket->getIdentifier(), 0, 16).'...',
+                ]);
+            } catch (Exception $e) {
+                Logger::debug('Failed to create PSK from ticket', [
+                    'error' => $e->getMessage(),
+                ]);
+                continue;
+            }
+        }
+
+        return $psks;
     }
 
     public function getExtensionType(): ExtensionType

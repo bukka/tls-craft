@@ -2,8 +2,8 @@
 
 namespace Php\TlsCraft\Handshake\ExtensionParsers;
 
-use Php\TlsCraft\Crypto\PskIdentity;
 use Php\TlsCraft\Handshake\Extensions\PreSharedKeyExtension;
+use Php\TlsCraft\Session\PskIdentity;
 
 class PreSharedKeyExtensionParser
 {

@@ -3,8 +3,8 @@
 namespace Php\TlsCraft\Handshake;
 
 use Php\TlsCraft\Context;
-use Php\TlsCraft\Crypto\PreSharedKey;
 use Php\TlsCraft\Logger;
+use Php\TlsCraft\Session\PreSharedKey;
 
 /**
  * PSK Binder Calculator

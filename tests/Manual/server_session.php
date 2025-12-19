@@ -3,8 +3,8 @@
 require_once __DIR__.'/../../vendor/autoload.php';
 
 use Php\TlsCraft\AppFactory;
-use Php\TlsCraft\Config;
 use Php\TlsCraft\Logger;
+use Php\TlsCraft\Session\PlainSessionTicketSerializer;
 use Php\TlsCraft\Session\Storage\InMemorySessionStorage;
 
 Logger::enable();
@@ -13,18 +13,13 @@ $certFile = __DIR__.'/certs/server_ec.crt';
 $keyFile = __DIR__.'/certs/server_ec.key';
 $port = 4433;
 
-// Create config with session resumption enabled
-$config = (new Config())
-    ->withCertificate($certFile, $keyFile)
-    ->withSessionResumption(
-        storage: new InMemorySessionStorage(),
-        lifetimeSeconds: 7200, // 2 hours
-    );
-
 $server = AppFactory::createServer(
     certificatePath: $certFile,
     privateKeyPath: $keyFile,
-    config: $config,
+    sessionStorage: new InMemorySessionStorage(),
+    sessionTicketSerializer: new PlainSessionTicketSerializer(),
+    sessionLifetime: 7200,
+    debug: true,
 );
 
 echo "Starting TLS 1.3 server on 0.0.0.0:$port\n";
@@ -43,19 +38,18 @@ while (true) {
         // Check if session was resumed
         $context = $session->getOrchestrator()->getContext();
         if ($context->isResuming()) {
-            echo "Session RESUMED (PSK used)\n";
+            echo "✓ Session RESUMED (PSK used)\n";
         } else {
-            echo "Full handshake completed\n";
+            echo "✓ Full handshake completed\n";
         }
 
         // Receive data
         $data = $session->receive(1024);
         echo 'Received: '.var_export($data, true)."\n";
 
-        // Send response
-        $response = 'server-response-'.time();
-        $session->send($response);
-        echo "Sent: $response\n";
+        // Send response (echo back)
+        $session->send($data);
+        echo "Sent (echo): $data\n";
 
         $session->close();
         echo "Session closed\n\n";

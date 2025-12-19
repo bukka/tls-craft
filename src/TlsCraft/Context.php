@@ -9,7 +9,6 @@ use Php\TlsCraft\Crypto\{CertificateChain,
     KeyPair,
     KeyShare,
     NamedGroup,
-    PreSharedKey,
     PrivateKey,
     RandomGenerator,
     SignatureScheme};
@@ -19,6 +18,7 @@ use Php\TlsCraft\Handshake\HandshakeTranscript;
 use Php\TlsCraft\Handshake\KeySchedule;
 use Php\TlsCraft\Handshake\PskBinderCalculator;
 use Php\TlsCraft\Protocol\Version;
+use Php\TlsCraft\Session\PreSharedKey;
 use Php\TlsCraft\Session\SessionTicket;
 
 /**

@@ -1,6 +1,6 @@
 <?php
 
-namespace Php\TlsCraft\Crypto;
+namespace Php\TlsCraft\Session;
 
 /**
  * PSK Identity - represents a pre-shared key identity offered by client

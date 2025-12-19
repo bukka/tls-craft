@@ -3,8 +3,8 @@
 namespace Php\TlsCraft\Handshake\Extensions;
 
 use InvalidArgumentException;
-use Php\TlsCraft\Crypto\PskIdentity;
 use Php\TlsCraft\Handshake\ExtensionType;
+use Php\TlsCraft\Session\PskIdentity;
 
 /**
  * PreSharedKey Extension (RFC 8446 Section 4.2.11)

@@ -5,7 +5,6 @@ namespace Php\TlsCraft;
 use Closure;
 use InvalidArgumentException;
 use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Crypto\PreSharedKey;
 use Php\TlsCraft\Handshake\ClientHelloExtensionProviders;
 use Php\TlsCraft\Handshake\EncryptedExtensionsProviders;
 use Php\TlsCraft\Handshake\ExtensionProviders\AlpnExtensionProvider;
@@ -19,6 +18,7 @@ use Php\TlsCraft\Handshake\ExtensionProviders\SupportedVersionsExtensionProvider
 use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\ServerHelloExtensionProviders;
 use Php\TlsCraft\Session\PlainSessionTicketSerializer;
+use Php\TlsCraft\Session\PreSharedKey;
 use Php\TlsCraft\Session\SessionStorage;
 use Php\TlsCraft\Session\SessionTicketSerializer;
 use Php\TlsCraft\State\ProtocolValidator;
