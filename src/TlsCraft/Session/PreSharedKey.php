@@ -3,6 +3,7 @@
 namespace Php\TlsCraft\Session;
 
 use Php\TlsCraft\Crypto\CipherSuite;
+use Php\TlsCraft\Exceptions\CraftException;
 
 /**
  * Pre-Shared Key (PSK) - contains the secret and metadata
@@ -22,6 +23,8 @@ class PreSharedKey
 
     /**
      * Create PSK from a session ticket
+     *
+     * @throws CraftException
      */
     public static function fromSessionTicket(SessionTicket $ticket): self
     {

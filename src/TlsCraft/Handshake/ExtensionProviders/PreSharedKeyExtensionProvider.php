@@ -2,8 +2,8 @@
 
 namespace Php\TlsCraft\Handshake\ExtensionProviders;
 
-use Exception;
 use Php\TlsCraft\Context;
+use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\Extensions\PreSharedKeyExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Logger;
@@ -109,34 +109,33 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
         // Convert SessionTicket objects to PreSharedKey objects
         $psks = [];
         foreach ($tickets as $ticket) {
-            // Skip invalid/expired tickets
+            // Skip invalid tickets (missing resumption secret or cipher suite)
             if (!$ticket->isValid()) {
-                Logger::debug('Skipping invalid/expired ticket');
+                Logger::debug('Skipping invalid ticket', [
+                    'is_opaque' => $ticket->isOpaque(),
+                    'has_resumption_secret' => $ticket->resumptionMasterSecret !== null,
+                    'has_cipher_suite' => $ticket->cipherSuite !== null,
+                ]);
                 continue;
             }
 
-            // Skip opaque tickets that we can't decrypt
-            if ($ticket->isOpaque()) {
-                Logger::debug('Skipping opaque ticket (cannot decrypt resumption secret)');
-                continue;
-            }
-
-            // Create PSK from ticket
+            // Create PSK from ticket (works for both opaque and decrypted tickets)
             try {
                 $psk = PreSharedKey::fromSessionTicket($ticket);
                 $psks[] = $psk;
 
-                $ticketAge = (time() - $ticket->getData()->timestamp) * 1000;
+                $ticketAge = $ticket->getTicketAge();
                 $obfuscatedAge = ($ticketAge + $ticket->ageAdd) & 0xFFFFFFFF;
 
                 Logger::debug('Loaded session ticket for resumption', [
                     'server_name' => $serverName,
+                    'is_opaque' => $ticket->isOpaque(),
                     'ticket_age_ms' => $ticketAge,
                     'obfuscated_age' => $obfuscatedAge,
                     'cipher_suite' => $ticket->getCipherSuite()->name,
                     'ticket_id' => substr($ticket->getIdentifier(), 0, 16).'...',
                 ]);
-            } catch (Exception $e) {
+            } catch (CraftException $e) {
                 Logger::debug('Failed to create PSK from ticket', [
                     'error' => $e->getMessage(),
                 ]);
