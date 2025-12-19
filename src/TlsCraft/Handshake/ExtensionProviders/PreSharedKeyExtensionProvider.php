@@ -113,7 +113,7 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
             if (!$ticket->isValid()) {
                 Logger::debug('Skipping invalid ticket', [
                     'is_opaque' => $ticket->isOpaque(),
-                    'has_resumption_secret' => $ticket->resumptionMasterSecret !== null,
+                    'has_resumption_secret' => $ticket->resumptionSecret !== null,
                     'has_cipher_suite' => $ticket->cipherSuite !== null,
                 ]);
                 continue;

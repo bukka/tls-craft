@@ -67,7 +67,7 @@ class Context
     private ?PreSharedKey $selectedPsk = null;
     private ?int $selectedPskIndex = null;
     private bool $isResuming = false;
-    private ?string $resumptionMasterSecret = null;
+    private ?string $resumptionSecret = null;
     private ?PskBinderCalculator $pskBinderCalculator = null;
     /** @var int[] */
     private array $pskKeyExchangeModes = [];
@@ -626,6 +626,15 @@ class Context
     }
 
     /**
+     * Set PSKs to be offered in ClientHello
+     * @param PreSharedKey[] $psks
+     */
+    public function setOfferedPsks(array $psks): void
+    {
+        $this->offeredPsks = $psks;
+    }
+
+    /**
      * Get all offered PSKs
      *
      * @return PreSharedKey[]
@@ -724,19 +733,28 @@ class Context
     }
 
     /**
-     * Set resumption master secret (after handshake completes)
+     * Set resumption secret
      */
-    public function setResumptionMasterSecret(string $secret): void
+    public function setResumptionSecret(string $secret): void
     {
-        $this->resumptionMasterSecret = $secret;
+        $this->resumptionSecret = $secret;
     }
 
     /**
-     * Get resumption master secret
+     * Get resumption secret
      */
-    public function getResumptionMasterSecret(): ?string
+    public function getResumptionSecret(): ?string
     {
-        return $this->resumptionMasterSecret;
+        return $this->resumptionSecret;
+    }
+
+    public function deriveResumptionSecret(string $ticketNonce): string
+    {
+        $keySchedule = $this->getKeySchedule();
+        $resumptionMasterSecret = $keySchedule->deriveResumptionMasterSecret();
+        $this->resumptionSecret = $keySchedule->deriveResumptionSecret($resumptionMasterSecret, $ticketNonce);
+
+        return $this->resumptionSecret;
     }
 
     /**

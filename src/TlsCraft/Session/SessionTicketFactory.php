@@ -2,6 +2,7 @@
 
 namespace Php\TlsCraft\Session;
 
+use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Handshake\Messages\NewSessionTicketMessage;
 use Php\TlsCraft\Logger;
 
@@ -15,14 +16,24 @@ class SessionTicketFactory
 
     /**
      * Create SessionTicket from NewSessionTicketMessage
-     * Attempts to unserialize ticket if serializer is available, otherwise creates opaque ticket
+     *
+     * For opaque tickets (when serializer fails or is not available), you MUST provide
+     * the resumptionSecret and cipherSuite from the current handshake context.
+     *
+     * @param string|null      $resumptionSecret Required for opaque tickets (the PSK secret)
+     * @param CipherSuite|null $cipherSuite      Required for opaque tickets
      */
-    public function createFromMessage(NewSessionTicketMessage $message): SessionTicket
-    {
+    public function createFromMessage(
+        NewSessionTicketMessage $message,
+        ?string $resumptionSecret = null,
+        ?CipherSuite $cipherSuite = null,
+    ): SessionTicket {
         Logger::debug('Creating SessionTicket from message', [
             'ticket_length' => strlen($message->ticket),
             'lifetime' => $message->ticketLifetime,
             'has_serializer' => $this->serializer !== null,
+            'has_resumption_secret' => $resumptionSecret !== null,
+            'has_cipher_suite' => $cipherSuite !== null,
         ]);
 
         $ticketData = null;
@@ -49,10 +60,15 @@ class SessionTicketFactory
             ageAdd: $message->ticketAgeAdd,
             nonce: $message->ticketNonce,
             serverName: $this->defaultServerName,
+            // For opaque tickets, store the resumption secret, cipher suite, and timestamp
+            resumptionSecret: $ticketData === null ? $resumptionSecret : null,
+            cipherSuite: $ticketData === null ? $cipherSuite : null,
+            timestamp: $ticketData === null ? time() : null,
         );
 
         Logger::debug('Created SessionTicket', [
             'is_opaque' => $ticket->isOpaque(),
+            'is_valid' => $ticket->isValid(),
             'server_name' => $ticket->getServerName(),
             'identifier' => substr($ticket->getIdentifier(), 0, 16).'...',
         ]);

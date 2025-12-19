@@ -3,7 +3,6 @@
 namespace Php\TlsCraft\Session;
 
 use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Exceptions\CraftException;
 
 /**
  * Pre-Shared Key (PSK) - contains the secret and metadata
@@ -23,21 +22,20 @@ class PreSharedKey
 
     /**
      * Create PSK from a session ticket
-     *
-     * @throws CraftException
+     * Works for both opaque and decrypted tickets
      */
     public static function fromSessionTicket(SessionTicket $ticket): self
     {
         $psk = new self(
-            identity: $ticket->ticket, // Opaque ticket data is the identity
+            identity: $ticket->ticket,
             secret: $ticket->getResumptionSecret(),
             cipherSuite: $ticket->getCipherSuite(),
-            maxEarlyDataSize: $ticket->getData()->maxEarlyDataSize,
+            maxEarlyDataSize: $ticket->getMaxEarlyDataSize(),
         );
 
         // Store metadata needed for obfuscated ticket age calculation
         $psk->ticketAgeAdd = $ticket->ageAdd;
-        $psk->ticketTimestamp = $ticket->getData()->timestamp;
+        $psk->ticketTimestamp = $ticket->getTimestamp();
 
         return $psk;
     }

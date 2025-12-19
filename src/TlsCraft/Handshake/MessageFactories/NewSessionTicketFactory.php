@@ -21,10 +21,7 @@ class NewSessionTicketFactory extends AbstractMessageFactory
         $ticketNonce = random_bytes(32);
 
         // Derive resumption secret
-        $resumptionMasterSecret = $this->context->getKeySchedule()
-            ->deriveResumptionMasterSecret();
-        $resumptionSecret = $this->context->getKeySchedule()
-            ->deriveResumptionSecret($resumptionMasterSecret, $ticketNonce);
+        $resumptionSecret = $this->context->deriveResumptionSecret($ticketNonce);
 
         // Create ticket data
         $ticketData = new SessionTicketData(

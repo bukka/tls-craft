@@ -495,7 +495,8 @@ class KeySchedule
     /**
      * Derive resumption master secret (used for creating session tickets)
      *
-     * resumption_master_secret = Derive-Secret(master_secret, "res master", ClientHello...server Finished)
+     * RFC 8446 § 4.6.1:
+     * resumption_master_secret = Derive-Secret(master_secret, "res master", ClientHello...client Finished)
      */
     public function deriveResumptionMasterSecret(): string
     {
@@ -503,7 +504,8 @@ class KeySchedule
             throw new RuntimeException('Cannot derive resumption master secret: master secret not set');
         }
 
-        $transcript = $this->transcript->getThrough(HandshakeType::FINISHED);
+        // The transcript includes ALL handshake messages up to and including client Finished
+        $transcript = $this->transcript->getAll();
 
         $resumptionMasterSecret = $this->keyDerivation->deriveSecret(
             $this->masterSecret,
@@ -514,8 +516,9 @@ class KeySchedule
 
         Logger::debug('RESUMPTION MASTER SECRET', [
             'Resumption Master Secret' => $resumptionMasterSecret,
-            'Transcript' => $transcript,
-            'Types' => $this->transcript->getTypesThrough(HandshakeType::FINISHED),
+            'Transcript length' => strlen($transcript),
+            'Message count' => $this->transcript->count(),
+            'Types' => $this->transcript->getAllTypes(),
         ]);
 
         return $resumptionMasterSecret;

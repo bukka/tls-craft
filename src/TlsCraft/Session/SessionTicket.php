@@ -3,7 +3,6 @@
 namespace Php\TlsCraft\Session;
 
 use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Exceptions\CraftException;
 use RuntimeException;
 
 class SessionTicket
@@ -17,8 +16,9 @@ class SessionTicket
         public readonly int $ageAdd,
         public readonly string $nonce,
         public readonly ?string $serverName = null,
-        public readonly ?string $resumptionMasterSecret = null, // For opaque tickets
+        public readonly ?string $resumptionSecret = null, // For opaque tickets
         public readonly ?CipherSuite $cipherSuite = null, // For opaque tickets
+        public readonly ?int $timestamp = null, // For opaque tickets - when ticket was created
     ) {
     }
 
@@ -48,9 +48,11 @@ class SessionTicket
      */
     public function isValid(): bool
     {
-        // For opaque tickets, check if we have the resumption secret
+        // For opaque tickets, check if we have the resumption secret and cipher suite
         if ($this->isOpaque()) {
-            return $this->resumptionMasterSecret !== null && $this->cipherSuite !== null;
+            return $this->resumptionSecret !== null
+                && $this->cipherSuite !== null
+                && $this->timestamp !== null;
         }
 
         // For decrypted tickets, check expiry
@@ -59,13 +61,11 @@ class SessionTicket
 
     /**
      * Get ticket data (only for non-opaque tickets)
-     *
-     * @throws CraftException
      */
     public function getData(): SessionTicketData
     {
         if ($this->isOpaque()) {
-            throw new CraftException('Cannot get data from opaque ticket');
+            throw new RuntimeException('Cannot get data from opaque ticket');
         }
 
         return $this->data;
@@ -91,13 +91,12 @@ class SessionTicket
      */
     public function getResumptionSecret(): string
     {
-        // For opaque tickets, use the stored resumption master secret
+        // For opaque tickets, use the stored resumption secret
         if ($this->isOpaque()) {
-            if ($this->resumptionMasterSecret === null) {
-                throw new RuntimeException('Opaque ticket missing resumption master secret');
+            if ($this->resumptionSecret === null) {
+                throw new RuntimeException('Opaque ticket missing resumption secret');
             }
-
-            return $this->resumptionMasterSecret;
+            return $this->resumptionSecret;
         }
 
         // For decrypted tickets, use the secret from ticket data
@@ -114,7 +113,6 @@ class SessionTicket
             if ($this->cipherSuite === null) {
                 throw new RuntimeException('Opaque ticket missing cipher suite');
             }
-
             return $this->cipherSuite;
         }
 
@@ -123,14 +121,44 @@ class SessionTicket
     }
 
     /**
+     * Get timestamp (works for both opaque and decrypted tickets)
+     */
+    public function getTimestamp(): int
+    {
+        if ($this->isOpaque()) {
+            if ($this->timestamp === null) {
+                throw new RuntimeException('Opaque ticket missing timestamp');
+            }
+            return $this->timestamp;
+        }
+
+        return $this->getData()->timestamp;
+    }
+
+    /**
+     * Get max early data size (works for both opaque and decrypted tickets)
+     */
+    public function getMaxEarlyDataSize(): int
+    {
+        if ($this->isOpaque()) {
+            return 0; // No early data support for opaque tickets
+        }
+
+        return $this->getData()->maxEarlyDataSize;
+    }
+
+    /**
      * Check if ticket has expired
      */
     public function isExpired(): bool
     {
-        // For opaque tickets, we can't determine expiry without server
-        // Let the server validate it
+        // For opaque tickets, calculate based on stored timestamp
         if ($this->isOpaque()) {
-            return false;
+            if ($this->timestamp === null) {
+                return true;
+            }
+            $age = time() - $this->timestamp;
+            return $age >= $this->lifetime;
         }
 
         return $this->getData()->isExpired($this->lifetime);
@@ -141,14 +169,8 @@ class SessionTicket
      */
     public function getTicketAge(): int
     {
-        if ($this->isOpaque()) {
-            // Use current time - ticket must have been created recently
-            // This is a simplification - ideally we'd store creation timestamp
-            return 0;
-        }
-
-        $age = time() - $this->getData()->timestamp;
-
+        $timestamp = $this->getTimestamp();
+        $age = time() - $timestamp;
         return $age * 1000; // Convert to milliseconds
     }
 }

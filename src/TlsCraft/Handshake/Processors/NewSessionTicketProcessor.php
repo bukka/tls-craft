@@ -25,11 +25,20 @@ class NewSessionTicketProcessor extends MessageProcessor
             'ticket_length' => strlen($message->ticket),
         ]);
 
+        // Get resumption secret and cipher suite from context
+        $resumptionSecret = $this->context->deriveResumptionSecret($message->ticketNonce);
+        $cipherSuite = $this->context->getNegotiatedCipherSuite();
+
         // Create SessionTicket (opaque or decrypted)
-        $sessionTicket = $this->ticketFactory->createFromMessage($message);
+        $sessionTicket = $this->ticketFactory->createFromMessage(
+            $message,
+            $resumptionSecret,
+            $cipherSuite,
+        );
 
         Logger::debug('Created SessionTicket', [
             'is_opaque' => $sessionTicket->isOpaque(),
+            'is_valid' => $sessionTicket->isValid(),
             'server_name' => $sessionTicket->serverName,
         ]);
 
@@ -41,6 +50,7 @@ class NewSessionTicketProcessor extends MessageProcessor
             Logger::debug('Stored session ticket', [
                 'server_name' => $sessionTicket->serverName,
                 'is_opaque' => $sessionTicket->isOpaque(),
+                'is_valid' => $sessionTicket->isValid(),
             ]);
         }
 
