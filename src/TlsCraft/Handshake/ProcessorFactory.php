@@ -13,6 +13,7 @@ use Php\TlsCraft\Handshake\Processors\FinishedProcessor;
 use Php\TlsCraft\Handshake\Processors\KeyUpdateProcessor;
 use Php\TlsCraft\Handshake\Processors\NewSessionTicketProcessor;
 use Php\TlsCraft\Handshake\Processors\ServerHelloProcessor;
+use Php\TlsCraft\Session\SessionTicketFactory;
 
 class ProcessorFactory
 {
@@ -60,7 +61,12 @@ class ProcessorFactory
 
     public function createNewSessionTicketProcessor(): NewSessionTicketProcessor
     {
-        return new NewSessionTicketProcessor($this->context, $this->config);
+        $ticketFactory = new SessionTicketFactory(
+            serializer: $this->context->getConfig()->getSessionTicketSerializer(),
+            defaultServerName: $this->context->getConfig()->getServerName(),
+        );
+
+        return new NewSessionTicketProcessor($this->context, $this->config, $ticketFactory);
     }
 
     public function createKeyUpdateProcessor(): KeyUpdateProcessor

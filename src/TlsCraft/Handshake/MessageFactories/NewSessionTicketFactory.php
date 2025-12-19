@@ -2,73 +2,59 @@
 
 namespace Php\TlsCraft\Handshake\MessageFactories;
 
+use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\Messages\NewSessionTicketMessage;
 use Php\TlsCraft\Logger;
+use Php\TlsCraft\Session\SessionTicketData;
 
 class NewSessionTicketFactory extends AbstractMessageFactory
 {
-    /**
-     * Create NewSessionTicket message
-     */
     public function create(): NewSessionTicketMessage
     {
+        $config = $this->context->getConfig();
+
+        if (!$config->isSessionResumptionEnabled()) {
+            throw new CraftException('Cannot create NewSessionTicket: resumption not enabled');
+        }
+
         // Generate ticket nonce
         $ticketNonce = random_bytes(32);
 
-        // Get resumption master secret from context
-        $resumptionMasterSecret = $this->context->getResumptionMasterSecret();
-
-        if ($resumptionMasterSecret === null) {
-            // Derive it if not already derived
-            $resumptionMasterSecret = $this->context->getKeySchedule()
-                ->deriveResumptionMasterSecret();
-            $this->context->setResumptionMasterSecret($resumptionMasterSecret);
-        }
-
-        // Derive resumption secret (PSK) from nonce
+        // Derive resumption secret
+        $resumptionMasterSecret = $this->context->getKeySchedule()
+            ->deriveResumptionMasterSecret();
         $resumptionSecret = $this->context->getKeySchedule()
             ->deriveResumptionSecret($resumptionMasterSecret, $ticketNonce);
 
-        // Create opaque ticket data
-        $ticket = $this->createTicket($resumptionSecret, $ticketNonce);
+        // Create ticket data
+        $ticketData = new SessionTicketData(
+            resumptionSecret: $resumptionSecret,
+            cipherSuite: $this->context->getNegotiatedCipherSuite(),
+            timestamp: time(),
+            nonce: $ticketNonce,
+            serverName: $config->getServerName() ?? 'unknown',
+            maxEarlyDataSize: 0, // No early data support yet
+        );
 
-        // Get configuration
-        $config = $this->context->getConfig();
-        $ticketLifetime = $config->getSessionLifetime();
-        $ticketAgeAdd = random_int(0, 0xFFFFFFFF);
+        // Serialize ticket using configured serializer
+        $serializer = $config->getSessionTicketSerializer();
+        if ($serializer === null) {
+            throw new CraftException('Session ticket serializer not configured');
+        }
+
+        $ticket = $serializer->serialize($ticketData);
 
         Logger::debug('Created NewSessionTicket', [
-            'lifetime' => $ticketLifetime,
-            'nonce' => bin2hex($ticketNonce),
             'ticket_length' => strlen($ticket),
+            'lifetime' => $config->getSessionLifetime(),
         ]);
 
         return new NewSessionTicketMessage(
-            ticketLifetime: $ticketLifetime,
-            ticketAgeAdd: $ticketAgeAdd,
+            ticketLifetime: $config->getSessionLifetime(),
+            ticketAgeAdd: random_int(0, 0xFFFFFFFF),
             ticketNonce: $ticketNonce,
             ticket: $ticket,
-            extensions: [], // Could include early_data extension for 0-RTT
+            extensions: [],
         );
-    }
-
-    /**
-     * Create opaque ticket data
-     */
-    private function createTicket(string $resumptionSecret, string $nonce): string
-    {
-        $ticketData = [
-            'version' => 1,
-            'cipher_suite' => $this->context->getNegotiatedCipherSuite()->value,
-            'resumption_secret' => $resumptionSecret,
-            'nonce' => $nonce,
-            'timestamp' => time(),
-            'server_name' => $this->context->getRequestedServerName(),
-            'max_early_data' => $this->config->getMaxEarlyDataSize(),
-        ];
-
-        // TODO: encrypt + MAC this data with a server key
-        // For now: just serialize (easier to debug)
-        return serialize($ticketData);
     }
 }

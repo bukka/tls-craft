@@ -2,12 +2,22 @@
 
 namespace Php\TlsCraft\Handshake\Processors;
 
+use Php\TlsCraft\Config;
+use Php\TlsCraft\Context;
 use Php\TlsCraft\Handshake\Messages\NewSessionTicketMessage;
 use Php\TlsCraft\Logger;
-use Php\TlsCraft\Session\SessionTicket;
+use Php\TlsCraft\Session\SessionTicketFactory;
 
 class NewSessionTicketProcessor extends MessageProcessor
 {
+    public function __construct(
+        Context $context,
+        Config $config,
+        private readonly SessionTicketFactory $ticketFactory,
+    ) {
+        parent::__construct($context, $config);
+    }
+
     public function process(NewSessionTicketMessage $message): void
     {
         Logger::debug('Processing NewSessionTicket', [
@@ -15,27 +25,13 @@ class NewSessionTicketProcessor extends MessageProcessor
             'ticket_length' => strlen($message->ticket),
         ]);
 
-        // Parse ticket data (in production, decrypt first)
-        $ticketData = @unserialize($message->ticket);
+        // Create SessionTicket (opaque or decrypted)
+        $sessionTicket = $this->ticketFactory->createFromMessage($message);
 
-        if (!is_array($ticketData)) {
-            Logger::warn('Failed to parse ticket data');
-
-            return;
-        }
-
-        // Create SessionTicket object
-        $sessionTicket = new SessionTicket(
-            ticket: $message->ticket,
-            resumptionSecret: $ticketData['resumption_secret'],
-            cipherSuite: \Php\TlsCraft\Crypto\CipherSuite::from($ticketData['cipher_suite']),
-            lifetime: $message->ticketLifetime,
-            ageAdd: $message->ticketAgeAdd,
-            nonce: $message->ticketNonce,
-            timestamp: $ticketData['timestamp'],
-            maxEarlyDataSize: $ticketData['max_early_data'] ?? 0,
-            serverName: $ticketData['server_name'] ?? null,
-        );
+        Logger::debug('Created SessionTicket', [
+            'is_opaque' => $sessionTicket->isOpaque(),
+            'server_name' => $sessionTicket->serverName,
+        ]);
 
         // Store ticket if storage is configured
         $storage = $this->context->getConfig()->getSessionStorage();
@@ -44,6 +40,7 @@ class NewSessionTicketProcessor extends MessageProcessor
 
             Logger::debug('Stored session ticket', [
                 'server_name' => $sessionTicket->serverName,
+                'is_opaque' => $sessionTicket->isOpaque(),
             ]);
         }
 

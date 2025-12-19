@@ -18,7 +18,9 @@ use Php\TlsCraft\Handshake\ExtensionProviders\SupportedGroupsExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SupportedVersionsExtensionProvider;
 use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\ServerHelloExtensionProviders;
+use Php\TlsCraft\Session\PlainSessionTicketSerializer;
 use Php\TlsCraft\Session\SessionStorage;
+use Php\TlsCraft\Session\SessionTicketSerializer;
 use Php\TlsCraft\State\ProtocolValidator;
 
 class Config
@@ -77,6 +79,8 @@ class Config
 
     // Session storage backend (null = no storage, tickets won't be saved)
     private ?SessionStorage $sessionStorage = null;
+    // Session ticket serializer (null = use default serializer)
+    private ?SessionTicketSerializer $sessionTicketSerializer = null;
 
     // External PSKs (manually configured pre-shared keys)
     /** @var PreSharedKey[] */
@@ -735,6 +739,18 @@ class Config
             PskKeyExchangeModesExtension::PSK_KE,
             PskKeyExchangeModesExtension::PSK_DHE_KE,
         ]);
+    }
+
+    public function withSessionTicketSerializer(SessionTicketSerializer $serializer): self
+    {
+        $this->sessionTicketSerializer = $serializer;
+
+        return $this;
+    }
+
+    public function getSessionTicketSerializer(): ?SessionTicketSerializer
+    {
+        return $this->sessionTicketSerializer ?? new PlainSessionTicketSerializer();
     }
 
     // Original extension setup methods - kept intact

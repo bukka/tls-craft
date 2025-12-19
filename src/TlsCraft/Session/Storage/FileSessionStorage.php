@@ -101,7 +101,7 @@ class FileSessionStorage implements SessionStorage
     public function store(string $serverName, SessionTicket $ticket): void
     {
         $tickets = $this->loadTickets($serverName);
-        $tickets[$ticket->getIdentity()] = $ticket;
+        $tickets[$ticket->getIdentifier()] = $ticket;
         $this->saveTickets($serverName, $tickets);
     }
 
