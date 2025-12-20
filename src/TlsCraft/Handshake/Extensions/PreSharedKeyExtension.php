@@ -94,4 +94,15 @@ class PreSharedKeyExtension extends Extension
     {
         return !empty($this->binders);
     }
+
+    public function getBinderLength(array $offeredPsks): int
+    {
+        if (!empty($offeredPsks)) {
+            // Use first PSK's cipher suite to determine hash length
+            return $offeredPsks[0]->cipherSuite->getHashLength();
+        }
+
+        // Default to SHA256 (32 bytes)
+        return 32;
+    }
 }

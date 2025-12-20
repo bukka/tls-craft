@@ -45,7 +45,7 @@ class PreSharedKeyExtensionSerializer extends AbstractExtensionSerializer
             // Use placeholder zeros (for first pass calculation)
             // Binder length depends on the hash algorithm of the cipher suite
             // For now, use 32 bytes (SHA256) as default
-            $binderLength = $this->getBinderLength();
+            $binderLength = $extension->getBinderLength($this->context->getOfferedPsks());
             for ($i = 0; $i < $binderCount; ++$i) {
                 $bindersData .= pack('C', $binderLength);
                 $bindersData .= str_repeat("\x00", $binderLength);
@@ -81,22 +81,5 @@ class PreSharedKeyExtensionSerializer extends AbstractExtensionSerializer
         }
 
         return pack('n', strlen($identitiesData)).$identitiesData;
-    }
-
-    /**
-     * Get binder length based on cipher suite hash algorithm
-     */
-    private function getBinderLength(): int
-    {
-        // Get from context's negotiated cipher suite or offered PSKs
-        $offeredPsks = $this->context->getOfferedPsks();
-
-        if (!empty($offeredPsks)) {
-            // Use first PSK's cipher suite to determine hash length
-            return $offeredPsks[0]->cipherSuite->getHashLength();
-        }
-
-        // Default to SHA256 (32 bytes)
-        return 32;
     }
 }

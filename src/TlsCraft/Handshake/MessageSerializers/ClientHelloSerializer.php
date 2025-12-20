@@ -38,9 +38,17 @@ class ClientHelloSerializer extends AbstractMessageSerializer
         // FIRST PASS: Serialize with zero binders
         $partialData = $this->serializeInternal($message);
 
+        // Strip binders from extension
+        // Structure: [2 bytes: binders length] + [1 byte: binder1 len] + [binder1] + ...
+        $binderLength = $pskExtension->getBinderLength($this->context->getOfferedPsks());
+        $singleBinderSize = 1 + $binderLength; // 1-byte length prefix + binder data
+        $bindersLength = 2 + ($pskExtension->getIdentityCount() * $singleBinderSize);
+
+        $partialData = substr($partialData, 0, -$bindersLength);
+
         Logger::debug('First pass serialization complete (with zero binders)', [
-            'length' => strlen($partialData),
-            'partial_hex' => bin2hex(substr($partialData, 0, 64)).'...',
+            'partial_data_length' => strlen($partialData),
+            'partial_data' => $partialData,
         ]);
 
         // Calculate binders based on partial ClientHello
@@ -61,8 +69,8 @@ class ClientHelloSerializer extends AbstractMessageSerializer
         $finalData = $this->serializeInternal($message);
 
         Logger::debug('Second pass serialization complete (with real binders)', [
-            'length' => strlen($finalData),
-            'final_hex' => bin2hex(substr($finalData, 0, 64)).'...',
+            'final_data_length' => strlen($finalData),
+            'final_data' => $finalData,
         ]);
 
         return $finalData;
