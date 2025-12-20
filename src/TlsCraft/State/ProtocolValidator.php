@@ -16,13 +16,17 @@ class ProtocolValidator
         $this->allowViolations = $allowViolations;
     }
 
-    public function validateHandshakeMessage(HandshakeType $messageType, HandshakeState $currentState, bool $isClient): bool
-    {
+    public function validateHandshakeMessage(
+        HandshakeType $messageType,
+        HandshakeState $currentState,
+        bool $isClient,
+        bool $isResuming,
+    ): bool {
         if ($this->allowViolations) {
             return true;
         }
 
-        $expectedTypes = $this->getExpectedMessageTypes($currentState, $isClient);
+        $expectedTypes = $this->getExpectedMessageTypes($currentState, $isClient, $isResuming);
 
         return in_array($messageType, $expectedTypes);
     }
@@ -55,7 +59,7 @@ class ProtocolValidator
         return in_array($serverChoice, $clientSuites);
     }
 
-    private function getExpectedMessageTypes(HandshakeState $state, bool $isClient): array
+    private function getExpectedMessageTypes(HandshakeState $state, bool $isClient, bool $isResuming): array
     {
         return match ($state) {
             HandshakeState::START => $isClient ?
@@ -64,11 +68,15 @@ class ProtocolValidator
             HandshakeState::WAIT_CLIENT_HELLO => [HandshakeType::CLIENT_HELLO],
             HandshakeState::WAIT_SERVER_HELLO => [HandshakeType::SERVER_HELLO],
             HandshakeState::WAIT_ENCRYPTED_EXTENSIONS => [HandshakeType::ENCRYPTED_EXTENSIONS],
-            HandshakeState::WAIT_CERTIFICATE => $isClient ?
-                // Client can receive CertificateRequest (optional) or Certificate
-                [HandshakeType::CERTIFICATE_REQUEST, HandshakeType::CERTIFICATE] :
-                // Server only expects Certificate from client
-                [HandshakeType::CERTIFICATE],
+            HandshakeState::WAIT_CERTIFICATE => $isResuming ?
+                [HandshakeType::FINISHED] :
+                (
+                    $isClient ?
+                        // Client can receive CertificateRequest (optional) or Certificate
+                        [HandshakeType::CERTIFICATE_REQUEST, HandshakeType::CERTIFICATE] :
+                        // Server only expects Certificate from client
+                        [HandshakeType::CERTIFICATE]
+                ),
             HandshakeState::WAIT_CERTIFICATE_VERIFY => [HandshakeType::CERTIFICATE_VERIFY],
             HandshakeState::WAIT_FINISHED => [HandshakeType::FINISHED],
             HandshakeState::WAIT_FLIGHT2 => [

@@ -392,6 +392,7 @@ class ProtocolOrchestrator
             $type,
             $this->stateTracker->getHandshakeState(),
             $this->stateTracker->isClient(),
+            $this->context->isResuming(),
         )) {
             $handshakeState = $this->stateTracker->getHandshakeState()->value;
             throw new ProtocolViolationException("Unexpected handshake message {$type->name} in state {$handshakeState}");
