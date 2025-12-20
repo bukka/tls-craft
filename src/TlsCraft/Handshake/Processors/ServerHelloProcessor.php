@@ -3,7 +3,7 @@
 namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
-use Php\TlsCraft\Handshake\Extensions\{KeyShareExtension, SupportedVersionsExtension};
+use Php\TlsCraft\Handshake\Extensions\{KeyShareExtension, PreSharedKeyExtension, SupportedVersionsExtension};
 use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Handshake\Messages\ServerHelloMessage;
 use Php\TlsCraft\Protocol\Version;
@@ -39,6 +39,9 @@ class ServerHelloProcessor extends MessageProcessor
 
         // Set negotiated cipher suite
         $this->context->setNegotiatedCipherSuite($message->cipherSuite);
+
+        // Check if server selected PSK and derive early secret accordingly
+        $this->processPskSelection($message);
 
         // Derive handshake secrets now that we have server key share
         $this->deriveHandshakeSecrets();
@@ -89,6 +92,40 @@ class ServerHelloProcessor extends MessageProcessor
 
         // Store server's key share
         $this->context->setServerKeyShare($serverKeyShare);
+    }
+
+    private function processPskSelection(ServerHelloMessage $message): void
+    {
+        /** @var PreSharedKeyExtension|null $pskExtension */
+        $pskExtension = $message->getExtension(ExtensionType::PRE_SHARED_KEY);
+
+        if ($pskExtension === null) {
+            // No PSK selected - standard (EC)DHE handshake
+            // Derive early secret with zeros (default behavior)
+            $this->context->deriveEarlySecret();
+
+            return;
+        }
+
+        // Server selected a PSK
+        $selectedIndex = $pskExtension->selectedIdentity;
+        $offeredPsks = $this->context->getOfferedPsks();
+
+        if (empty($offeredPsks)) {
+            throw new ProtocolViolationException('Server selected PSK but client did not offer any PSKs');
+        }
+
+        if (!isset($offeredPsks[$selectedIndex])) {
+            throw new ProtocolViolationException("Server selected invalid PSK index: {$selectedIndex}");
+        }
+
+        $selectedPsk = $offeredPsks[$selectedIndex];
+
+        // Mark as resuming and store selected PSK
+        $this->context->setSelectedPsk($selectedPsk, $selectedIndex);
+
+        // Derive early secret with the selected PSK's secret
+        $this->context->deriveEarlySecret($selectedPsk->secret);
     }
 
     private function deriveHandshakeSecrets(): void
