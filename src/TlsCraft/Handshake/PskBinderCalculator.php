@@ -46,6 +46,7 @@ class PskBinderCalculator
 
             Logger::debug("Calculated binder for PSK #{$index}", [
                 'identity' => bin2hex(substr($psk->identity, 0, 16)).'...',
+                'is_resumption' => $psk->isResumption(),
                 'binder_length' => strlen($binder),
                 'binder' => bin2hex($binder),
             ]);
@@ -72,7 +73,8 @@ class PskBinderCalculator
         $keySchedule->deriveEarlySecretWithPsk($psk->secret);
 
         // 2. Derive binder key
-        $isExternal = $this->isExternalPsk($psk);
+        // Use "res binder" for resumption PSKs, "ext binder" for external PSKs
+        $isExternal = !$psk->isResumption();
         $binderKey = $keySchedule->derivePskBinderKey($isExternal);
 
         // 3. Derive finished key from binder key
@@ -83,22 +85,5 @@ class PskBinderCalculator
         $binder = $keySchedule->calculatePskBinder($finishedKey, $transcriptData);
 
         return $binder;
-    }
-
-    /**
-     * Determine if PSK is external or resumption
-     */
-    private function isExternalPsk(PreSharedKey $psk): bool
-    {
-        // Check if this identity matches any stored tickets
-        $tickets = $this->context->getSessionTickets();
-
-        foreach ($tickets as $ticket) {
-            if ($ticket->getIdentity() === $psk->identity) {
-                return false; // It's a resumption PSK
-            }
-        }
-
-        return true; // It's an external PSK
     }
 }
