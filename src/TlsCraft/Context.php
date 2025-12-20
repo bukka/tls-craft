@@ -627,6 +627,7 @@ class Context
 
     /**
      * Set PSKs to be offered in ClientHello
+     *
      * @param PreSharedKey[] $psks
      */
     public function setOfferedPsks(array $psks): void

@@ -18,7 +18,7 @@ if (is_dir($sessionsDir)) {
             unlink($file);
         }
     }
-    echo "Removed ".count($files)." old session file(s)\n";
+    echo 'Removed '.count($files)." old session file(s)\n";
 } else {
     mkdir($sessionsDir, 0755, true);
     echo "Created sessions directory\n";

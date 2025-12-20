@@ -96,6 +96,7 @@ class SessionTicket
             if ($this->resumptionSecret === null) {
                 throw new RuntimeException('Opaque ticket missing resumption secret');
             }
+
             return $this->resumptionSecret;
         }
 
@@ -113,6 +114,7 @@ class SessionTicket
             if ($this->cipherSuite === null) {
                 throw new RuntimeException('Opaque ticket missing cipher suite');
             }
+
             return $this->cipherSuite;
         }
 
@@ -129,6 +131,7 @@ class SessionTicket
             if ($this->timestamp === null) {
                 throw new RuntimeException('Opaque ticket missing timestamp');
             }
+
             return $this->timestamp;
         }
 
@@ -158,6 +161,7 @@ class SessionTicket
                 return true;
             }
             $age = time() - $this->timestamp;
+
             return $age >= $this->lifetime;
         }
 
@@ -171,6 +175,7 @@ class SessionTicket
     {
         $timestamp = $this->getTimestamp();
         $age = time() - $timestamp;
+
         return $age * 1000; // Convert to milliseconds
     }
 }
