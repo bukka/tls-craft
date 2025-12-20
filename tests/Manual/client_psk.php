@@ -42,12 +42,12 @@ try {
     echo "✓ TLS 1.3 handshake completed with PSK!\n\n";
 
     // Send test message
-    $message = 'Hello from PSK client!';
+    $message = "test\n";
     echo "Sending: $message\n";
     $session->send($message);
 
     // Receive response
-    $response = $session->receive(1024);
+    $response = $session->receive(5);
     echo "Received: $response\n\n";
 
     $session->close();
