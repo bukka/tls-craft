@@ -15,7 +15,7 @@ $port = 4433;
 
 // Define the same PSK as client
 $pskIdentity = 'my-test-psk';
-$pskKey = hex2bin('YOUR_PSK_KEY_HEX_HERE'); // Use same key as client
+$pskKey = hex2bin('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'); // matching the Makefile key
 $cipherSuite = CipherSuite::TLS_AES_128_GCM_SHA256;
 
 echo "PSK Test Server\n";
