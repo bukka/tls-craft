@@ -29,21 +29,15 @@ class FinishedProcessor extends MessageProcessor
             throw new ProtocolViolationException('Key schedule not initialized');
         }
 
+        // Get transcript hash including all messages except the server Finished
+        $transcriptHash = $this->context->getHandshakeTranscript()->getHashAllExceptLast(
+            $cipherSuite->getHashAlgorithm(),
+        );
+
         // Get the appropriate handshake traffic secret
         if ($this->context->isClient()) {
-            // Get transcript hash excluding the FinishedMessage message itself
-            $transcriptHash = $this->context->getHandshakeTranscript()->getHashThrough(
-                $cipherSuite->getHashAlgorithm(),
-                HandshakeType::CERTIFICATE_VERIFY,
-            );
-            // We're client verifying server's FinishedMessage
             $handshakeSecret = $keySchedule->getServerHandshakeTrafficSecret();
         } else {
-            // Get transcript hash including the client FinishedMessage message
-            $transcriptHash = $this->context->getHandshakeTranscript()->getHashAllExceptLast(
-                $cipherSuite->getHashAlgorithm(),
-            );
-            // We're server verifying client's FinishedMessage
             $handshakeSecret = $keySchedule->getClientHandshakeTrafficSecret();
         }
 
