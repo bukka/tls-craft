@@ -36,25 +36,40 @@ class ClientHelloSerializer extends AbstractMessageSerializer
         PreSharedKeyExtension $pskExtension,
     ): string {
         // FIRST PASS: Serialize with zero binders
-        $partialData = $this->serializeInternal($message);
+        $fullData = $this->serializeInternal($message);
+        $fullLength = strlen($fullData);
 
         // Strip binders from extension
-        // Structure: [2 bytes: binders length] + [1 byte: binder1 len] + [binder1] + ...
         $binderLength = $pskExtension->getBinderLength($this->context->getOfferedPsks());
-        $singleBinderSize = 1 + $binderLength; // 1-byte length prefix + binder data
+        $singleBinderSize = 1 + $binderLength;
         $bindersLength = 2 + ($pskExtension->getIdentityCount() * $singleBinderSize);
 
-        $partialData = substr($partialData, 0, -$bindersLength);
+        $partialData = substr($fullData, 0, -$bindersLength);
 
         Logger::debug('First pass serialization complete (with zero binders)', [
+            'full_length' => $fullLength,
             'partial_data_length' => strlen($partialData),
-            'partial_data' => $partialData,
+            'partial_data' => bin2hex($partialData),
         ]);
 
-        // Calculate binders based on partial ClientHello
+        // Add handshake message header for binder calculation
+        // Format: Type (1 byte) + Length (3 bytes) + Body
+        // Length is the FULL body length (including zero binders that will be replaced)
+        $handshakeHeader = chr(0x01); // ClientHello type
+        $handshakeHeader .= substr(pack('N', $fullLength), 1, 3); // 3-byte length (big-endian)
+
+        $partialWithHeader = $handshakeHeader.$partialData;
+
+        Logger::debug('Partial ClientHello with handshake header', [
+            'total_length' => strlen($partialWithHeader),
+            'header' => bin2hex($handshakeHeader),
+            'header_length_field' => $fullLength,
+        ]);
+
+        // Calculate binders based on partial ClientHello WITH header
         $binders = $this->context->getPskBinderCalculator()->calculateBinders(
             $this->context->getOfferedPsks(),
-            $partialData,
+            $partialWithHeader,
             '', // No previous transcript for initial ClientHello
         );
 
@@ -70,7 +85,7 @@ class ClientHelloSerializer extends AbstractMessageSerializer
 
         Logger::debug('Second pass serialization complete (with real binders)', [
             'final_data_length' => strlen($finalData),
-            'final_data' => $finalData,
+            'final_data' => bin2hex($finalData),
         ]);
 
         return $finalData;
