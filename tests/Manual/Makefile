@@ -275,9 +275,9 @@ test-server-external-psk: ## Start OpenSSL s_server with external PSK (no cert)
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, External PSK) on port $(PORT)...$(NC)"
 	@$(ECHO) "$(YELLOW)PSK Identity: $(PSK_IDENTITY)$(NC)"
 	@$(ECHO) "$(YELLOW)PSK Key: $(PSK_KEY)$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -nocert -tls1_3 -debug -state -msg -rev"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) -nocert -tls1_3 -debug -state -msg -rev"
 	@$(OPENSSL) s_server -accept $(PORT) \
-		-psk $(PSK_KEY) \
+		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
 		-nocert \
 		-tls1_3 -debug -state -msg -rev
 
@@ -286,9 +286,9 @@ test-server-external-psk-ec: ## Start OpenSSL s_server with external PSK + ECC c
 	@$(ECHO) "$(YELLOW)PSK Identity: $(PSK_IDENTITY)$(NC)"
 	@$(ECHO) "$(YELLOW)PSK Key: $(PSK_KEY)$(NC)"
 	@$(ECHO) "$(YELLOW)Note: Server has ECC cert but will prefer PSK if client offers it$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -debug -state -msg -rev"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -debug -state -msg -rev"
 	@$(OPENSSL) s_server -accept $(PORT) \
-		-psk $(PSK_KEY) \
+		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
 		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
 		-tls1_3 -debug -state -msg -rev
 
@@ -296,9 +296,9 @@ test-server-external-psk-verbose: ## Start OpenSSL s_server with external PSK an
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, External PSK verbose) on port $(PORT)...$(NC)"
 	@$(ECHO) "$(YELLOW)PSK Identity: $(PSK_IDENTITY)$(NC)"
 	@$(ECHO) "$(YELLOW)PSK Key: $(PSK_KEY)$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -nocert -tls1_3 -keylogfile $(CERT_DIR)/server-psk.keylog -debug -tlsextdebug -state -msg -rev"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) -nocert -tls1_3 -keylogfile $(CERT_DIR)/server-psk.keylog -debug -tlsextdebug -state -msg -rev"
 	@$(OPENSSL) s_server -accept $(PORT) \
-		-psk $(PSK_KEY) \
+		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
 		-nocert \
 		-keylogfile $(CERT_DIR)/server-psk.keylog \
 		-tls1_3 -debug -tlsextdebug -state -msg -rev
@@ -307,9 +307,9 @@ test-server-external-psk-ec-verbose: ## Start OpenSSL s_server with external PSK
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, External PSK + ECC verbose) on port $(PORT)...$(NC)"
 	@$(ECHO) "$(YELLOW)PSK Identity: $(PSK_IDENTITY)$(NC)"
 	@$(ECHO) "$(YELLOW)PSK Key: $(PSK_KEY)$(NC)"
-	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -keylogfile $(CERT_DIR)/server-psk.keylog -debug -tlsextdebug -state -msg -rev"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -keylogfile $(CERT_DIR)/server-psk.keylog -debug -tlsextdebug -state -msg -rev"
 	@$(OPENSSL) s_server -accept $(PORT) \
-		-psk $(PSK_KEY) \
+		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
 		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
 		-keylogfile $(CERT_DIR)/server-psk.keylog \
 		-tls1_3 -debug -tlsextdebug -state -msg -rev
