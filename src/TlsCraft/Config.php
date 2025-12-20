@@ -741,6 +741,16 @@ class Config
         ]);
     }
 
+    /**
+     * Configure external PSKs
+     */
+    public function withExternalPsks(array $externalPsks): self
+    {
+        $this->externalPsks = $externalPsks;
+
+        return $this;
+    }
+
     public function withSessionTicketSerializer(SessionTicketSerializer $serializer): self
     {
         $this->sessionTicketSerializer = $serializer;

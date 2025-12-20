@@ -21,17 +21,25 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
 {
     public function create(Context $context): ?PreSharedKeyExtension
     {
-        // First, check for manually configured external PSKs
+        // First, check for PSKs already set in context (e.g., from manual configuration)
         $offeredPsks = $context->getOfferedPsks();
 
-        // If no external PSKs, try to load session tickets from storage
+        // If no PSKs in context, check Config for external PSKs
+        if (empty($offeredPsks)) {
+            $offeredPsks = $context->getConfig()->getExternalPsks();
+
+            if (!empty($offeredPsks)) {
+                Logger::debug('Using external PSKs from Config', [
+                    'count' => count($offeredPsks),
+                ]);
+            }
+        }
+
+        // If still no PSKs, try to load session tickets from storage
         if (empty($offeredPsks)) {
             $offeredPsks = $this->loadSessionTicketsFromStorage($context);
 
             if (!empty($offeredPsks)) {
-                // Set loaded PSKs in context for later use (binder calculation)
-                $context->setOfferedPsks($offeredPsks);
-
                 Logger::debug('Loaded session tickets from storage', [
                     'count' => count($offeredPsks),
                     'server_name' => $context->getConfig()->getServerName(),
@@ -40,11 +48,14 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
         }
 
         if (empty($offeredPsks)) {
-            // No PSKs available (neither external nor from storage)
+            // No PSKs available (neither external, context, nor from storage)
             Logger::debug('No PSKs available - skipping pre_shared_key extension');
 
             return null;
         }
+
+        // Set PSKs in context for later use (binder calculation)
+        $context->setOfferedPsks($offeredPsks);
 
         // Build identity array from PSKs
         $identities = [];

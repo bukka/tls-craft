@@ -4,6 +4,7 @@ namespace Php\TlsCraft;
 
 use InvalidArgumentException;
 use Php\TlsCraft\Connection\ConnectionFactory;
+use Php\TlsCraft\Session\PreSharedKey;
 use Php\TlsCraft\Session\SessionStorage;
 use Php\TlsCraft\Session\SessionTicketSerializer;
 
@@ -16,6 +17,7 @@ final class AppFactory
      * @param int                          $port                    Server port number
      * @param string|null                  $certificatePath         Path to client certificate file (PEM format, for mutual TLS)
      * @param string|null                  $privateKeyPath          Path to client private key file (PEM format, for mutual TLS)
+     * @param PreSharedKey[]|null          $externalPsks            External PSKs for authentication (alternative to certificates)
      * @param SessionStorage|null          $sessionStorage          Storage backend for session tickets (enables resumption if provided)
      * @param SessionTicketSerializer|null $sessionTicketSerializer Serializer for tickets (null = opaque tickets, recommended for clients)
      * @param int                          $sessionLifetime         Session ticket lifetime in seconds (default: 86400 = 24 hours)
@@ -30,6 +32,7 @@ final class AppFactory
         int $port,
         ?string $certificatePath = null,
         ?string $privateKeyPath = null,
+        ?array $externalPsks = null,
         ?SessionStorage $sessionStorage = null,
         ?SessionTicketSerializer $sessionTicketSerializer = null,
         int $sessionLifetime = 86400,
@@ -47,6 +50,11 @@ final class AppFactory
         // Add certificate if provided (for mutual TLS)
         if ($certificatePath && $privateKeyPath) {
             $config = $config->withCertificate($certificatePath, $privateKeyPath);
+        }
+
+        // Add external PSKs if provided
+        if ($externalPsks !== null) {
+            $config = $config->withExternalPsks($externalPsks);
         }
 
         // Configure session resumption if storage provided
@@ -70,6 +78,7 @@ final class AppFactory
      * @param bool                         $mutualTls               Require client certificate authentication
      * @param string|null                  $clientCaFile            Path to CA bundle file for verifying client certificates
      * @param string|null                  $clientCaPath            Path to directory containing CA certificates for verifying client certificates
+     * @param PreSharedKey[]|null          $externalPsks            External PSKs for authentication (alternative to certificates)
      * @param SessionStorage|null          $sessionStorage          Storage backend for session tickets (enables resumption if provided)
      * @param SessionTicketSerializer|null $sessionTicketSerializer Serializer for tickets (REQUIRED if sessionStorage provided)
      * @param int                          $sessionLifetime         Session ticket lifetime in seconds (default: 86400 = 24 hours)
@@ -87,6 +96,7 @@ final class AppFactory
         bool $mutualTls = false,
         ?string $clientCaFile = null,
         ?string $clientCaPath = null,
+        ?array $externalPsks = null,
         ?SessionStorage $sessionStorage = null,
         ?SessionTicketSerializer $sessionTicketSerializer = null,
         int $sessionLifetime = 86400,
@@ -105,6 +115,11 @@ final class AppFactory
         if ($mutualTls) {
             $config = $config->setRequestClientCertificate(true)
                 ->withCustomCa($clientCaPath, $clientCaFile);
+        }
+
+        // Add external PSKs if provided
+        if ($externalPsks !== null) {
+            $config = $config->withExternalPsks($externalPsks);
         }
 
         // Configure session resumption if storage provided
