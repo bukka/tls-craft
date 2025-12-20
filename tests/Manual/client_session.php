@@ -7,8 +7,24 @@ use Php\TlsCraft\Session\Storage\FileSessionStorage;
 
 $hostname = 'localhost';
 $port = 4433;
+$sessionsDir = __DIR__.'/certs/sessions';
 
-echo "Connecting to $hostname:$port\n";
+// Clean up old session tickets before starting
+echo "Cleaning up old session tickets...\n";
+if (is_dir($sessionsDir)) {
+    $files = glob($sessionsDir.'/*');
+    foreach ($files as $file) {
+        if (is_file($file)) {
+            unlink($file);
+        }
+    }
+    echo "Removed ".count($files)." old session file(s)\n";
+} else {
+    mkdir($sessionsDir, 0755, true);
+    echo "Created sessions directory\n";
+}
+
+echo "\nConnecting to $hostname:$port\n";
 echo "Session resumption: ENABLED\n\n";
 
 // First connection
@@ -17,7 +33,7 @@ try {
     $client = AppFactory::createClient(
         hostname: $hostname,
         port: $port,
-        sessionStorage: new FileSessionStorage(__DIR__.'/certs/sessions'),
+        sessionStorage: new FileSessionStorage($sessionsDir),
         sessionLifetime: 7200,
         debug: true,
     );
@@ -55,7 +71,7 @@ try {
     $client = AppFactory::createClient(
         hostname: $hostname,
         port: $port,
-        sessionStorage: new FileSessionStorage(__DIR__.'/certs/sessions'),
+        sessionStorage: new FileSessionStorage($sessionsDir),
         sessionLifetime: 7200,
         debug: true,
     );
