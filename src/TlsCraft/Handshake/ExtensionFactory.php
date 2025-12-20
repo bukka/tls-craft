@@ -222,7 +222,7 @@ class ExtensionFactory
             ExtensionType::SUPPORTED_VERSIONS => $this->getSupportedVersionsExtensionParser()->parse($data),
             ExtensionType::PSK_KEY_EXCHANGE_MODES => $this->getPskKeyExchangeModesExtensionParser()->parse($data),
             ExtensionType::KEY_SHARE => $this->getKeyShareExtensionParser()->parse($data),
-            ExtensionType::PRE_SHARED_KEY => $this->getPreSharedKeyExtensionParser()->parse($data),
+            ExtensionType::PRE_SHARED_KEY => $this->getPreSharedKeyExtensionParser()->parse($data, !$this->context->isClient()),
             default => $this->getCustomExtensionParser()->parse($data, $type),
         };
     }
