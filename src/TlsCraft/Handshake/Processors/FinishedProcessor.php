@@ -4,7 +4,6 @@ namespace Php\TlsCraft\Handshake\Processors;
 
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Messages\FinishedMessage;
-use Php\TlsCraft\Protocol\HandshakeType;
 
 class FinishedProcessor extends MessageProcessor
 {
