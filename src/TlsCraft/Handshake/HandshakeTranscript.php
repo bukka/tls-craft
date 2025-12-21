@@ -170,6 +170,14 @@ class HandshakeTranscript
     }
 
     /**
+     * Get last message data
+     */
+    public function getLast(): string
+    {
+        return $this->messages[count($this->messages) - 1]['data'];
+    }
+
+    /**
      * Get transcript hash over all messages
      */
     public function getHash(string $hashAlgorithm): string

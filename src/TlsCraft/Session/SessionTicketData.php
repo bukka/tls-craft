@@ -27,6 +27,7 @@ class SessionTicketData
     public function isExpired(int $lifetime): bool
     {
         $age = time() - $this->timestamp;
+
         return $age >= $lifetime;
     }
 }

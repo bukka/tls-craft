@@ -273,6 +273,7 @@ class ProtocolOrchestrator
             // 3. Finished (for PSK resumption)
             $finished = $this->messageFactory->createFinished(false);
             $this->sendHandshakeMessage($finished);
+
             return;
         }
 

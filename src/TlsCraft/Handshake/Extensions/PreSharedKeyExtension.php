@@ -95,14 +95,51 @@ class PreSharedKeyExtension extends Extension
         return !empty($this->binders);
     }
 
+    /**
+     * Calculate the total length of the binders section
+     * This is used to strip binders from ClientHello for binder calculation
+     *
+     * @param int|null $binderLength Optional override for binder length (hash output size)
+     *
+     * @return int Total bytes occupied by binders section
+     */
+    public function getBindersLength(?int $binderLength = null): int
+    {
+        if (empty($this->binders)) {
+            // If no binders yet, estimate based on identity count
+            $binderLength = $binderLength ?? 32; // Default SHA256
+            $identityCount = count($this->identities);
+            $singleBinderSize = 1 + $binderLength; // 1 byte length + hash output
+
+            return 2 + ($identityCount * $singleBinderSize); // 2 byte length prefix + binders
+        }
+
+        // Calculate actual size from existing binders
+        $totalSize = 2; // 2-byte length prefix
+        foreach ($this->binders as $binder) {
+            $totalSize += 1 + strlen($binder); // 1 byte length + binder data
+        }
+
+        return $totalSize;
+    }
+
+    /**
+     * Strip binders section from serialized ClientHello
+     * Returns ClientHello with binders truncated for binder calculation
+     */
+    public function stripBindersFromClientHello(string $clientHelloWithHeader, ?int $binderLength = null): string
+    {
+        $bindersLength = $this->getBindersLength($binderLength);
+
+        return substr($clientHelloWithHeader, 0, -$bindersLength);
+    }
+
     public function getBinderLength(array $offeredPsks): int
     {
         if (!empty($offeredPsks)) {
-            // Use first PSK's cipher suite to determine hash length
             return $offeredPsks[0]->cipherSuite->getHashLength();
         }
 
-        // Default to SHA256 (32 bytes)
-        return 32;
+        return 32; // Default to SHA256
     }
 }

@@ -126,6 +126,7 @@ class ClientHelloProcessor extends MessageProcessor
         $ext = $message->getExtension(ExtensionType::PRE_SHARED_KEY);
         if (!$ext) {
             Logger::debug('ClientHelloProcessor: No PSK extension in ClientHello');
+
             return;
         }
 
@@ -139,6 +140,7 @@ class ClientHelloProcessor extends MessageProcessor
         $modesExt = $message->getExtension(ExtensionType::PSK_KEY_EXCHANGE_MODES);
         if (!$modesExt) {
             Logger::debug('ClientHelloProcessor: PSK offered but no PSK key exchange modes');
+
             return;
         }
 
@@ -178,7 +180,7 @@ class ClientHelloProcessor extends MessageProcessor
             }
 
             // Verify binder
-            if ($this->verifyPskBinder($message, $psk, $index, $ext->binders[$index])) {
+            if ($this->verifyPskBinder($ext, $psk, $ext->binders[$index])) {
                 $selectedPsk = $psk;
                 $selectedIndex = $index;
                 Logger::debug('ClientHelloProcessor: PSK binder verified', [
@@ -207,40 +209,44 @@ class ClientHelloProcessor extends MessageProcessor
     }
 
     private function verifyPskBinder(
-        ClientHelloMessage $message,
+        PreSharedKeyExtension $pskExt,
         PreSharedKey $psk,
-        int $binderIndex,
-        string $receivedBinder
+        string $receivedBinder,
     ): bool {
-        // Get the wire format of ClientHello (already in transcript)
+        // Get the wire format of ClientHello (WITH handshake header, already in transcript)
         $transcript = $this->context->getHandshakeTranscript();
         $clientHelloWire = $transcript->getLast();
 
-        // Create binder calculator
-        $calculator = $this->context->getCryptoFactory()->createPskBinderCalculator(
-            $psk->cipherSuite,
-            $transcript,
-        );
+        // Strip binders from ClientHello using PSK cipher suite hash length
+        $binderLength = $psk->cipherSuite->getHashLength();
+        $partialClientHello = $pskExt->stripBindersFromClientHello($clientHelloWire, $binderLength);
 
-        // Determine if this is resumption PSK (vs external PSK)
-        $isResumption = !$this->isExternalPsk($psk);
+        // Determine if this is an external PSK (vs resumption PSK)
+        $isExternal = $this->isExternalPsk($psk);
 
-        // Calculate expected binder
+        // Calculate expected binder using partial ClientHello
+        $calculator = $this->context->getPskBinderCalculator();
         $expectedBinder = $calculator->calculateBinder(
-            $clientHelloWire,
-            $psk->secret,
-            $binderIndex,
-            $isResumption,
+            $psk,
+            $partialClientHello,
+            $isExternal,
+            '', // No previous transcript for initial ClientHello
         );
+
+        $matches = hash_equals($expectedBinder, $receivedBinder);
 
         Logger::debug('ClientHelloProcessor: Binder verification', [
-            'is_resumption' => $isResumption,
+            'is_external' => $isExternal,
+            'cipher_suite' => $psk->cipherSuite->name,
+            'binder_length' => $binderLength,
+            'full_ch_length' => strlen($clientHelloWire),
+            'partial_ch_length' => strlen($partialClientHello),
             'expected' => bin2hex($expectedBinder),
             'received' => bin2hex($receivedBinder),
-            'match' => hash_equals($expectedBinder, $receivedBinder),
+            'match' => $matches,
         ]);
 
-        return hash_equals($expectedBinder, $receivedBinder);
+        return $matches;
     }
 
     /**
@@ -253,6 +259,7 @@ class ClientHelloProcessor extends MessageProcessor
                 return true;
             }
         }
+
         return false;
     }
 
@@ -264,6 +271,7 @@ class ClientHelloProcessor extends MessageProcessor
         // If PSK-only mode is selected, key share is optional
         if (!$ext && $this->context->isResuming() && $this->context->supportsPskOnly()) {
             Logger::debug('ClientHelloProcessor: No key share (PSK-only mode)');
+
             return;
         }
 
@@ -329,6 +337,7 @@ class ClientHelloProcessor extends MessageProcessor
         $certificateChain = $this->context->getServerCertificateChain();
         if (!$certificateChain) {
             Logger::error('No certificate chain configured');
+
             return null;
         }
 
@@ -375,6 +384,7 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         Logger::error('No matching signature scheme found');
+
         return null;
     }
 
@@ -408,6 +418,7 @@ class ClientHelloProcessor extends MessageProcessor
         // If server has no configured protocols, don't select anything
         if (empty($this->config->getSupportedProtocols())) {
             Logger::debug('ClientHelloProcessor: No server ALPN protocols configured');
+
             return null;
         }
 

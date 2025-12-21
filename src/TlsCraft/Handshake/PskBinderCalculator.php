@@ -20,10 +20,10 @@ class PskBinderCalculator
     }
 
     /**
-     * Calculate binders for all offered PSKs
+     * Calculate binders for all offered PSKs (client-side)
      *
      * @param PreSharedKey[] $psks               Array of PSKs being offered
-     * @param string         $partialClientHello Serialized ClientHello WITH zero binders
+     * @param string         $partialClientHello Serialized ClientHello WITH handshake header, WITHOUT binders
      * @param string         $previousTranscript Any previous transcript data (empty for first flight)
      *
      * @return string[] Array of binder values (one per PSK)
@@ -45,9 +45,8 @@ class PskBinderCalculator
             $binders[] = $binder;
 
             Logger::debug("Calculated binder for PSK #{$index}", [
-                'identity' => $psk->identity,
-                'psk' => $psk->secret,
-                'is_resumption' => $psk->isResumption(),
+                'cipher_suite' => $psk->cipherSuite->name,
+                'is_external' => !$psk->isResumption(),
                 'binder_length' => strlen($binder),
                 'binder' => bin2hex($binder),
             ]);
@@ -57,13 +56,52 @@ class PskBinderCalculator
     }
 
     /**
-     * Calculate binder for a single PSK
+     * Calculate and verify a single binder (server-side)
+     *
+     * @param PreSharedKey $psk                The PSK to verify
+     * @param string       $partialClientHello Serialized ClientHello WITH handshake header, WITHOUT binders
+     * @param bool         $isExternal         True for external PSK, false for resumption PSK
+     * @param string       $previousTranscript Any previous transcript data (empty for initial ClientHello)
+     *
+     * @return string The calculated binder value
+     */
+    public function calculateBinder(
+        PreSharedKey $psk,
+        string $partialClientHello,
+        bool $isExternal,
+        string $previousTranscript = '',
+    ): string {
+        $binder = $this->calculateBinderForPsk(
+            $psk,
+            $partialClientHello,
+            $previousTranscript,
+            $isExternal,
+        );
+
+        Logger::debug('Calculated single binder for verification', [
+            'cipher_suite' => $psk->cipherSuite->name,
+            'is_external' => $isExternal,
+            'binder_length' => strlen($binder),
+            'binder' => bin2hex($binder),
+        ]);
+
+        return $binder;
+    }
+
+    /**
+     * Calculate binder for a single PSK (internal method)
      */
     private function calculateBinderForPsk(
         PreSharedKey $psk,
         string $partialClientHello,
         string $previousTranscript,
+        ?bool $isExternal = null,
     ): string {
+        // Determine if external PSK (if not explicitly provided)
+        if ($isExternal === null) {
+            $isExternal = !$psk->isResumption();
+        }
+
         // Create temporary key schedule for this PSK's cipher suite
         $keySchedule = $this->context->getCryptoFactory()->createKeySchedule(
             $psk->cipherSuite,
@@ -74,8 +112,7 @@ class PskBinderCalculator
         $keySchedule->deriveEarlySecretWithPsk($psk->secret);
 
         // 2. Derive binder key
-        // Use "res binder" for resumption PSKs, "ext binder" for external PSKs
-        $isExternal = !$psk->isResumption();
+        // Use "ext binder" for external PSKs, "res binder" for resumption PSKs
         $binderKey = $keySchedule->derivePskBinderKey($isExternal);
 
         // 3. Derive finished key from binder key
@@ -84,6 +121,15 @@ class PskBinderCalculator
         // 4. Calculate binder = HMAC(finished_key, Transcript-Hash(messages))
         $transcriptData = $previousTranscript.$partialClientHello;
         $binder = $keySchedule->calculatePskBinder($finishedKey, $transcriptData);
+
+        Logger::debug('Binder calculation details', [
+            'cipher_suite' => $psk->cipherSuite->name,
+            'is_external' => $isExternal,
+            'label' => $isExternal ? 'ext binder' : 'res binder',
+            'partial_ch_length' => strlen($partialClientHello),
+            'previous_transcript_length' => strlen($previousTranscript),
+            'total_transcript_length' => strlen($transcriptData),
+        ]);
 
         return $binder;
     }

@@ -27,6 +27,7 @@ $psk = PreSharedKey::external($pskIdentity, $pskKey, $cipherSuite);
 $server = AppFactory::createServer(
     certificatePath: $certFile,
     privateKeyPath: $keyFile,
+    externalPsks: [$psk],
     debug: true,
 );
 

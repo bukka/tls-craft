@@ -5,10 +5,6 @@ namespace Php\TlsCraft\Session;
 use Php\TlsCraft\Config;
 use Php\TlsCraft\Logger;
 
-/**
- * Resolves PSK identities to PreSharedKey instances (SERVER SIDE)
- * Priority: External PSKs → Stateless tickets → Stateful storage
- */
 class PskResolver
 {
     public function __construct(
@@ -17,15 +13,9 @@ class PskResolver
     ) {
     }
 
-    /**
-     * Look up PSK by ticket identity
-     *
-     * @param string      $ticketIdentity The ticket bytes from client
-     * @param string|null $serverName     The SNI server name from ClientHello (required for storage lookup)
-     */
     public function resolve(string $ticketIdentity, ?string $serverName = null): ?PreSharedKey
     {
-        // 1. Check external PSKs first (not bound to server name)
+        // 1. Check external PSKs FIRST (highest priority, no deserialization needed)
         $externalPsk = $this->lookupExternalPsk($ticketIdentity);
         if ($externalPsk !== null) {
             Logger::debug('PskResolver: Found external PSK');
@@ -59,11 +49,9 @@ class PskResolver
                     return $storedPsk;
                 }
             }
-        } else {
-            Logger::debug('PskResolver: Cannot lookup stored ticket without server name');
         }
 
-        Logger::debug('PskResolver: No PSK found');
+        Logger::debug('PskResolver: No PSK found for identity');
 
         return null;
     }
@@ -86,14 +74,16 @@ class PskResolver
             return null;
         }
 
-        // Validate ticket hasn't expired
-        if ($ticketData->isExpired()) {
+        // Get lifetime from config for expiry check
+        $lifetime = $this->config->getSessionLifetime();
+
+        if ($ticketData->isExpired($lifetime)) {
             Logger::debug('PskResolver: Stateless ticket expired');
 
             return null;
         }
 
-        // SECURITY: Validate server name matches
+        // Validate server name matches
         if ($expectedServerName !== null && $ticketData->serverName !== $expectedServerName) {
             Logger::error('PskResolver: Server name mismatch in ticket', [
                 'expected' => $expectedServerName,
@@ -118,7 +108,6 @@ class PskResolver
             return null;
         }
 
-        // Look up tickets for this specific server name only
         $tickets = $storage->retrieveAll($serverName);
 
         $ticketHash = hash('sha256', $ticketIdentity);
