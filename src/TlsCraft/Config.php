@@ -840,6 +840,10 @@ class Config
             new SupportedVersionsExtensionProvider($this->supportedVersions),
             new KeyShareExtensionProvider($this->supportedGroups),
         ]);
+
+        if ($this->enableSessionResumption) {
+            $this->serverHelloExtensions->add(new PreSharedKeyExtensionProvider());
+        }
     }
 
     public function addServerEncryptedExtensions(): void

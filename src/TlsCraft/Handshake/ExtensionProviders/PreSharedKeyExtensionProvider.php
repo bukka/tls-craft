@@ -13,13 +13,46 @@ use Php\TlsCraft\Session\PskIdentity;
 /**
  * Provider for PreSharedKey extension
  *
- * Note: This provider creates the extension WITHOUT binders.
- * Binders must be calculated separately after the full ClientHello
- * (minus binders) is serialized.
+ * Client-side: Creates extension with identities (without binders initially)
+ * Server-side: Creates extension with selected PSK index
  */
 class PreSharedKeyExtensionProvider implements ExtensionProvider
 {
     public function create(Context $context): ?PreSharedKeyExtension
+    {
+        // Server-side: Create extension with selected PSK index
+        if (!$context->isClient()) {
+            return $this->createServerExtension($context);
+        }
+
+        // Client-side: Create extension with offered PSKs
+        return $this->createClientExtension($context);
+    }
+
+    /**
+     * Create server extension with selected PSK identity index
+     */
+    private function createServerExtension(Context $context): ?PreSharedKeyExtension
+    {
+        $selectedIndex = $context->getSelectedPskIndex();
+
+        if ($selectedIndex === null) {
+            Logger::debug('No PSK selected - skipping pre_shared_key extension in ServerHello');
+
+            return null;
+        }
+
+        Logger::debug('Creating server pre_shared_key extension', [
+            'selected_index' => $selectedIndex,
+        ]);
+
+        return PreSharedKeyExtension::forServer($selectedIndex);
+    }
+
+    /**
+     * Create client extension with offered PSK identities
+     */
+    private function createClientExtension(Context $context): ?PreSharedKeyExtension
     {
         // First, check for PSKs already set in context (e.g., from manual configuration)
         $offeredPsks = $context->getOfferedPsks();
@@ -73,7 +106,7 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
             }
         }
 
-        Logger::debug('Creating pre_shared_key extension', [
+        Logger::debug('Creating client pre_shared_key extension', [
             'identity_count' => count($identities),
             'psk_types' => array_map(fn ($psk) => $psk->isResumption() ? 'resumption' : 'external', $offeredPsks),
         ]);
