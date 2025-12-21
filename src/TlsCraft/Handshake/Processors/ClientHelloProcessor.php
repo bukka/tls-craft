@@ -195,8 +195,9 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         if ($selectedPsk !== null) {
-            // Update cipher suite to match PSK
+            // Update cipher suite to match PSK and derive early secrets
             $this->context->setNegotiatedCipherSuite($selectedPsk->cipherSuite);
+            $this->context->deriveEarlySecret($selectedPsk->secret);
 
             $this->context->setSelectedPsk($selectedPsk, $selectedIndex);
             Logger::debug('ClientHelloProcessor: PSK selected for resumption', [
