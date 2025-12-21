@@ -19,6 +19,7 @@ use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\ServerHelloExtensionProviders;
 use Php\TlsCraft\Session\PlainSessionTicketSerializer;
 use Php\TlsCraft\Session\PreSharedKey;
+use Php\TlsCraft\Session\PskResolver;
 use Php\TlsCraft\Session\SessionStorage;
 use Php\TlsCraft\Session\SessionTicketSerializer;
 use Php\TlsCraft\State\ProtocolValidator;
@@ -758,9 +759,17 @@ class Config
         return $this;
     }
 
-    public function getSessionTicketSerializer(): ?SessionTicketSerializer
+    public function getSessionTicketSerializer(): SessionTicketSerializer
     {
         return $this->sessionTicketSerializer ?? new PlainSessionTicketSerializer();
+    }
+
+    public function createPskResolver(): PskResolver
+    {
+        return new PskResolver(
+            $this,
+            $this->getSessionTicketSerializer(),
+        );
     }
 
     // Original extension setup methods - kept intact

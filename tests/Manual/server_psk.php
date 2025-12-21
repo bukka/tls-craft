@@ -4,10 +4,7 @@ require_once __DIR__.'/../../vendor/autoload.php';
 
 use Php\TlsCraft\AppFactory;
 use Php\TlsCraft\Crypto\CipherSuite;
-use Php\TlsCraft\Logger;
 use Php\TlsCraft\Session\PreSharedKey;
-
-Logger::enable();
 
 $certFile = __DIR__.'/certs/server_ec.crt';
 $keyFile = __DIR__.'/certs/server_ec.key';
@@ -30,7 +27,6 @@ $psk = PreSharedKey::external($pskIdentity, $pskKey, $cipherSuite);
 $server = AppFactory::createServer(
     certificatePath: $certFile,
     privateKeyPath: $keyFile,
-    config: $config,
     debug: true,
 );
 

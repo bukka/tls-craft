@@ -22,12 +22,11 @@ class SessionTicketData
     }
 
     /**
-     * Check if ticket is expired
+     * Check if the ticket is expired based on the provided lifetime
      */
     public function isExpired(int $lifetime): bool
     {
         $age = time() - $this->timestamp;
-
         return $age >= $lifetime;
     }
 }

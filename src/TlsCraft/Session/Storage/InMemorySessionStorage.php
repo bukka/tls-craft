@@ -26,7 +26,7 @@ class InMemorySessionStorage implements SessionStorage
             $this->storage[$serverName] = [];
         }
 
-        $this->storage[$serverName][$ticket->getIdentity()] = $ticket;
+        $this->storage[$serverName][$ticket->getIdentifier()] = $ticket;
     }
 
     public function retrieve(string $serverName): ?SessionTicket

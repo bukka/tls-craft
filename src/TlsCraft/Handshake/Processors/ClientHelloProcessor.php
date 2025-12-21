@@ -7,6 +7,8 @@ use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\ProtocolViolationException;
 use Php\TlsCraft\Handshake\Extensions\AlpnExtension;
 use Php\TlsCraft\Handshake\Extensions\KeyShareExtension;
+use Php\TlsCraft\Handshake\Extensions\PreSharedKeyExtension;
+use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\Extensions\ServerNameExtension;
 use Php\TlsCraft\Handshake\Extensions\SignatureAlgorithmsExtension;
 use Php\TlsCraft\Handshake\Extensions\SupportedVersionsExtension;
@@ -14,6 +16,7 @@ use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
 use Php\TlsCraft\Logger;
 use Php\TlsCraft\Protocol\Version;
+use Php\TlsCraft\Session\PreSharedKey;
 
 class ClientHelloProcessor extends MessageProcessor
 {
@@ -45,24 +48,40 @@ class ClientHelloProcessor extends MessageProcessor
         // Set client random
         $this->context->setClientRandom($message->random);
 
-        // Select a cipher suite
-        foreach ($message->cipherSuites as $cipher) {
-            if (in_array($cipher, $this->context->getConfig()->getCipherSuites())) {
-                $this->context->setNegotiatedCipherSuite(CipherSuite::from($cipher));
-                Logger::debug('ClientHelloProcessor: Cipher suite selected', [
-                    'cipher_suite' => CipherSuite::from($cipher)->name,
-                ]);
-                break;
+        // Parse extensions in order
+        $this->parseSupportedVersions($message);
+        $this->parseServerNameIndication($message); // Parse SNI early (needed for PSK lookup)
+
+        // Try PSK first (before cipher suite selection)
+        $this->parsePskExtension($message);
+
+        // Select cipher suite (may already be set by PSK)
+        if (!$this->context->getNegotiatedCipherSuite()) {
+            foreach ($message->cipherSuites as $cipher) {
+                if (in_array($cipher, $this->context->getConfig()->getCipherSuites())) {
+                    $this->context->setNegotiatedCipherSuite(CipherSuite::from($cipher));
+                    Logger::debug('ClientHelloProcessor: Cipher suite selected', [
+                        'cipher_suite' => CipherSuite::from($cipher)->name,
+                    ]);
+                    break;
+                }
             }
         }
 
-        $this->parseSupportedVersions($message);
+        // Key share is optional for PSK-only mode
         $this->parseKeyShare($message);
-        $this->parseSignatureAlgorithms($message);
-        $this->parseServerNameIndication($message);
+
+        // Signature algorithms only needed for full handshake
+        if (!$this->context->isResuming()) {
+            $this->parseSignatureAlgorithms($message);
+        }
+
         $this->parseAlpn($message);
 
-        Logger::debug('ClientHelloProcessor: Processing complete');
+        Logger::debug('ClientHelloProcessor: Processing complete', [
+            'is_resuming' => $this->context->isResuming(),
+            'cipher_suite' => $this->context->getNegotiatedCipherSuite()?->name,
+        ]);
     }
 
     private function parseSupportedVersions(ClientHelloMessage $message): void
@@ -85,10 +104,169 @@ class ClientHelloProcessor extends MessageProcessor
         $this->context->setNegotiatedVersion(Version::TLS_1_3);
     }
 
+    private function parseServerNameIndication(ClientHelloMessage $message): void
+    {
+        /** @var ServerNameExtension $ext */
+        $ext = $message->getExtension(ExtensionType::SERVER_NAME);
+        if ($ext) {
+            $serverName = $ext->getServerName();
+            $this->context->setRequestedServerName($serverName);
+            Logger::debug('ClientHelloProcessor: SNI extension present', [
+                'server_name' => $serverName,
+                'server_name_length' => strlen($serverName),
+            ]);
+        } else {
+            Logger::debug('ClientHelloProcessor: No SNI extension in ClientHello');
+        }
+    }
+
+    private function parsePskExtension(ClientHelloMessage $message): void
+    {
+        /** @var PreSharedKeyExtension $ext */
+        $ext = $message->getExtension(ExtensionType::PRE_SHARED_KEY);
+        if (!$ext) {
+            Logger::debug('ClientHelloProcessor: No PSK extension in ClientHello');
+            return;
+        }
+
+        Logger::debug('ClientHelloProcessor: PSK extension present', [
+            'identity_count' => $ext->getIdentityCount(),
+            'has_binders' => $ext->hasBinders(),
+        ]);
+
+        // Validate PSK key exchange modes are offered
+        /** @var PskKeyExchangeModesExtension $modesExt */
+        $modesExt = $message->getExtension(ExtensionType::PSK_KEY_EXCHANGE_MODES);
+        if (!$modesExt) {
+            Logger::debug('ClientHelloProcessor: PSK offered but no PSK key exchange modes');
+            return;
+        }
+
+        $this->context->setPskKeyExchangeModes($modesExt->modes);
+
+        // Get the requested server name (from SNI extension)
+        $serverName = $this->context->getRequestedServerName();
+
+        // Create PSK resolver
+        $resolver = $this->config->createPskResolver();
+
+        // Try to find a matching PSK
+        $selectedPsk = null;
+        $selectedIndex = null;
+
+        foreach ($ext->identities as $index => $identity) {
+            // Resolve PSK by identity, passing server name for validation
+            $psk = $resolver->resolve($identity->identity, $serverName);
+            if ($psk === null) {
+                Logger::debug('ClientHelloProcessor: PSK identity not found', [
+                    'index' => $index,
+                ]);
+                continue;
+            }
+
+            Logger::debug('ClientHelloProcessor: PSK identity resolved', [
+                'index' => $index,
+                'cipher_suite' => $psk->cipherSuite->name,
+            ]);
+
+            // Verify cipher suite is compatible
+            if (!in_array($psk->cipherSuite->value, $message->cipherSuites, true)) {
+                Logger::debug('ClientHelloProcessor: PSK cipher suite not in client offer', [
+                    'psk_cipher' => $psk->cipherSuite->name,
+                ]);
+                continue;
+            }
+
+            // Verify binder
+            if ($this->verifyPskBinder($message, $psk, $index, $ext->binders[$index])) {
+                $selectedPsk = $psk;
+                $selectedIndex = $index;
+                Logger::debug('ClientHelloProcessor: PSK binder verified', [
+                    'index' => $index,
+                ]);
+                break;
+            } else {
+                Logger::error('ClientHelloProcessor: PSK binder verification failed', [
+                    'index' => $index,
+                ]);
+            }
+        }
+
+        if ($selectedPsk !== null) {
+            // Update cipher suite to match PSK
+            $this->context->setNegotiatedCipherSuite($selectedPsk->cipherSuite);
+
+            $this->context->setSelectedPsk($selectedPsk, $selectedIndex);
+            Logger::debug('ClientHelloProcessor: PSK selected for resumption', [
+                'index' => $selectedIndex,
+                'cipher_suite' => $selectedPsk->cipherSuite->name,
+            ]);
+        } else {
+            Logger::debug('ClientHelloProcessor: No valid PSK found');
+        }
+    }
+
+    private function verifyPskBinder(
+        ClientHelloMessage $message,
+        PreSharedKey $psk,
+        int $binderIndex,
+        string $receivedBinder
+    ): bool {
+        // Get the wire format of ClientHello (already in transcript)
+        $transcript = $this->context->getHandshakeTranscript();
+        $clientHelloWire = $transcript->getLast();
+
+        // Create binder calculator
+        $calculator = $this->context->getCryptoFactory()->createPskBinderCalculator(
+            $psk->cipherSuite,
+            $transcript,
+        );
+
+        // Determine if this is resumption PSK (vs external PSK)
+        $isResumption = !$this->isExternalPsk($psk);
+
+        // Calculate expected binder
+        $expectedBinder = $calculator->calculateBinder(
+            $clientHelloWire,
+            $psk->secret,
+            $binderIndex,
+            $isResumption,
+        );
+
+        Logger::debug('ClientHelloProcessor: Binder verification', [
+            'is_resumption' => $isResumption,
+            'expected' => bin2hex($expectedBinder),
+            'received' => bin2hex($receivedBinder),
+            'match' => hash_equals($expectedBinder, $receivedBinder),
+        ]);
+
+        return hash_equals($expectedBinder, $receivedBinder);
+    }
+
+    /**
+     * Check if PSK is an external (manually configured) PSK
+     */
+    private function isExternalPsk(PreSharedKey $psk): bool
+    {
+        foreach ($this->config->getExternalPsks() as $externalPsk) {
+            if ($psk === $externalPsk) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function parseKeyShare(ClientHelloMessage $message): void
     {
         /** @var KeyShareExtension $ext */
         $ext = $message->getExtension(ExtensionType::KEY_SHARE);
+
+        // If PSK-only mode is selected, key share is optional
+        if (!$ext && $this->context->isResuming() && $this->context->supportsPskOnly()) {
+            Logger::debug('ClientHelloProcessor: No key share (PSK-only mode)');
+            return;
+        }
+
         if (!$ext) {
             throw new ProtocolViolationException('key_share extension missing');
         }
@@ -151,7 +329,6 @@ class ClientHelloProcessor extends MessageProcessor
         $certificateChain = $this->context->getServerCertificateChain();
         if (!$certificateChain) {
             Logger::error('No certificate chain configured');
-
             return null;
         }
 
@@ -198,24 +375,7 @@ class ClientHelloProcessor extends MessageProcessor
         }
 
         Logger::error('No matching signature scheme found');
-
         return null;
-    }
-
-    private function parseServerNameIndication(ClientHelloMessage $message): void
-    {
-        /** @var ServerNameExtension $ext */
-        $ext = $message->getExtension(ExtensionType::SERVER_NAME);
-        if ($ext) {
-            $serverName = $ext->getServerName();
-            $this->context->setRequestedServerName($serverName);
-            Logger::debug('ClientHelloProcessor: SNI extension present', [
-                'server_name' => $serverName,
-                'server_name_length' => strlen($serverName),
-            ]);
-        } else {
-            Logger::debug('ClientHelloProcessor: No SNI extension in ClientHello');
-        }
     }
 
     private function parseAlpn(ClientHelloMessage $message): void
@@ -248,7 +408,6 @@ class ClientHelloProcessor extends MessageProcessor
         // If server has no configured protocols, don't select anything
         if (empty($this->config->getSupportedProtocols())) {
             Logger::debug('ClientHelloProcessor: No server ALPN protocols configured');
-
             return null;
         }
 

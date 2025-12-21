@@ -98,14 +98,18 @@ class ProtocolOrchestrator
     {
         $this->stateTracker->startHandshake();
 
-        // Load server certificate from config
-        if (!$this->context->getConfig()->hasCertificate()) {
-            throw new CraftException('Server certificate not configured');
-        }
-        $this->context->loadCertificateFromConfig();
-
         // Wait for ClientHello
         $this->waitForClientHello();
+
+        // Only load certificate if we're not doing PSK-only resumption
+        if (!$this->context->isResuming() || $this->context->supportsPskDhe()) {
+            if (!$this->context->getConfig()->hasCertificate()) {
+                throw new CraftException('Server certificate not configured');
+            }
+            $this->context->loadCertificateFromConfig();
+        } else {
+            Logger::debug('PSK-only resumption: certificate not required');
+        }
 
         // Send server handshake flight
         $this->sendServerHandshakeFlight();
@@ -262,11 +266,22 @@ class ProtocolOrchestrator
         $encryptedExtensions = $this->messageFactory->createEncryptedExtensions();
         $this->sendHandshakeMessage($encryptedExtensions);
 
-        // 3. CertificateRequest (optional - if server wants client authentication)
+        // For PSK resumption without (EC)DHE, skip certificate authentication
+        if ($this->context->isResuming()) {
+            Logger::debug('PSK resumption: skipping Certificate and CertificateVerify');
+
+            // 3. Finished (for PSK resumption)
+            $finished = $this->messageFactory->createFinished(false);
+            $this->sendHandshakeMessage($finished);
+            return;
+        }
+
+        // Full handshake continues with certificate authentication
+
+        // 3. CertificateRequest (optional)
         if ($this->context->getConfig()->isRequestClientCertificate()) {
             $certificateRequest = $this->messageFactory->createCertificateRequest();
             $this->sendHandshakeMessage($certificateRequest);
-
             Logger::debug('Sent CertificateRequest to client');
         }
 
