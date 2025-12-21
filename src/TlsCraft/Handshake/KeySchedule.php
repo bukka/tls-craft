@@ -505,7 +505,7 @@ class KeySchedule
         }
 
         // The transcript includes ALL handshake messages up to and including client Finished
-        $transcript = $this->transcript->getAll();
+        $transcript = $this->transcript->getAllExceptLast();
 
         $resumptionMasterSecret = $this->keyDerivation->deriveSecret(
             $this->masterSecret,

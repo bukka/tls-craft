@@ -45,7 +45,8 @@ class PskBinderCalculator
             $binders[] = $binder;
 
             Logger::debug("Calculated binder for PSK #{$index}", [
-                'identity' => bin2hex(substr($psk->identity, 0, 16)).'...',
+                'identity' => $psk->identity,
+                'psk' => $psk->secret,
                 'is_resumption' => $psk->isResumption(),
                 'binder_length' => strlen($binder),
                 'binder' => bin2hex($binder),
