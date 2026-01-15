@@ -122,4 +122,16 @@ final class DependencyContainer
     {
         return $this->processorManager ??= new ProcessorManager($this->getProcessorFactory());
     }
+
+    public function reset(): void
+    {
+        $this->context = null;
+        $this->stateTracker = null;
+        $this->validator = null;
+        $this->extensionFactory = null;
+        $this->messageFactory = null;
+        $this->messageSerializer = null;
+        $this->processorFactory = null;
+        $this->processorManager = null;
+    }
 }

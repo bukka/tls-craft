@@ -57,6 +57,8 @@ class Server
 
         $clientConnection = $this->serverConnection->accept($timeout);
 
+        $this->dependencyContainer->reset();
+
         $stateTracker = $this->dependencyContainer->getStateTracker();
         $validator = $this->dependencyContainer->getValidator();
         $context = $this->dependencyContainer->getContext();
