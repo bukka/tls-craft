@@ -29,7 +29,7 @@ class NewSessionTicketFactory extends AbstractMessageFactory
             cipherSuite: $this->context->getNegotiatedCipherSuite(),
             timestamp: time(),
             nonce: $ticketNonce,
-            serverName: $config->getServerName() ?? 'unknown',
+            serverName: $this->context->getRequestedServerName() ?? 'unknown',
             maxEarlyDataSize: 0, // No early data support yet
         );
 
