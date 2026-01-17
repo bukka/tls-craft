@@ -8,6 +8,7 @@ use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Handshake\ClientHelloExtensionProviders;
 use Php\TlsCraft\Handshake\EncryptedExtensionsProviders;
 use Php\TlsCraft\Handshake\ExtensionProviders\AlpnExtensionProvider;
+use Php\TlsCraft\Handshake\ExtensionProviders\EarlyDataExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\KeyShareExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\PreSharedKeyExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\PskKeyExchangeModesExtensionProvider;
@@ -17,6 +18,7 @@ use Php\TlsCraft\Handshake\ExtensionProviders\SupportedGroupsExtensionProvider;
 use Php\TlsCraft\Handshake\ExtensionProviders\SupportedVersionsExtensionProvider;
 use Php\TlsCraft\Handshake\Extensions\PskKeyExchangeModesExtension;
 use Php\TlsCraft\Handshake\ServerHelloExtensionProviders;
+use Php\TlsCraft\Protocol\EarlyDataServerMode;
 use Php\TlsCraft\Session\PlainSessionTicketSerializer;
 use Php\TlsCraft\Session\PreSharedKey;
 use Php\TlsCraft\Session\PskResolver;
@@ -92,6 +94,15 @@ class Config
 
     // Callback for PSK selection (server-side)
     private ?Closure $onPskSelection = null;
+
+    // Early data (0-RTT) client configuration
+    private bool $enableEarlyData = false;
+    private ?string $earlyData = null;
+    private ?Closure $onEarlyDataRejected = null;
+
+    // Early data (0-RTT) server configuration
+    private EarlyDataServerMode $earlyDataServerMode = EarlyDataServerMode::REJECT;
+    private ?Closure $earlyDataServerModeCallback = null;
 
     public function __construct(
         ?array $supportedVersions = null,
@@ -620,6 +631,204 @@ class Config
         return $this->onPskSelection;
     }
 
+    // === Early Data (0-RTT) Client Configuration ===
+
+    /**
+     * Enable or disable early data (0-RTT)
+     */
+    public function setEnableEarlyData(bool $enable): self
+    {
+        $this->enableEarlyData = $enable;
+
+        return $this;
+    }
+
+    /**
+     * Check if early data is enabled
+     */
+    public function isEarlyDataEnabled(): bool
+    {
+        return $this->enableEarlyData;
+    }
+
+    /**
+     * Set the early data to send (application data for 0-RTT)
+     *
+     * WARNING: Early data is NOT replay-protected. Only use for
+     * idempotent requests (e.g., GET requests, safe operations).
+     */
+    public function setEarlyData(?string $data): self
+    {
+        $this->earlyData = $data;
+
+        return $this;
+    }
+
+    /**
+     * Get the early data to send
+     */
+    public function getEarlyData(): ?string
+    {
+        return $this->earlyData;
+    }
+
+    /**
+     * Check if early data is configured
+     */
+    public function hasEarlyData(): bool
+    {
+        return $this->earlyData !== null && $this->earlyData !== '';
+    }
+
+    /**
+     * Set callback for when early data is rejected by server
+     *
+     * Callback signature: function(string $earlyData): void
+     *
+     * The callback receives the early data that needs to be resent
+     * over the regular connection.
+     */
+    public function setOnEarlyDataRejected(?Closure $callback): self
+    {
+        $this->onEarlyDataRejected = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Get early data rejection callback
+     */
+    public function getOnEarlyDataRejected(): ?Closure
+    {
+        return $this->onEarlyDataRejected;
+    }
+
+    /**
+     * Configure early data with convenience method
+     *
+     * @param string       $data       The data to send as 0-RTT
+     * @param Closure|null $onRejected Callback if server rejects early data
+     */
+    public function withEarlyData(string $data, ?Closure $onRejected = null): self
+    {
+        return $this->setEnableEarlyData(true)
+            ->setEarlyData($data)
+            ->setOnEarlyDataRejected($onRejected);
+    }
+
+    /**
+     * Disable early data
+     */
+    public function withoutEarlyData(): self
+    {
+        return $this->setEnableEarlyData(false)
+            ->setEarlyData(null)
+            ->setOnEarlyDataRejected(null);
+    }
+
+    // === Early Data (0-RTT) Server Configuration ===
+    //
+    // RFC 8446 Section 4.2.10 defines three server behaviors:
+    //
+    // 1. ACCEPT: Include early_data extension in EncryptedExtensions,
+    //    decrypt early data with client_early_traffic_secret, process it.
+    //
+    // 2. REJECT: Ignore extension, return regular 1-RTT response.
+    //    Skip early data by trying to decrypt with handshake key,
+    //    discard failures (up to max_early_data_size).
+    //
+    // 3. HELLO_RETRY_REQUEST: Send HRR, client must retry without early_data.
+    //    Skip all records with external content type "application_data".
+
+    /**
+     * Set server early data mode
+     *
+     * @param EarlyDataServerMode $mode How server handles early data
+     */
+    public function setEarlyDataServerMode(EarlyDataServerMode $mode): self
+    {
+        $this->earlyDataServerMode = $mode;
+
+        return $this;
+    }
+
+    /**
+     * Get server early data mode
+     */
+    public function getEarlyDataServerMode(): EarlyDataServerMode
+    {
+        return $this->earlyDataServerMode;
+    }
+
+    /**
+     * Set callback for per-connection early data mode decision
+     *
+     * Callback signature: function(Context $context): EarlyDataServerMode
+     *
+     * This allows dynamic decisions based on:
+     * - The PSK identity being used
+     * - Anti-replay state (single-use ticket tracking)
+     * - Rate limiting
+     * - Application-specific validation
+     *
+     * If set, this callback overrides the static mode.
+     */
+    public function setEarlyDataServerModeCallback(?Closure $callback): self
+    {
+        $this->earlyDataServerModeCallback = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Get server mode callback
+     */
+    public function getEarlyDataServerModeCallback(): ?Closure
+    {
+        return $this->earlyDataServerModeCallback;
+    }
+
+    /**
+     * Determine server early data mode for a connection
+     *
+     * Uses callback if set, otherwise returns static mode.
+     */
+    public function determineEarlyDataMode(Context $context): EarlyDataServerMode
+    {
+        if ($this->earlyDataServerModeCallback !== null) {
+            return ($this->earlyDataServerModeCallback)($context);
+        }
+
+        return $this->earlyDataServerMode;
+    }
+
+    /**
+     * Configure server to accept early data
+     *
+     * WARNING: Early data is vulnerable to replay attacks!
+     * Only use if your application can handle replayed requests safely.
+     */
+    public function withEarlyDataAcceptance(): self
+    {
+        return $this->setEarlyDataServerMode(EarlyDataServerMode::ACCEPT);
+    }
+
+    /**
+     * Configure server to reject early data (default, safest)
+     */
+    public function withEarlyDataRejection(): self
+    {
+        return $this->setEarlyDataServerMode(EarlyDataServerMode::REJECT);
+    }
+
+    /**
+     * Configure server to reject early data with HelloRetryRequest
+     */
+    public function withEarlyDataHelloRetryRequest(): self
+    {
+        return $this->setEarlyDataServerMode(EarlyDataServerMode::HELLO_RETRY_REQUEST);
+    }
+
     // === Convenience Methods for Common Configurations ===
 
     /**
@@ -803,6 +1012,13 @@ class Config
             $this->addAlpn($this->supportedProtocols);
         }
 
+        // Add EarlyData extension if enabled (must come before PSK)
+        if ($this->enableEarlyData) {
+            $this->clientHelloExtensions->add(
+                new EarlyDataExtensionProvider(),
+            );
+        }
+
         // Add PSK extension provider LAST (will be skipped if no PSKs available)
         // This MUST be the last extension per RFC 8446
         if ($this->enableSessionResumption) {
@@ -851,5 +1067,11 @@ class Config
         // Server EncryptedExtensionsMessage - Add extensions for server name acknowledgement (empty server name) and ALPN
         $this->encryptedExtensions->add(new ServerNameExtensionProvider());
         $this->encryptedExtensions->add(new AlpnExtensionProvider($this->supportedProtocols));
+
+        // Add EarlyData extension provider (will include extension only if server accepted early data)
+        // The provider checks context.isEarlyDataAccepted() to decide whether to include the extension
+        if ($this->enableSessionResumption && $this->maxEarlyDataSize > 0) {
+            $this->encryptedExtensions->add(new EarlyDataExtensionProvider());
+        }
     }
 }

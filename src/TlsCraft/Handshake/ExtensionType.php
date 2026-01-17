@@ -74,6 +74,7 @@ enum ExtensionType: int
 
     // RFC 8446 (TLS 1.3)
     case PRE_SHARED_KEY = 41;
+    case EARLY_DATA = 42;
     case SUPPORTED_VERSIONS = 43;
     case COOKIE = 44;
     case PSK_KEY_EXCHANGE_MODES = 45;
@@ -130,6 +131,8 @@ enum ExtensionType: int
             self::RECORD_SIZE_LIMIT => 'record_size_limit',
             self::SESSION_TICKET => 'session_ticket',
             self::COMPRESS_CERTIFICATE => 'compress_certificate',
+            self::PRE_SHARED_KEY => 'pre_shared_key',
+            self::EARLY_DATA => 'early_data',
             self::SUPPORTED_VERSIONS => 'supported_versions',
             self::COOKIE => 'cookie',
             self::PSK_KEY_EXCHANGE_MODES => 'psk_key_exchange_modes',
@@ -198,6 +201,7 @@ enum ExtensionType: int
             self::APPLICATION_LAYER_PROTOCOL_NEGOTIATION,
             self::CLIENT_CERTIFICATE_TYPE,
             self::SERVER_CERTIFICATE_TYPE,
+            self::EARLY_DATA,
             self::RECORD_SIZE_LIMIT => true,
             default => false,
         };

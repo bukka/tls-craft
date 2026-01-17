@@ -74,6 +74,12 @@ class Context
     /** @var SessionTicket[] */
     private array $sessionTickets = [];
 
+    // Early data (0-RTT) state
+    private bool $earlyDataAttempted = false;
+    private bool $earlyDataAccepted = false;
+    private ?string $clientEarlyTrafficSecret = null;
+    private ?string $receivedEarlyData = null;
+
     private array $currentDecryptionKeys = [];
     private array $currentEncryptionKeys = [];
     private int $readSequenceNumber = 0;
@@ -790,6 +796,108 @@ class Context
     public function supportsPskOnly(): bool
     {
         return in_array(PskKeyExchangeModesExtension::PSK_KE, $this->pskKeyExchangeModes, true);
+    }
+
+    // === Early Data (0-RTT) State ===
+
+    /**
+     * Mark that early data was attempted in ClientHello
+     */
+    public function setEarlyDataAttempted(bool $attempted): void
+    {
+        $this->earlyDataAttempted = $attempted;
+    }
+
+    /**
+     * Check if early data was attempted
+     */
+    public function isEarlyDataAttempted(): bool
+    {
+        return $this->earlyDataAttempted;
+    }
+
+    /**
+     * Mark that server accepted early data (via EncryptedExtensions)
+     */
+    public function setEarlyDataAccepted(bool $accepted): void
+    {
+        $this->earlyDataAccepted = $accepted;
+    }
+
+    /**
+     * Check if server accepted early data
+     */
+    public function isEarlyDataAccepted(): bool
+    {
+        return $this->earlyDataAccepted;
+    }
+
+    /**
+     * Derive and store client early traffic secret
+     */
+    public function deriveClientEarlyTrafficSecret(string $clientHelloData): string
+    {
+        if (!$this->keySchedule) {
+            throw new CraftException('Cannot derive early traffic secret: missing key schedule');
+        }
+
+        $this->clientEarlyTrafficSecret = $this->keySchedule->getClientEarlyTrafficSecret($clientHelloData);
+
+        return $this->clientEarlyTrafficSecret;
+    }
+
+    /**
+     * Get client early traffic secret
+     */
+    public function getClientEarlyTrafficSecret(): ?string
+    {
+        return $this->clientEarlyTrafficSecret;
+    }
+
+    /**
+     * Get early traffic keys for 0-RTT data encryption
+     */
+    public function getEarlyTrafficKeys(): array
+    {
+        if (!$this->keySchedule || !$this->clientEarlyTrafficSecret) {
+            throw new CraftException('Early traffic secret not derived');
+        }
+
+        return $this->keySchedule->deriveTrafficKeys($this->clientEarlyTrafficSecret);
+    }
+
+    // === Server-side Early Data Storage ===
+
+    /**
+     * Store received early data (server-side)
+     */
+    public function setReceivedEarlyData(string $data): void
+    {
+        $this->receivedEarlyData = $data;
+    }
+
+    /**
+     * Get received early data (server-side)
+     */
+    public function getReceivedEarlyData(): ?string
+    {
+        return $this->receivedEarlyData;
+    }
+
+    /**
+     * Check if early data was received (server-side)
+     */
+    public function hasReceivedEarlyData(): bool
+    {
+        return $this->receivedEarlyData !== null && $this->receivedEarlyData !== '';
+    }
+
+    /**
+     * Clear received early data after processing
+     */
+    public function clearReceivedEarlyData(): void
+    {
+        $this->receivedEarlyData = null;
     }
 
     // === KeyUpdateMessage Response Flag ===

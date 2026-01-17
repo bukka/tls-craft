@@ -14,6 +14,9 @@ class StateTracker
     private array $stateChangeCallbacks = [];
     private bool $isClient;
 
+    // Early data state tracking
+    private bool $earlyDataInFlight = false;
+
     public function __construct(bool $isClient = true)
     {
         $this->isClient = $isClient;
@@ -120,6 +123,42 @@ class StateTracker
     {
         return $this->transitionConnection(ConnectionState::ERROR, $reason);
     }
+
+    // === Early Data State Tracking ===
+
+    /**
+     * Mark that early data is being sent/received
+     */
+    public function startEarlyData(): void
+    {
+        $this->earlyDataInFlight = true;
+    }
+
+    /**
+     * Mark that early data transmission is complete
+     */
+    public function endEarlyData(): void
+    {
+        $this->earlyDataInFlight = false;
+    }
+
+    /**
+     * Check if early data is currently in flight
+     */
+    public function isEarlyDataInFlight(): bool
+    {
+        return $this->earlyDataInFlight;
+    }
+
+    /**
+     * Transition to waiting for EndOfEarlyData (server-side)
+     */
+    public function waitForEndOfEarlyData(): void
+    {
+        $this->transitionHandshake(HandshakeState::WAIT_END_OF_EARLY_DATA);
+    }
+
+    // === Callbacks ===
 
     public function onStateChange(callable $callback): void
     {

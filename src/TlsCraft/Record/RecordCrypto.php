@@ -13,6 +13,13 @@ class RecordCrypto
 {
     private Context $context;
 
+    // Early data phase ciphers (0-RTT)
+    private ?Aead $earlyWriteCipher = null;
+    private ?Aead $earlyReadCipher = null;
+    private int $earlyWriteSequence = 0;
+    private int $earlyReadSequence = 0;
+    private bool $earlyKeysActive = false;
+
     // Handshake phase ciphers
     private ?Aead $handshakeReadCipher = null;
     private ?Aead $handshakeWriteCipher = null;
@@ -30,6 +37,44 @@ class RecordCrypto
         $this->context = $context;
     }
 
+    // === Early Data Key Management ===
+
+    /**
+     * Activate early traffic keys for 0-RTT data
+     * Called after deriving client_early_traffic_secret
+     */
+    public function activateEarlyKeys(): void
+    {
+        $this->earlyWriteCipher = null;  // Will be initialized on first use
+        $this->earlyReadCipher = null;
+        $this->earlyWriteSequence = 0;
+        $this->earlyReadSequence = 0;
+        $this->earlyKeysActive = true;
+
+        Logger::debug('Early traffic keys activated');
+    }
+
+    /**
+     * Deactivate early keys and switch to handshake keys
+     * Called after sending/receiving EndOfEarlyData
+     */
+    public function deactivateEarlyKeys(): void
+    {
+        $this->earlyKeysActive = false;
+        $this->earlyWriteCipher = null;
+        $this->earlyReadCipher = null;
+
+        Logger::debug('Early traffic keys deactivated, switching to handshake keys');
+    }
+
+    /**
+     * Check if early keys are currently active
+     */
+    public function hasEarlyKeysActive(): bool
+    {
+        return $this->earlyKeysActive;
+    }
+
     /**
      * Encrypt a record for transmission
      */
@@ -42,6 +87,11 @@ class RecordCrypto
         $keySchedule = $this->context->getKeySchedule();
         if (!$keySchedule) {
             throw new CraftException('Cannot encrypt record: key schedule not initialized');
+        }
+
+        // Use early keys if active (for 0-RTT data and EndOfEarlyData)
+        if ($this->earlyKeysActive) {
+            return $this->encryptWithEarlyKeys($record);
         }
 
         // Determine which cipher to use based on handshake completion
@@ -68,13 +118,18 @@ class RecordCrypto
         }
 
         // Don't decrypt plaintext handshake records (before encryption starts)
-        if ($record->contentType === ContentType::HANDSHAKE && !$this->hasHandshakeKeys()) {
+        if ($record->contentType === ContentType::HANDSHAKE && !$this->hasHandshakeKeys() && !$this->earlyKeysActive) {
             return $record;
         }
 
         $keySchedule = $this->context->getKeySchedule();
         if (!$keySchedule) {
             return $record; // Return as-is during early handshake
+        }
+
+        // Server receiving early data uses early keys
+        if ($this->earlyKeysActive && !$this->context->isClient()) {
+            return $this->decryptWithEarlyKeys($record);
         }
 
         // Determine which cipher to use based on handshake completion
@@ -97,7 +152,7 @@ class RecordCrypto
     }
 
     /**
-     * Update traffic keys after KeyUpdateMessage message
+     * Update traffic keys after KeyUpdate message
      */
     public function updateApplicationKeys(): void
     {
@@ -124,6 +179,96 @@ class RecordCrypto
         $this->applicationReadSequence = 0;
         $this->applicationWriteSequence = 0;
     }
+
+    // === Early Data Encryption/Decryption ===
+
+    private function encryptWithEarlyKeys(Record $record): Record
+    {
+        if (!$this->earlyWriteCipher) {
+            $this->initializeEarlyWriteCipher();
+        }
+
+        $innerPlaintext = $record->payload . chr($record->contentType->value);
+        $additionalData = $this->createAAD(ContentType::APPLICATION_DATA, strlen($innerPlaintext) + 16);
+
+        $ciphertext = $this->earlyWriteCipher->encrypt(
+            $innerPlaintext,
+            $additionalData,
+            $this->earlyWriteSequence++,
+        );
+
+        Logger::debug('Encrypt record with early keys (0-RTT)', [
+            'Ciphertext length' => strlen($ciphertext),
+            'Plaintext length' => strlen($innerPlaintext),
+            'Seq' => $this->earlyWriteSequence - 1,
+        ]);
+
+        return new Record(
+            ContentType::APPLICATION_DATA,
+            $record->version,
+            $ciphertext,
+        );
+    }
+
+    private function decryptWithEarlyKeys(Record $record): Record
+    {
+        if (!$this->earlyReadCipher) {
+            $this->initializeEarlyReadCipher();
+        }
+
+        $additionalData = $this->createAAD($record->contentType, strlen($record->payload));
+
+        $plaintext = $this->earlyReadCipher->decrypt(
+            $record->payload,
+            $additionalData,
+            $this->earlyReadSequence++,
+        );
+
+        Logger::debug('Decrypt record with early keys (0-RTT)', [
+            'Ciphertext length' => strlen($record->payload),
+            'Plaintext length' => strlen($plaintext),
+            'Seq' => $this->earlyReadSequence - 1,
+        ]);
+
+        return $this->extractInnerRecord($plaintext, $record->version);
+    }
+
+    private function initializeEarlyWriteCipher(): void
+    {
+        $earlyTrafficSecret = $this->context->getClientEarlyTrafficSecret();
+        if (!$earlyTrafficSecret) {
+            throw new CraftException('Cannot initialize early write cipher: early traffic secret not derived');
+        }
+
+        $keySchedule = $this->context->getKeySchedule();
+        $keys = $keySchedule->deriveTrafficKeys($earlyTrafficSecret);
+        $cipherSuite = $this->context->getNegotiatedCipherSuite();
+
+        $this->earlyWriteCipher = $this->context->getCryptoFactory()
+            ->createAead($keys['key'], $keys['iv'], $cipherSuite);
+
+        Logger::debug('Initialized early write cipher');
+    }
+
+    private function initializeEarlyReadCipher(): void
+    {
+        // Server uses client's early traffic secret for reading
+        $earlyTrafficSecret = $this->context->getClientEarlyTrafficSecret();
+        if (!$earlyTrafficSecret) {
+            throw new CraftException('Cannot initialize early read cipher: early traffic secret not derived');
+        }
+
+        $keySchedule = $this->context->getKeySchedule();
+        $keys = $keySchedule->deriveTrafficKeys($earlyTrafficSecret);
+        $cipherSuite = $this->context->getNegotiatedCipherSuite();
+
+        $this->earlyReadCipher = $this->context->getCryptoFactory()
+            ->createAead($keys['key'], $keys['iv'], $cipherSuite);
+
+        Logger::debug('Initialized early read cipher');
+    }
+
+    // === Existing Handshake/Application Encryption ===
 
     private function encryptWithHandshakeKeys(Record $record): Record
     {

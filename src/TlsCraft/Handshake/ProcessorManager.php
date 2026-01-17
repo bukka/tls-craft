@@ -8,6 +8,7 @@ use Php\TlsCraft\Handshake\Messages\CertificateRequestMessage;
 use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
 use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
 use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
+use Php\TlsCraft\Handshake\Messages\EndOfEarlyDataMessage;
 use Php\TlsCraft\Handshake\Messages\FinishedMessage;
 use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
 use Php\TlsCraft\Handshake\Messages\Message;
@@ -18,6 +19,7 @@ use Php\TlsCraft\Handshake\Processors\{CertificateProcessor,
     CertificateVerifyProcessor,
     ClientHelloProcessor,
     EncryptedExtensionsProcessor,
+    EndOfEarlyDataProcessor,
     FinishedProcessor,
     KeyUpdateProcessor,
     NewSessionTicketProcessor,
@@ -37,6 +39,7 @@ class ProcessorManager
     private ?FinishedProcessor $finishedProcessor = null;
     private ?NewSessionTicketProcessor $newSessionTicketProcessor = null;
     private ?KeyUpdateProcessor $keyUpdateProcessor = null;
+    private ?EndOfEarlyDataProcessor $endOfEarlyDataProcessor = null;
 
     public function __construct(ProcessorFactory $factory)
     {
@@ -115,6 +118,14 @@ class ProcessorManager
         $this->keyUpdateProcessor->process($message);
     }
 
+    public function processEndOfEarlyData(EndOfEarlyDataMessage $message): void
+    {
+        if (!$this->endOfEarlyDataProcessor) {
+            $this->endOfEarlyDataProcessor = $this->factory->createEndOfEarlyDataProcessor();
+        }
+        $this->endOfEarlyDataProcessor->process($message);
+    }
+
     /**
      * Process message dynamically based on its type
      */
@@ -130,6 +141,7 @@ class ProcessorManager
             FinishedMessage::class => $this->processFinished($message),
             NewSessionTicketMessage::class => $this->processNewSessionTicket($message),
             KeyUpdateMessage::class => $this->processKeyUpdate($message),
+            EndOfEarlyDataMessage::class => $this->processEndOfEarlyData($message),
             default => throw new InvalidArgumentException('No processor available for message type: '.$message::class),
         };
     }

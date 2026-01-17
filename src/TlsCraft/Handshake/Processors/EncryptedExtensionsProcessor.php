@@ -10,6 +10,7 @@ use Php\TlsCraft\Handshake\Extensions\{
 };
 use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
+use Php\TlsCraft\Logger;
 
 class EncryptedExtensionsProcessor extends MessageProcessor
 {
@@ -23,6 +24,7 @@ class EncryptedExtensionsProcessor extends MessageProcessor
         $this->parseServerNameExtension($message);
         $this->parseALPNExtension($message);
         $this->parseSupportedGroupsExtension($message);
+        $this->parseEarlyDataExtension($message);
 
         // Any other extensions are handled generically or ignored
     }
@@ -83,6 +85,29 @@ class EncryptedExtensionsProcessor extends MessageProcessor
             // for future connections or post-handshake auth
             $serverSupportedGroups = $ext->getGroups();
             $this->context->setServerSupportedGroups($serverSupportedGroups);
+        }
+    }
+
+    private function parseEarlyDataExtension(EncryptedExtensionsMessage $message): void
+    {
+        // Check for early_data extension (server acceptance of 0-RTT)
+        $earlyDataExtension = $message->getExtension(ExtensionType::EARLY_DATA);
+        if ($earlyDataExtension !== null) {
+            $this->context->setEarlyDataAccepted(true);
+            Logger::debug('Server accepted early data');
+        } elseif ($this->context->isEarlyDataAttempted()) {
+            // Server rejected early data
+            $this->context->setEarlyDataAccepted(false);
+            Logger::debug('Server rejected early data');
+
+            // Notify application to resend data
+            $callback = $this->context->getConfig()->getOnEarlyDataRejected();
+            if ($callback !== null) {
+                $earlyData = $this->context->getConfig()->getEarlyData();
+                if ($earlyData !== null) {
+                    $callback($earlyData);
+                }
+            }
         }
     }
 }

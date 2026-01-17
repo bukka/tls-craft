@@ -9,6 +9,7 @@ use Php\TlsCraft\Handshake\Processors\CertificateRequestProcessor;
 use Php\TlsCraft\Handshake\Processors\CertificateVerifyProcessor;
 use Php\TlsCraft\Handshake\Processors\ClientHelloProcessor;
 use Php\TlsCraft\Handshake\Processors\EncryptedExtensionsProcessor;
+use Php\TlsCraft\Handshake\Processors\EndOfEarlyDataProcessor;
 use Php\TlsCraft\Handshake\Processors\FinishedProcessor;
 use Php\TlsCraft\Handshake\Processors\KeyUpdateProcessor;
 use Php\TlsCraft\Handshake\Processors\NewSessionTicketProcessor;
@@ -72,5 +73,10 @@ class ProcessorFactory
     public function createKeyUpdateProcessor(): KeyUpdateProcessor
     {
         return new KeyUpdateProcessor($this->context, $this->config);
+    }
+
+    public function createEndOfEarlyDataProcessor(): EndOfEarlyDataProcessor
+    {
+        return new EndOfEarlyDataProcessor($this->context);
     }
 }

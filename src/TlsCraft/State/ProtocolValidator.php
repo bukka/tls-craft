@@ -21,12 +21,13 @@ class ProtocolValidator
         HandshakeState $currentState,
         bool $isClient,
         bool $isResuming,
+        bool $earlyDataAccepted = false,
     ): bool {
         if ($this->allowViolations) {
             return true;
         }
 
-        $expectedTypes = $this->getExpectedMessageTypes($currentState, $isClient, $isResuming);
+        $expectedTypes = $this->getExpectedMessageTypes($currentState, $isClient, $isResuming, $earlyDataAccepted);
 
         return in_array($messageType, $expectedTypes);
     }
@@ -59,31 +60,54 @@ class ProtocolValidator
         return in_array($serverChoice, $clientSuites);
     }
 
-    private function getExpectedMessageTypes(HandshakeState $state, bool $isClient, bool $isResuming): array
-    {
+    private function getExpectedMessageTypes(
+        HandshakeState $state,
+        bool $isClient,
+        bool $isResuming,
+        bool $earlyDataAccepted,
+    ): array {
         return match ($state) {
             HandshakeState::START => $isClient ?
                 [HandshakeType::SERVER_HELLO] :
                 [HandshakeType::CLIENT_HELLO],
+
             HandshakeState::WAIT_CLIENT_HELLO => [HandshakeType::CLIENT_HELLO],
+
             HandshakeState::WAIT_SERVER_HELLO => [HandshakeType::SERVER_HELLO],
+
             HandshakeState::WAIT_ENCRYPTED_EXTENSIONS => [HandshakeType::ENCRYPTED_EXTENSIONS],
+
             HandshakeState::WAIT_CERTIFICATE => $isResuming ?
                 [HandshakeType::FINISHED] :
                 (
-                    $isClient ?
-                        // Client can receive CertificateRequest (optional) or Certificate
-                        [HandshakeType::CERTIFICATE_REQUEST, HandshakeType::CERTIFICATE] :
-                        // Server only expects Certificate from client
-                        [HandshakeType::CERTIFICATE]
+                $isClient ?
+                    // Client can receive CertificateRequest (optional) or Certificate
+                    [HandshakeType::CERTIFICATE_REQUEST, HandshakeType::CERTIFICATE] :
+                    // Server only expects Certificate from client
+                    [HandshakeType::CERTIFICATE]
                 ),
+
             HandshakeState::WAIT_CERTIFICATE_VERIFY => [HandshakeType::CERTIFICATE_VERIFY],
+
             HandshakeState::WAIT_FINISHED => [HandshakeType::FINISHED],
-            HandshakeState::WAIT_FLIGHT2 => [
-                HandshakeType::CERTIFICATE,
-                HandshakeType::CERTIFICATE_VERIFY,
-                HandshakeType::FINISHED,
-            ],
+
+            HandshakeState::WAIT_FLIGHT2 => $earlyDataAccepted ?
+                // If early data was accepted, EndOfEarlyData comes before client's flight
+                [
+                    HandshakeType::END_OF_EARLY_DATA,
+                    HandshakeType::CERTIFICATE,
+                    HandshakeType::CERTIFICATE_VERIFY,
+                    HandshakeType::FINISHED,
+                ] :
+                [
+                    HandshakeType::CERTIFICATE,
+                    HandshakeType::CERTIFICATE_VERIFY,
+                    HandshakeType::FINISHED,
+                ],
+
+            // Server waiting specifically for EndOfEarlyData
+            HandshakeState::WAIT_END_OF_EARLY_DATA => [HandshakeType::END_OF_EARLY_DATA],
+
             HandshakeState::CONNECTED => [HandshakeType::KEY_UPDATE, HandshakeType::NEW_SESSION_TICKET],
         };
     }

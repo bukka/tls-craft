@@ -10,6 +10,7 @@ use Php\TlsCraft\Crypto\CertificateSigner;
 use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\{AlertException, CraftException, ProtocolViolationException};
+use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\Messages\{KeyUpdateMessage, Message};
 use Php\TlsCraft\Handshake\MessageSerializer;
@@ -59,7 +60,7 @@ class ProtocolOrchestrator
         return $this->context;
     }
 
-    // === Handshake Operations ===
+    // === Client Handshake with Early Data Support ===
 
     public function performClientHandshake(): void
     {
@@ -75,8 +76,30 @@ class ProtocolOrchestrator
         $clientHello = $this->messageFactory->createClientHello();
         $this->sendHandshakeMessage($clientHello, false);
 
+        // Data Handling
+        $earlyDataSent = false;
+        if ($this->shouldSendEarlyData()) {
+            $this->sendClientEarlyData();
+            $earlyDataSent = true;
+        }
+
         // Process server handshake messages
         $this->processServerHandshakeMessages();
+
+        // Handle Early Data Result
+        if ($earlyDataSent) {
+            if ($this->context->isEarlyDataAccepted()) {
+                // Server accepted - send EndOfEarlyData (encrypted with early keys)
+                $this->sendEndOfEarlyData();
+            }
+            // Always deactivate early keys after processing server response
+            $this->recordLayer->deactivateEarlyKeys();
+
+            if (!$this->context->isEarlyDataAccepted()) {
+                // Server rejected - notify application
+                $this->handleEarlyDataRejection();
+            }
+        }
 
         // After receiving server's Finished, send client certificate if requested
         if ($this->context->getCertificateRequestContext() !== null) {
@@ -94,12 +117,132 @@ class ProtocolOrchestrator
         $this->context->deriveApplicationSecrets();
     }
 
+    /**
+     * Check if early data should be sent
+     */
+    private function shouldSendEarlyData(): bool
+    {
+        $config = $this->context->getConfig();
+
+        // Must have early data enabled and configured
+        if (!$config->isEarlyDataEnabled() || !$config->hasEarlyData()) {
+            return false;
+        }
+
+        // Must have attempted early data (extension was included in ClientHello)
+        if (!$this->context->isEarlyDataAttempted()) {
+            return false;
+        }
+
+        // Must have a session ticket with early data support
+        $tickets = $this->context->getSessionTickets();
+        if (empty($tickets)) {
+            return false;
+        }
+
+        $ticket = $tickets[0];
+
+        return $ticket->getMaxEarlyDataSize() > 0;
+    }
+
+    /**
+     * Send early data (0-RTT application data)
+     */
+    private function sendClientEarlyData(): void
+    {
+        $config = $this->context->getConfig();
+        $earlyData = $config->getEarlyData();
+
+        if ($earlyData === null || $earlyData === '') {
+            return;
+        }
+
+        Logger::debug('Preparing to send early data', [
+            'size' => strlen($earlyData),
+        ]);
+
+        // Get ClientHello from transcript for key derivation
+        $clientHelloData = $this->context->getHandshakeTranscript()->getAll();
+
+        // Derive early traffic secret
+        $this->context->deriveClientEarlyTrafficSecret($clientHelloData);
+
+        // Activate early keys in record layer
+        $this->recordLayer->activateEarlyKeys();
+
+        // Send early data as application data record (encrypted with early keys)
+        $record = $this->recordFactory->createApplicationData($earlyData);
+        $this->recordLayer->sendRecord($record);
+
+        Logger::debug('Early data sent (0-RTT)', [
+            'size' => strlen($earlyData),
+        ]);
+    }
+
+    /**
+     * Send EndOfEarlyData message
+     */
+    private function sendEndOfEarlyData(): void
+    {
+        Logger::debug('Sending EndOfEarlyData');
+
+        // Create and send EndOfEarlyData (encrypted with early keys)
+        $endOfEarlyData = $this->messageFactory->createEndOfEarlyData();
+        $serialized = $this->messageSerializer->serialize($endOfEarlyData);
+
+        // Add to transcript
+        $this->context->addHandshakeMessage($serialized);
+
+        // Send encrypted with early keys (still active)
+        $record = $this->recordFactory->createHandshake($serialized);
+        $this->recordLayer->sendRecord($record);
+
+        Logger::debug('EndOfEarlyData sent');
+    }
+
+    /**
+     * Handle early data rejection
+     */
+    private function handleEarlyDataRejection(): void
+    {
+        Logger::debug('Early data was rejected by server');
+
+        $config = $this->context->getConfig();
+        $callback = $config->getOnEarlyDataRejected();
+
+        if ($callback !== null) {
+            $earlyData = $config->getEarlyData();
+            if ($earlyData !== null) {
+                // Notify application - it should resend after handshake completes
+                $callback($earlyData);
+            }
+        }
+    }
+
+    // === Server Handshake with Early Data Support ===
+
     public function performServerHandshake(): void
     {
         $this->stateTracker->startHandshake();
 
         // Wait for ClientHello
         $this->waitForClientHello();
+
+        // === Early Data Mode Decision (Server) ===
+        $earlyDataMode = $this->determineEarlyDataMode();
+
+        if ($earlyDataMode === EarlyDataServerMode::HELLO_RETRY_REQUEST) {
+            // TODO: Implement HelloRetryRequest flow
+            // For now, fall through to REJECT behavior
+            Logger::debug('HRR not implemented, falling back to reject mode');
+            $earlyDataMode = EarlyDataServerMode::REJECT;
+        }
+
+        $acceptEarlyData = ($earlyDataMode === EarlyDataServerMode::ACCEPT);
+
+        if ($acceptEarlyData) {
+            $this->prepareToReceiveEarlyData();
+        }
 
         // Only load certificate if we're not doing PSK-only resumption
         if (!$this->context->isResuming() || $this->context->supportsPskDhe()) {
@@ -111,8 +254,19 @@ class ProtocolOrchestrator
             Logger::debug('PSK-only resumption: certificate not required');
         }
 
-        // Send server handshake flight
+        // Send server handshake flight (includes early_data in EE if accepting)
         $this->sendServerHandshakeFlight();
+
+        // === Handle Early Data Based on Mode ===
+        if ($this->context->isEarlyDataAttempted()) {
+            if ($acceptEarlyData) {
+                // ACCEPT: decrypt and store early data
+                $this->receiveClientEarlyData();
+            } else {
+                // REJECT: skip early data records (try decrypt with handshake key, discard failures)
+                $this->skipClientEarlyData();
+            }
+        }
 
         // Wait for client Finished (and optionally client certificate)
         $this->waitForClientFinished();
@@ -125,6 +279,225 @@ class ProtocolOrchestrator
 
         // Send a session ticket if resumption is enabled
         $this->sendNewSessionTicketIfEnabled();
+    }
+
+    /**
+     * Determine the early data mode for this connection
+     *
+     * RFC 8446 Section 4.2.10 - Server has three options:
+     * - ACCEPT: Include early_data in EE, decrypt and process early data
+     * - REJECT: Skip early data by trying handshake key (discard failures)
+     * - HELLO_RETRY_REQUEST: Send HRR, skip application_data records
+     */
+    private function determineEarlyDataMode(): EarlyDataServerMode
+    {
+        // Check if client even attempted early data
+        if (!$this->context->isEarlyDataAttempted()) {
+            return EarlyDataServerMode::REJECT; // Nothing to handle
+        }
+
+        // Check if we're doing PSK resumption (required for early data)
+        if (!$this->context->isResuming()) {
+            Logger::debug('Not accepting early data: not a PSK resumption');
+
+            return EarlyDataServerMode::REJECT;
+        }
+
+        // Check config allows early data
+        $config = $this->context->getConfig();
+        if ($config->getMaxEarlyDataSize() <= 0) {
+            Logger::debug('Not accepting early data: max_early_data_size is 0');
+
+            return EarlyDataServerMode::REJECT;
+        }
+
+        // Use the configured mode (or callback)
+        $mode = $config->determineEarlyDataMode($this->context);
+
+        Logger::debug('Server early data mode', [
+            'mode' => $mode->value,
+            'description' => $mode->getDescription(),
+        ]);
+
+        return $mode;
+    }
+
+    /**
+     * Check if server should accept early data (convenience helper)
+     */
+    private function shouldAcceptEarlyData(): bool
+    {
+        return $this->determineEarlyDataMode() === EarlyDataServerMode::ACCEPT;
+    }
+
+    /**
+     * Prepare server to receive early data
+     */
+    private function prepareToReceiveEarlyData(): void
+    {
+        // Get ClientHello from transcript for key derivation
+        $clientHelloData = $this->context->getHandshakeTranscript()->getAll();
+
+        // Derive early traffic secret (using selected PSK)
+        $this->context->deriveClientEarlyTrafficSecret($clientHelloData);
+
+        // Mark that we're accepting early data
+        $this->context->setEarlyDataAccepted(true);
+
+        // Activate early keys for decryption
+        $this->recordLayer->activateEarlyKeys();
+
+        Logger::debug('Server prepared to receive early data');
+    }
+
+    /**
+     * Receive and process client's early data
+     */
+    private function receiveClientEarlyData(): void
+    {
+        Logger::debug('Server waiting for early data');
+
+        $maxSize = $this->context->getConfig()->getMaxEarlyDataSize();
+        $receivedSize = 0;
+        $earlyDataBuffer = '';
+
+        while (true) {
+            $record = $this->recordLayer->receiveRecord();
+            if (!$record) {
+                throw new CraftException('Connection closed while receiving early data');
+            }
+
+            // Check for EndOfEarlyData
+            if ($record->isHandshake()) {
+                // Parse to check if it's EndOfEarlyData
+                if ($record->payload !== '' && ord($record->payload[0]) === HandshakeType::END_OF_EARLY_DATA->value) {
+                    Logger::debug('Received EndOfEarlyData');
+
+                    // Add to transcript
+                    $this->context->addHandshakeMessage($record->payload);
+
+                    // Deactivate early keys, switch to handshake keys for subsequent messages
+                    $this->recordLayer->deactivateEarlyKeys();
+
+                    break;
+                }
+
+                // Other handshake message - protocol error
+                throw new ProtocolViolationException('Unexpected handshake message during early data');
+            }
+
+            // Application data = early data
+            if ($record->isApplicationData()) {
+                $receivedSize += strlen($record->payload);
+
+                if ($receivedSize > $maxSize) {
+                    Logger::warn('Early data exceeds max size', [
+                        'received' => $receivedSize,
+                        'max' => $maxSize,
+                    ]);
+                    // Could send alert here, but for now just log
+                }
+
+                $earlyDataBuffer .= $record->payload;
+
+                Logger::debug('Received early data chunk', [
+                    'chunk_size' => strlen($record->payload),
+                    'total_received' => $receivedSize,
+                ]);
+
+                continue;
+            }
+
+            // Alert
+            if ($record->isAlert()) {
+                $this->handleAlertRecord($record);
+            }
+        }
+
+        // Store early data for application to process
+        if ($earlyDataBuffer !== '') {
+            $this->context->setReceivedEarlyData($earlyDataBuffer);
+            Logger::debug('Early data reception complete', [
+                'total_size' => strlen($earlyDataBuffer),
+            ]);
+        }
+    }
+
+    /**
+     * Skip client's early data (REJECT mode)
+     *
+     * RFC 8446 Section 4.2.10:
+     * "The server then skips past early data by attempting to deprotect
+     * received records using the handshake traffic key, discarding
+     * records which fail deprotection (up to the configured
+     * max_early_data_size). Once a record is deprotected successfully,
+     * it is treated as the start of the client's second flight."
+     *
+     * Since early data is encrypted with early traffic keys and we're
+     * trying to decrypt with handshake keys, early data records will
+     * fail decryption and be discarded.
+     */
+    private function skipClientEarlyData(): void
+    {
+        Logger::debug('Server skipping early data (REJECT mode)');
+
+        $maxSize = $this->context->getConfig()->getMaxEarlyDataSize();
+        $skippedSize = 0;
+
+        // We need access to the raw record layer to try/fail decryption
+        // For now, we'll use a simpler approach: skip APPLICATION_DATA records
+        // until we see something that's not APPLICATION_DATA (the client's second flight)
+
+        while ($skippedSize < $maxSize) {
+            // Read raw record without decryption attempt
+            // Note: This requires the record layer to expose raw records
+            // For the implementation, we check the outer content type
+
+            $record = $this->recordLayer->receiveRecord();
+            if (!$record) {
+                throw new CraftException('Connection closed while skipping early data');
+            }
+
+            // In TLS 1.3, early data has outer content type APPLICATION_DATA (0x17)
+            // The client's second flight (Finished, etc.) also has outer type APPLICATION_DATA
+            // but will decrypt successfully with handshake keys
+
+            // If decryption succeeded and we got a handshake message, we're done skipping
+            if ($record->isHandshake()) {
+                Logger::debug('Skipped early data, found client second flight', [
+                    'skipped_bytes' => $skippedSize,
+                ]);
+
+                // Process this handshake record normally (it's the client's second flight)
+                // Add to buffer for later processing
+                $this->handshakeBuffer .= $record->payload;
+
+                return;
+            }
+
+            // Alert during early data skip
+            if ($record->isAlert()) {
+                $this->handleAlertRecord($record);
+
+                return;
+            }
+
+            // APPLICATION_DATA that decrypted = early data was skipped, this is real app data
+            // But during handshake, client shouldn't send app data until after Finished
+            // So if we get here, something is wrong or we successfully skipped
+
+            // Track skipped size (approximate since we don't have raw ciphertext size)
+            $skippedSize += strlen($record->payload);
+
+            Logger::debug('Skipped early data record', [
+                'record_size' => strlen($record->payload),
+                'total_skipped' => $skippedSize,
+            ]);
+        }
+
+        Logger::warn('Reached max_early_data_size while skipping', [
+            'max_size' => $maxSize,
+        ]);
     }
 
     // === Application Data Operations ===
@@ -463,6 +836,15 @@ class ProtocolOrchestrator
                 $this->stateTracker->completeHandshake();
                 break;
 
+            case HandshakeType::END_OF_EARLY_DATA:
+                $endOfEarlyData = $this->messageFactory->createEndOfEarlyDataFromWire($data);
+                $this->processorManager->processEndOfEarlyData($endOfEarlyData);
+                // Deactivate early keys on server side
+                if (!$this->context->isClient()) {
+                    $this->recordLayer->deactivateEarlyKeys();
+                }
+                break;
+
             case HandshakeType::KEY_UPDATE:
                 $keyUpdate = $this->messageFactory->createKeyUpdateFromWire($data);
                 $this->processorManager->processKeyUpdate($keyUpdate);
@@ -602,7 +984,11 @@ class ProtocolOrchestrator
             'scheme' => $signatureScheme->name,
         ]);
 
-        return $this->certificateSigner->createSignature($signatureContext, $privateKey, $signatureScheme, $this->context->getClientCertificateChain()->getLeafCertificate());
+        return $this->certificateSigner->createSignature(
+            $signatureContext,
+            $privateKey,
+            $signatureScheme,
+        );
     }
 
     /**

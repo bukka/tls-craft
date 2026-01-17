@@ -10,6 +10,7 @@ use Php\TlsCraft\Handshake\MessageFactories\{CertificateFactory,
     CertificateVerifyFactory,
     ClientHelloFactory,
     EncryptedExtensionsFactory,
+    EndOfEarlyDataFactory,
     FinishedFactory,
     KeyUpdateFactory,
     NewSessionTicketFactory,
@@ -19,6 +20,7 @@ use Php\TlsCraft\Handshake\MessageParsers\CertificateRequestParser;
 use Php\TlsCraft\Handshake\MessageParsers\CertificateVerifyParser;
 use Php\TlsCraft\Handshake\MessageParsers\ClientHelloParser;
 use Php\TlsCraft\Handshake\MessageParsers\EncryptedExtensionsParser;
+use Php\TlsCraft\Handshake\MessageParsers\EndOfEarlyDataParser;
 use Php\TlsCraft\Handshake\MessageParsers\FinishedParser;
 use Php\TlsCraft\Handshake\MessageParsers\KeyUpdateParser;
 use Php\TlsCraft\Handshake\MessageParsers\NewSessionTicketParser;
@@ -28,6 +30,7 @@ use Php\TlsCraft\Handshake\Messages\CertificateRequestMessage;
 use Php\TlsCraft\Handshake\Messages\CertificateVerifyMessage;
 use Php\TlsCraft\Handshake\Messages\ClientHelloMessage;
 use Php\TlsCraft\Handshake\Messages\EncryptedExtensionsMessage;
+use Php\TlsCraft\Handshake\Messages\EndOfEarlyDataMessage;
 use Php\TlsCraft\Handshake\Messages\FinishedMessage;
 use Php\TlsCraft\Handshake\Messages\KeyUpdateMessage;
 use Php\TlsCraft\Handshake\Messages\NewSessionTicketMessage;
@@ -47,6 +50,7 @@ class MessageFactory
     private ?CertificateVerifyFactory $certificateVerifyFactory = null;
     private ?FinishedFactory $finishedFactory = null;
     private ?KeyUpdateFactory $keyUpdateFactory = null;
+    private ?EndOfEarlyDataFactory $endOfEarlyDataFactory = null;
 
     private ?ClientHelloParser $clientHelloParser = null;
     private ?ServerHelloParser $serverHelloParser = null;
@@ -58,6 +62,7 @@ class MessageFactory
     private ?KeyUpdateParser $keyUpdateParser = null;
     private ?NewSessionTicketFactory $newSessionTicketFactory = null;
     private ?NewSessionTicketParser $newSessionTicketParser = null;
+    private ?EndOfEarlyDataParser $endOfEarlyDataParser = null;
 
     public function __construct(private Context $context, private ExtensionFactory $extensionFactory)
     {
@@ -136,6 +141,15 @@ class MessageFactory
         return $this->keyUpdateFactory;
     }
 
+    private function getEndOfEarlyDataFactory(): EndOfEarlyDataFactory
+    {
+        if (!$this->endOfEarlyDataFactory) {
+            $this->endOfEarlyDataFactory = new EndOfEarlyDataFactory($this->context, $this->config);
+        }
+
+        return $this->endOfEarlyDataFactory;
+    }
+
     private function getClientHelloParser(): ClientHelloParser
     {
         if (!$this->clientHelloParser) {
@@ -208,6 +222,15 @@ class MessageFactory
         return $this->keyUpdateParser;
     }
 
+    private function getEndOfEarlyDataParser(): EndOfEarlyDataParser
+    {
+        if (!$this->endOfEarlyDataParser) {
+            $this->endOfEarlyDataParser = new EndOfEarlyDataParser($this->context, $this->extensionFactory);
+        }
+
+        return $this->endOfEarlyDataParser;
+    }
+
     public function createClientHello(): ClientHelloMessage
     {
         return $this->getClientHelloFactory()->create();
@@ -246,6 +269,11 @@ class MessageFactory
     public function createKeyUpdate(bool $requestUpdate): KeyUpdateMessage
     {
         return $this->getKeyUpdateFactory()->create($requestUpdate);
+    }
+
+    public function createEndOfEarlyData(): EndOfEarlyDataMessage
+    {
+        return $this->getEndOfEarlyDataFactory()->create();
     }
 
     public function createAlert(AlertLevel $level, AlertDescription $description): string
@@ -292,6 +320,11 @@ class MessageFactory
     public function createKeyUpdateFromWire(string $data, int &$offset = 0): KeyUpdateMessage
     {
         return $this->getKeyUpdateParser()->parse($data, $offset);
+    }
+
+    public function createEndOfEarlyDataFromWire(string $data, int &$offset = 0): EndOfEarlyDataMessage
+    {
+        return $this->getEndOfEarlyDataParser()->parse($data, $offset);
     }
 
     private function getNewSessionTicketFactory(): NewSessionTicketFactory

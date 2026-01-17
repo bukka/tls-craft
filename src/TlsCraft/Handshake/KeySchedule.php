@@ -82,6 +82,54 @@ class KeySchedule
         return $this->earlySecret !== null;
     }
 
+    /**
+     * Derive client early traffic secret (for 0-RTT data)
+     *
+     * client_early_traffic_secret = Derive-Secret(early_secret, "c e traffic", ClientHello)
+     *
+     * @param string $clientHelloData The serialized ClientHello message
+     */
+    public function getClientEarlyTrafficSecret(string $clientHelloData): string
+    {
+        if ($this->earlySecret === null) {
+            throw new RuntimeException('Cannot derive early traffic secret: early secret not set');
+        }
+
+        $secret = $this->keyDerivation->deriveSecret(
+            $this->earlySecret,
+            'c e traffic',
+            $clientHelloData,
+            $this->cipherSuite,
+        );
+
+        Logger::debug('CLIENT EARLY TRAFFIC SECRET', [
+            'Early Secret' => $this->earlySecret,
+            'ClientHello length' => strlen($clientHelloData),
+            'Client Early Traffic Secret' => $secret,
+        ]);
+
+        return $secret;
+    }
+
+    /**
+     * Derive early exporter master secret (optional, for early exporters)
+     *
+     * early_exporter_master_secret = Derive-Secret(early_secret, "e exp master", ClientHello)
+     */
+    public function getEarlyExporterMasterSecret(string $clientHelloData): string
+    {
+        if ($this->earlySecret === null) {
+            throw new RuntimeException('Cannot derive early exporter secret: early secret not set');
+        }
+
+        return $this->keyDerivation->deriveSecret(
+            $this->earlySecret,
+            'e exp master',
+            $clientHelloData,
+            $this->cipherSuite,
+        );
+    }
+
     // =========================================================================
     // PSK BINDER DERIVATION
     // =========================================================================

@@ -7,6 +7,7 @@ use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\ExtensionParsers\{
     AlpnExtensionParser,
     CustomExtensionParser,
+    EarlyDataExtensionParser,
     KeyShareExtensionParser,
     PreSharedKeyExtensionParser,
     PskKeyExchangeModesExtensionParser,
@@ -18,6 +19,7 @@ use Php\TlsCraft\Handshake\ExtensionParsers\{
 use Php\TlsCraft\Handshake\Extensions\{
     AlpnExtension,
     CustomExtension,
+    EarlyDataExtension,
     Extension,
     KeyShareExtension,
     PreSharedKeyExtension,
@@ -30,6 +32,7 @@ use Php\TlsCraft\Handshake\Extensions\{
 use Php\TlsCraft\Handshake\ExtensionSerializers\{
     AlpnExtensionSerializer,
     CustomExtensionSerializer,
+    EarlyDataExtensionSerializer,
     KeyShareExtensionSerializer,
     PreSharedKeyExtensionSerializer,
     PskKeyExchangeModesExtensionSerializer,
@@ -44,6 +47,7 @@ class ExtensionFactory
     /** ------------------------------- PARSERS -------------------------------- */
     private ?AlpnExtensionParser $alpnExtensionParser = null;
     private ?CustomExtensionParser $customExtensionParser = null;
+    private ?EarlyDataExtensionParser $earlyDataExtensionParser = null;
     private ?KeyShareExtensionParser $keyShareExtensionParser = null;
     private ?PreSharedKeyExtensionParser $preSharedKeyExtensionParser = null;
     private ?PskKeyExchangeModesExtensionParser $pskKeyExchangeModesExtensionParser = null;
@@ -55,6 +59,7 @@ class ExtensionFactory
     /** ----------------------------- SERIALIZERS ------------------------------ */
     private ?AlpnExtensionSerializer $alpnExtensionSerializer = null;
     private ?CustomExtensionSerializer $customExtensionSerializer = null;
+    private ?EarlyDataExtensionSerializer $earlyDataExtensionSerializer = null;
     private ?KeyShareExtensionSerializer $keyShareExtensionSerializer = null;
     private ?PreSharedKeyExtensionSerializer $preSharedKeyExtensionSerializer = null;
     private ?PskKeyExchangeModesExtensionSerializer $pskKeyExchangeModesExtensionSerializer = null;
@@ -77,6 +82,11 @@ class ExtensionFactory
     private function getCustomExtensionParser(): CustomExtensionParser
     {
         return $this->customExtensionParser ??= new CustomExtensionParser($this->context);
+    }
+
+    private function getEarlyDataExtensionParser(): EarlyDataExtensionParser
+    {
+        return $this->earlyDataExtensionParser ??= new EarlyDataExtensionParser($this->context);
     }
 
     private function getKeyShareExtensionParser(): KeyShareExtensionParser
@@ -124,6 +134,11 @@ class ExtensionFactory
     private function getCustomExtensionSerializer(): CustomExtensionSerializer
     {
         return $this->customExtensionSerializer ??= new CustomExtensionSerializer($this->context);
+    }
+
+    private function getEarlyDataExtensionSerializer(): EarlyDataExtensionSerializer
+    {
+        return $this->earlyDataExtensionSerializer ??= new EarlyDataExtensionSerializer($this->context);
     }
 
     private function getKeyShareExtensionSerializer(): KeyShareExtensionSerializer
@@ -223,6 +238,7 @@ class ExtensionFactory
             ExtensionType::PSK_KEY_EXCHANGE_MODES => $this->getPskKeyExchangeModesExtensionParser()->parse($data),
             ExtensionType::KEY_SHARE => $this->getKeyShareExtensionParser()->parse($data),
             ExtensionType::PRE_SHARED_KEY => $this->getPreSharedKeyExtensionParser()->parse($data, !$this->context->isClient()),
+            ExtensionType::EARLY_DATA => $this->getEarlyDataExtensionParser()->parse($data),
             default => $this->getCustomExtensionParser()->parse($data, $type),
         };
     }
@@ -261,6 +277,7 @@ class ExtensionFactory
     {
         return match (true) {
             $ext instanceof AlpnExtension => $this->getAlpnExtensionSerializer()->serialize($ext),
+            $ext instanceof EarlyDataExtension => $this->getEarlyDataExtensionSerializer()->serialize($ext),
             $ext instanceof KeyShareExtension => $this->getKeyShareExtensionSerializer()->serialize($ext),
             $ext instanceof PreSharedKeyExtension => $this->getPreSharedKeyExtensionSerializer()->serialize($ext),
             $ext instanceof PskKeyExchangeModesExtension => $this->getPskKeyExchangeModesExtensionSerializer()->serialize($ext),

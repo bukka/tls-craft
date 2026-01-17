@@ -39,13 +39,51 @@ class EncryptedLayer
         return $this->crypto->decryptRecord($record);
     }
 
+    // === Early Data Key Management ===
+
     /**
-     * Update encryption keys
+     * Activate early traffic keys for 0-RTT data
+     */
+    public function activateEarlyKeys(): void
+    {
+        $this->crypto->activateEarlyKeys();
+    }
+
+    /**
+     * Deactivate early keys and switch to handshake keys
+     */
+    public function deactivateEarlyKeys(): void
+    {
+        $this->crypto->deactivateEarlyKeys();
+    }
+
+    /**
+     * Check if early keys are currently active
+     */
+    public function hasEarlyKeysActive(): bool
+    {
+        return $this->crypto->hasEarlyKeysActive();
+    }
+
+    // === Application Key Management ===
+
+    /**
+     * Update encryption keys (for KeyUpdate)
      */
     public function updateKeys(): void
     {
         $this->crypto->updateApplicationKeys();
     }
+
+    /**
+     * Activate application keys after handshake
+     */
+    public function activateApplicationKeys(): void
+    {
+        $this->crypto->activateApplicationKeys();
+    }
+
+    // === Delegation Methods ===
 
     /**
      * Delegate other methods to base layer
