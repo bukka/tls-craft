@@ -3,51 +3,63 @@
 require_once __DIR__.'/../../vendor/autoload.php';
 
 use Php\TlsCraft\AppFactory;
+use Php\TlsCraft\Crypto\CipherSuite;
 use Php\TlsCraft\Logger;
-use Php\TlsCraft\Session\Storage\InMemorySessionStorage;
+use Php\TlsCraft\Session\PreSharedKey;
 
 Logger::enable();
 
 $hostname = 'localhost';
 $port = 4433;
 
-$sessionStorage = new InMemorySessionStorage();
+// Define a shared PSK (must match server)
+$pskIdentity = 'my-test-psk';
+$pskKey = hex2bin('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
+$cipherSuite = CipherSuite::TLS_AES_128_GCM_SHA256;
 
-// Step 1: Initial connection to get session ticket
-echo "=== Step 1: Get session ticket ===\n\n";
+echo "=== 0-RTT Test with External PSK ===\n\n";
 
-$client1 = AppFactory::createClient(
-    hostname: $hostname,
-    port: $port,
-    sessionStorage: $sessionStorage,
-    debug: true,
+// Create PSK with early data support
+$psk = PreSharedKey::external(
+    $pskIdentity,
+    $pskKey,
+    $cipherSuite,
 );
 
-$session1 = $client1->connect();
-$session1->send("hello\n");
-$session1->close();
+echo "PSK Identity: $pskIdentity\n";
+echo 'PSK Key: '.bin2hex($pskKey)."\n";
 
-$tickets = $sessionStorage->retrieve($hostname);
-echo "\nTicket max_early_data_size: ".$tickets[0]->getMaxEarlyDataSize()."\n\n";
-
-sleep(1);
-
-// Step 2: Resumption with early data
-echo "=== Step 2: Resumption with early data ===\n\n";
-
+// Define early data to send
 $earlyData = "GET / HTTP/1.1\r\nHost: $hostname\r\n\r\n";
 
-$client2 = AppFactory::createClient(
+echo "Early Data: ".json_encode($earlyData)."\n\n";
+
+// Create client with external PSK and early data
+$client = AppFactory::createClient(
     hostname: $hostname,
     port: $port,
-    sessionStorage: $sessionStorage,
+    externalPsks: [$psk],
     earlyData: $earlyData,
     debug: true,
 );
 
-$session2 = $client2->connect();
+try {
+    echo "Connecting with 0-RTT early data...\n\n";
 
-echo "\nEarly data accepted: ".($session2->isEarlyDataAccepted() ? 'yes' : 'no')."\n";
+    $session = $client->connect();
 
-$session2->send("follow-up\n");
-$session2->close();
+    echo "\n✓ Connection established!\n";
+    echo "Early data accepted: ".($session->isEarlyDataAccepted() ? 'YES' : 'NO')."\n\n";
+
+    // Send follow-up data
+    $message = "follow-up message\n";
+    echo "Sending follow-up: $message\n";
+    $session->send($message);
+
+    $session->close();
+    echo "Connection closed\n";
+
+} catch (Exception $e) {
+    echo 'Error: '.$e->getMessage()."\n";
+    echo $e->getTraceAsString()."\n";
+}

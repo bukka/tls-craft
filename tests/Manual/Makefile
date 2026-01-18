@@ -325,6 +325,17 @@ test-server-external-psk-ec-verbose: ## Start OpenSSL s_server with external PSK
 
 test-server-early-data: test-server-early-data-rsa
 
+test-server-external-psk-early-data: ## Start OpenSSL s_server with external PSK and early data
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, External PSK, Early Data) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)PSK Identity: $(PSK_IDENTITY)$(NC)"
+	@$(ECHO) "$(YELLOW)PSK Key: $(PSK_KEY)$(NC)"
+	@$(ECHO) "$(YELLOW)Server supports 0-RTT early data with PSK$(NC)"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
+		-nocert \
+		-tls1_3 -early_data -max_early_data 16384 \
+		-debug -tlsextdebug -state -msg
+
 test-server-early-data-rsa:
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, Early Data, RSA) on port $(PORT)...$(NC)"
 	@$(ECHO) "$(YELLOW)Server supports 0-RTT early data$(NC)"
