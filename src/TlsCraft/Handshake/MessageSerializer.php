@@ -25,7 +25,11 @@ use Php\TlsCraft\Handshake\MessageSerializers\FinishedSerializer;
 use Php\TlsCraft\Handshake\MessageSerializers\KeyUpdateSerializer;
 use Php\TlsCraft\Handshake\MessageSerializers\NewSessionTicketSerializer;
 use Php\TlsCraft\Handshake\MessageSerializers\ServerHelloSerializer;
+use Php\TlsCraft\Logger;
 
+/**
+ * Serialize messages to bytes.
+ */
 class MessageSerializer
 {
     private ?ClientHelloSerializer $clientHelloSerializer = null;
@@ -95,7 +99,10 @@ class MessageSerializer
         return $this->endOfEarlyDataSerializer ??= new EndOfEarlyDataSerializer($this->context, $this->extensionFactory);
     }
 
-    public function serialize(Message $message): string
+    /**
+     * Call serialize based on a message type.
+     */
+    private function serializeMessage(Message $message): string
     {
         return match (true) {
             $message instanceof ClientHelloMessage => $this->getClientHelloSerializer()->serialize($message),
@@ -110,5 +117,30 @@ class MessageSerializer
             $message instanceof EndOfEarlyDataMessage => $this->getEndOfEarlyDataSerializer()->serialize($message),
             default => throw new CraftException('No serializer available for message type: '.$message::class),
         };
+    }
+
+    /**
+     * Serialize with a handshake header.
+     */
+    public function serialize(Message $message): string
+    {
+        $payload = $this->serializeMessage($message);
+
+        $len = strlen($payload);
+        if ($len > 0xFFFFFF) {
+            throw new CraftException('Handshake message too large');
+        }
+
+        // 3-byte length: take the last 3 bytes of the 4-byte BE int
+        $len3 = substr(pack('N', $len), 1);
+
+        $data = $message->type->toByte().$len3.$payload;
+
+        Logger::debug('Serialize Message', [
+            'type' => $message->type->name,
+            'data' => $data,
+        ]);
+
+        return $data;
     }
 }
