@@ -2,6 +2,7 @@
 
 namespace Php\TlsCraft;
 
+use Closure;
 use InvalidArgumentException;
 use Php\TlsCraft\Connection\ConnectionFactory;
 use Php\TlsCraft\Session\PreSharedKey;
@@ -21,6 +22,8 @@ final class AppFactory
      * @param SessionStorage|null          $sessionStorage          Storage backend for session tickets (enables resumption if provided)
      * @param SessionTicketSerializer|null $sessionTicketSerializer Serializer for tickets (null = opaque tickets, recommended for clients)
      * @param int                          $sessionLifetime         Session ticket lifetime in seconds (default: 86400 = 24 hours)
+     * @param string|null                  $earlyData               Early data (0-RTT) to send (requires session resumption)
+     * @param Closure|null                 $onEarlyDataRejected     Callback if server rejects early data: fn(string $data): void
      * @param Config|null                  $config                  Custom configuration object (if provided, overrides individual parameters)
      * @param ConnectionFactory|null       $connectionFactory       Custom connection factory for advanced use cases
      * @param bool                         $debug                   Enable debug logging
@@ -36,6 +39,8 @@ final class AppFactory
         ?SessionStorage $sessionStorage = null,
         ?SessionTicketSerializer $sessionTicketSerializer = null,
         int $sessionLifetime = 86400,
+        ?string $earlyData = null,
+        ?Closure $onEarlyDataRejected = null,
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
         bool $debug = false,
@@ -65,6 +70,11 @@ final class AppFactory
         // Configure ticket serializer if provided
         if ($sessionTicketSerializer !== null) {
             $config = $config->withSessionTicketSerializer($sessionTicketSerializer);
+        }
+
+        // Configure early data if provided
+        if ($earlyData !== null) {
+            $config = $config->withEarlyData($earlyData, $onEarlyDataRejected);
         }
 
         return new Client($hostname, $port, $config, $connectionFactory, debug: $debug);

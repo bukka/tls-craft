@@ -125,4 +125,14 @@ class Session
     {
         return $this->orchestrator->getContext();
     }
+
+    /**
+     * Check if early data was accepted by the server
+     *
+     * Only meaningful after connect() completes with early data configured.
+     */
+    public function isEarlyDataAccepted(): bool
+    {
+        return $this->orchestrator->getContext()->isEarlyDataAccepted();
+    }
 }

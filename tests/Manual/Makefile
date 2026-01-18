@@ -190,6 +190,11 @@ test-server-ec: ## Start OpenSSL s_server with ECC certificate (TLS 1.3)
 	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -debug -rev"
 	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -debug -rev
 
+test-server-ec-verbose: ## Start OpenSSL s_server (TLS 1.3) with verbose output
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3 verbose) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -rev -state"
+	@$(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -rev -state
+
 test-server-verbose: ## Start OpenSSL s_server (TLS 1.3) with verbose output
 	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3 verbose) on port $(PORT)...$(NC)"
 	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -debug -tlsextdebug -security_debug_verbose -msg -rev -state"
@@ -313,6 +318,69 @@ test-server-external-psk-ec-verbose: ## Start OpenSSL s_server with external PSK
 		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
 		-keylogfile $(CERT_DIR)/server-psk.keylog \
 		-tls1_3 -debug -tlsextdebug -state -msg -rev
+
+# ==============================================================================
+# OpenSSL Test Servers - Early Data (0-RTT)
+# ==============================================================================
+
+test-server-early-data: test-server-early-data-rsa
+
+test-server-early-data-rsa:
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, Early Data, RSA) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Server supports 0-RTT early data$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -num_tickets 2 -early_data -debug -state -msg"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key \
+		-tls1_3 -num_tickets 2 -early_data \
+		-debug -state -msg
+
+test-server-early-data-ec:
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, Early Data, ECC) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Server supports 0-RTT early data$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -num_tickets 2 -early_data -debug -state -msg"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
+		-tls1_3 -num_tickets 2 -early_data \
+		-debug -state -msg
+
+test-server-early-data-verbose: ## Start OpenSSL s_server with early data and verbose output (RSA)
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, Early Data verbose, RSA) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Server supports 0-RTT early data$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key -tls1_3 -num_tickets 2 -early_data -keylogfile $(CERT_DIR)/server.keylog -debug -tlsextdebug -state -msg"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_rsa.crt -key $(CERT_DIR)/server_rsa.key \
+		-tls1_3 -num_tickets 2 -early_data \
+		-keylogfile $(CERT_DIR)/server.keylog \
+		-debug -tlsextdebug -state -msg
+
+test-server-early-data-ec-verbose: ## Start OpenSSL s_server with early data and verbose output (ECC)
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, Early Data verbose, ECC) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Server supports 0-RTT early data$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -num_tickets 2 -early_data -keylogfile $(CERT_DIR)/server.keylog -debug -tlsextdebug -state -msg"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
+		-tls1_3 -num_tickets 2 -early_data \
+		-keylogfile $(CERT_DIR)/server.keylog \
+		-debug -tlsextdebug -state -msg
+
+test-server-early-data-anti-replay: ## Start OpenSSL s_server with early data and anti-replay (ECC)
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, Early Data + Anti-Replay, ECC) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Server supports 0-RTT early data with anti-replay protection$(NC)"
+	@$(ECHO) "$(YELLOW)Note: Anti-replay will reject duplicate early data$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -num_tickets 2 -early_data -anti_replay -debug -state -msg"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
+		-tls1_3 -num_tickets 2 -early_data -anti_replay \
+		-debug -state -msg
+
+test-server-early-data-reject: ## Start OpenSSL s_server that rejects early data (for testing rejection)
+	@$(ECHO) "$(GREEN)Starting OpenSSL s_server (TLS 1.3, NO Early Data) on port $(PORT)...$(NC)"
+	@$(ECHO) "$(YELLOW)Server will REJECT early data (for testing rejection handling)$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key -tls1_3 -num_tickets 2 -debug -state -msg"
+	@$(OPENSSL) s_server -accept $(PORT) \
+		-cert $(CERT_DIR)/server_ec.crt -key $(CERT_DIR)/server_ec.key \
+		-tls1_3 -num_tickets 2 \
+		-debug -state -msg
 
 # ==============================================================================
 # OpenSSL Test Clients - Basic
