@@ -111,6 +111,9 @@ class Config
         ?array $signatureAlgorithms = null,
         ?string $serverName = null,
         ?array $supportedProtocols = null,
+        // Add early data parameters
+        bool $enableEarlyData = false,
+        ?string $earlyData = null,
     ) {
         // Set immutable protocol parameters
         $this->supportedVersions = $supportedVersions ?? ['TLS 1.3'];
@@ -123,17 +126,13 @@ class Config
 
         $this->supportedGroups = $supportedGroups ?? ['P-256', 'P-384', 'P-521', 'X25519'];
 
-        // Use signature algorithm names instead of values
         $this->signatureAlgorithms = $signatureAlgorithms ?? [
-            // ECDSA algorithms
             'ecdsa_secp256r1_sha256',
             'ecdsa_secp384r1_sha384',
             'ecdsa_secp521r1_sha512',
-            // TLS 1.3 prefers RSA-PSS
             'rsa_pss_rsae_sha256',
             'rsa_pss_rsae_sha384',
             'rsa_pss_rsae_sha512',
-            // PKCS1 is only for legacy/backward compatibility in TLS 1.2
             'rsa_pkcs1_sha256',
             'rsa_pkcs1_sha384',
             'rsa_pkcs1_sha512',
@@ -142,12 +141,16 @@ class Config
         $this->serverName = $serverName;
         $this->supportedProtocols = $supportedProtocols ?? [];
 
+        // Set early data configuration BEFORE initializing extensions
+        $this->enableEarlyData = $enableEarlyData;
+        $this->earlyData = $earlyData;
+
         // Initialize extension providers
         $this->clientHelloExtensions = new ClientHelloExtensionProviders();
         $this->serverHelloExtensions = new ServerHelloExtensionProviders();
         $this->encryptedExtensions = new EncryptedExtensionsProviders();
 
-        // Add default extensions
+        // Add default extensions (will now see early data config)
         $this->addDefaultExtensions();
     }
 

@@ -47,9 +47,13 @@ final class AppFactory
     ): Client {
         RuntimeEnvironment::assertOpenSsl3();
 
-        // If no config provided, create one
+        // If no config provided, create one with early data parameters
         if ($config === null) {
-            $config = new Config(serverName: $hostname);
+            $config = new Config(
+                serverName: $hostname,
+                enableEarlyData: $earlyData !== null,  // Enable if data provided
+                earlyData: $earlyData,
+            );
         }
 
         // Add certificate if provided (for mutual TLS)
@@ -72,9 +76,9 @@ final class AppFactory
             $config = $config->withSessionTicketSerializer($sessionTicketSerializer);
         }
 
-        // Configure early data if provided
-        if ($earlyData !== null) {
-            $config = $config->withEarlyData($earlyData, $onEarlyDataRejected);
+        // Set early data rejection callback if provided
+        if ($onEarlyDataRejected !== null) {
+            $config = $config->setOnEarlyDataRejected($onEarlyDataRejected);
         }
 
         return new Client($hostname, $port, $config, $connectionFactory, debug: $debug);

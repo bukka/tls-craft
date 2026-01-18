@@ -67,58 +67,68 @@ class EarlyDataExtensionProvider implements ExtensionProvider
         // Check if early data is enabled
         if (!$config->isEarlyDataEnabled()) {
             Logger::debug('EarlyData: Not enabled in config');
-
             return null;
         }
 
         // Check if we have early data to send
         if (!$config->hasEarlyData()) {
             Logger::debug('EarlyData: No early data configured');
-
             return null;
         }
 
-        // Check if we have a PSK that supports early data
-        $psks = $context->getOfferedPsks();
-        if (empty($psks)) {
-            Logger::debug('EarlyData: No PSKs available');
+        // Check if we have session tickets OR external PSKs
+        $tickets = $context->getSessionTickets();
+        $externalPsks = $config->getExternalPsks();
 
+        if (empty($tickets) && empty($externalPsks)) {
+            Logger::debug('EarlyData: No session tickets or external PSKs available');
             return null;
         }
 
-        // Check if first PSK (the one we'll use) supports early data
-        $firstPsk = $psks[0];
-        $ticket = $context->getSessionTickets()[0] ?? null;
+        // Get max_early_data_size from available sources
+        $maxSize = 0;
 
-        if ($ticket === null) {
-            Logger::debug('EarlyData: No session ticket available');
-
-            return null;
-        }
-
-        $maxSize = $ticket->getMaxEarlyDataSize();
-        if ($maxSize <= 0) {
-            Logger::debug('EarlyData: Ticket does not support early data', [
-                'max_early_data_size' => $maxSize,
+        // Try session ticket first
+        if (!empty($tickets)) {
+            $maxSize = $tickets[0]->getMaxEarlyDataSize();
+            Logger::debug('EarlyData: Checking session ticket', [
+                'max_size' => $maxSize,
             ]);
-
-            return null;
         }
 
-        // Check if our early data fits
+        // Fall back to external PSK
+        if ($maxSize <= 0 && !empty($externalPsks)) {
+            $maxSize = $externalPsks[0]->maxEarlyDataSize;
+            Logger::debug('EarlyData: Using external PSK', [
+                'max_size' => $maxSize,
+            ]);
+        }
+
+        // Fall back to Config
+        if ($maxSize <= 0) {
+            $maxSize = $config->getMaxEarlyDataSize();
+            if ($maxSize > 0) {
+                Logger::debug('EarlyData: Using Config max_early_data_size', [
+                    'max_size' => $maxSize,
+                ]);
+            }
+        }
+
+        // Check if our early data exceeds the limit (only if a limit is set)
         $earlyData = $config->getEarlyData();
-        if (strlen($earlyData) > $maxSize) {
+        if ($maxSize > 0 && strlen($earlyData) > $maxSize) {
             Logger::debug('EarlyData: Data exceeds max size', [
                 'data_size' => strlen($earlyData),
                 'max_size' => $maxSize,
             ]);
-
             return null;
         }
 
         Logger::debug('EarlyData: Creating extension for ClientHello', [
             'data_size' => strlen($earlyData),
-            'max_size' => $maxSize,
+            'max_size' => $maxSize > 0 ? $maxSize : 'unlimited',
+            'has_tickets' => !empty($tickets),
+            'has_external_psks' => !empty($externalPsks),
         ]);
 
         // Mark that we're attempting early data
