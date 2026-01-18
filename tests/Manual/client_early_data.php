@@ -8,7 +8,7 @@ use Php\TlsCraft\Session\Storage\InMemorySessionStorage;
 
 Logger::enable();
 
-$hostname = '127.0.0.1';
+$hostname = 'localhost';
 $port = 4433;
 
 $sessionStorage = new InMemorySessionStorage();

@@ -9,7 +9,7 @@ use Php\TlsCraft\Session\PreSharedKey;
 
 Logger::enable();
 
-$hostname = '127.0.0.1';
+$hostname = 'localhost';
 $port = 4433;
 
 // Define a shared PSK (must match server)
