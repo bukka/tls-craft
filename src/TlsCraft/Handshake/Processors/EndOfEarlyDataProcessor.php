@@ -2,7 +2,6 @@
 
 namespace Php\TlsCraft\Handshake\Processors;
 
-use Php\TlsCraft\Context;
 use Php\TlsCraft\Handshake\Messages\EndOfEarlyDataMessage;
 use Php\TlsCraft\Logger;
 

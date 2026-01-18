@@ -32,7 +32,7 @@ echo 'PSK Key: '.bin2hex($pskKey)."\n";
 // Define early data to send
 $earlyData = "GET / HTTP/1.1\r\nHost: $hostname\r\n\r\n";
 
-echo "Early Data: ".json_encode($earlyData)."\n\n";
+echo 'Early Data: '.json_encode($earlyData)."\n\n";
 
 // Create client with external PSK and early data
 $client = AppFactory::createClient(
@@ -49,7 +49,7 @@ try {
     $session = $client->connect();
 
     echo "\n✓ Connection established!\n";
-    echo "Early data accepted: ".($session->isEarlyDataAccepted() ? 'YES' : 'NO')."\n\n";
+    echo 'Early data accepted: '.($session->isEarlyDataAccepted() ? 'YES' : 'NO')."\n\n";
 
     // Send follow-up data
     $message = "follow-up message\n";

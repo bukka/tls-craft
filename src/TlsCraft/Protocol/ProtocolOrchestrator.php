@@ -10,7 +10,6 @@ use Php\TlsCraft\Crypto\CertificateSigner;
 use Php\TlsCraft\Crypto\CryptoFactory;
 use Php\TlsCraft\Crypto\SignatureScheme;
 use Php\TlsCraft\Exceptions\{AlertException, CraftException, ProtocolViolationException};
-use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Handshake\MessageFactory;
 use Php\TlsCraft\Handshake\Messages\{KeyUpdateMessage, Message};
 use Php\TlsCraft\Handshake\MessageSerializer;

@@ -23,7 +23,7 @@ class EarlyDataExtensionParser extends AbstractExtensionParser
     public function parse(string $data, bool $isTicket = false): EarlyDataExtension
     {
         // Empty extension (ClientHello or EncryptedExtensions)
-        if (strlen($data) === 0) {
+        if ($data === '') {
             Logger::debug('EarlyData: Parsed empty extension (acceptance indicator)');
 
             return EarlyDataExtension::forEncryptedExtensions();

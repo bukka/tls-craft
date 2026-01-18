@@ -3,7 +3,6 @@
 namespace Php\TlsCraft\Handshake\MessageSerializers;
 
 use Php\TlsCraft\Handshake\Messages\EndOfEarlyDataMessage;
-use Php\TlsCraft\Protocol\HandshakeType;
 
 /**
  * Serializer for EndOfEarlyData messages

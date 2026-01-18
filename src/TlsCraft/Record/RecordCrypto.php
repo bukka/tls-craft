@@ -188,7 +188,7 @@ class RecordCrypto
             $this->initializeEarlyWriteCipher();
         }
 
-        $innerPlaintext = $record->payload . chr($record->contentType->value);
+        $innerPlaintext = $record->payload.chr($record->contentType->value);
         $additionalData = $this->createAAD(ContentType::APPLICATION_DATA, strlen($innerPlaintext) + 16);
 
         $ciphertext = $this->earlyWriteCipher->encrypt(

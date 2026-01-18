@@ -67,12 +67,14 @@ class EarlyDataExtensionProvider implements ExtensionProvider
         // Check if early data is enabled
         if (!$config->isEarlyDataEnabled()) {
             Logger::debug('EarlyData: Not enabled in config');
+
             return null;
         }
 
         // Check if we have early data to send
         if (!$config->hasEarlyData()) {
             Logger::debug('EarlyData: No early data configured');
+
             return null;
         }
 
@@ -82,6 +84,7 @@ class EarlyDataExtensionProvider implements ExtensionProvider
 
         if (empty($tickets) && empty($externalPsks)) {
             Logger::debug('EarlyData: No session tickets or external PSKs available');
+
             return null;
         }
 
@@ -121,6 +124,7 @@ class EarlyDataExtensionProvider implements ExtensionProvider
                 'data_size' => strlen($earlyData),
                 'max_size' => $maxSize,
             ]);
+
             return null;
         }
 

@@ -80,7 +80,7 @@ class ProtocolValidator
             HandshakeState::WAIT_CERTIFICATE => $isResuming ?
                 [HandshakeType::FINISHED] :
                 (
-                $isClient ?
+                    $isClient ?
                     // Client can receive CertificateRequest (optional) or Certificate
                     [HandshakeType::CERTIFICATE_REQUEST, HandshakeType::CERTIFICATE] :
                     // Server only expects Certificate from client
