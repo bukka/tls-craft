@@ -330,9 +330,11 @@ test-server-external-psk-early-data: ## Start OpenSSL s_server with external PSK
 	@$(ECHO) "$(YELLOW)PSK Identity: $(PSK_IDENTITY)$(NC)"
 	@$(ECHO) "$(YELLOW)PSK Key: $(PSK_KEY)$(NC)"
 	@$(ECHO) "$(YELLOW)Server supports 0-RTT early data with PSK$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) $(OPENSSL) s_server -accept $(PORT) -psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) -nocert -keylogfile $(CERT_DIR)/server.keylog -tls1_3 -early_data -max_early_data 16384 -debug -tlsextdebug -state -msg"
 	@$(OPENSSL) s_server -accept $(PORT) \
 		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
 		-nocert \
+		-keylogfile $(CERT_DIR)/server.keylog \
 		-tls1_3 -early_data -max_early_data 16384 \
 		-debug -tlsextdebug -state -msg
 
