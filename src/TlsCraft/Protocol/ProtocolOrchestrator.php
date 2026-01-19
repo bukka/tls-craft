@@ -77,7 +77,7 @@ class ProtocolOrchestrator
 
         // Data Handling
         $earlyDataSent = false;
-        if ($this->shouldSendEarlyData()) {
+        if ($this->context->isEarlyDataAttempted()) {
             $this->sendClientEarlyData();
             $earlyDataSent = true;
         }
@@ -114,34 +114,6 @@ class ProtocolOrchestrator
 
         // Derive application traffic secrets
         $this->context->deriveApplicationSecrets();
-    }
-
-    /**
-     * Check if early data should be sent
-     */
-    private function shouldSendEarlyData(): bool
-    {
-        $config = $this->context->getConfig();
-
-        // Must have early data enabled and configured
-        if (!$config->isEarlyDataEnabled() || !$config->hasEarlyData()) {
-            return false;
-        }
-
-        // Must have attempted early data (extension was included in ClientHello)
-        if (!$this->context->isEarlyDataAttempted()) {
-            return false;
-        }
-
-        // Must have a session ticket with early data support
-        $tickets = $this->context->getSessionTickets();
-        if (empty($tickets)) {
-            return false;
-        }
-
-        $ticket = $tickets[0];
-
-        return $ticket->getMaxEarlyDataSize() > 0;
     }
 
     /**
