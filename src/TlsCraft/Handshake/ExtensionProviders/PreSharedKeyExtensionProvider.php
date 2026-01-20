@@ -90,6 +90,10 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
         // Set PSKs in context for later use (binder calculation)
         $context->setOfferedPsks($offeredPsks);
 
+        // Initialize KeySchedule with first PSK's cipher suite
+        // This is needed for early data encryption which happens before ServerHello
+        $this->initializeKeyScheduleForPsk($context, $offeredPsks[0]);
+
         // Build identity array from PSKs
         $identities = [];
         foreach ($offeredPsks as $psk) {
@@ -114,6 +118,30 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
         // Return extension without binders
         // Binders will be calculated and added during ClientHello serialization
         return PreSharedKeyExtension::forClient($identities);
+    }
+
+    /**
+     * Initialize KeySchedule early when offering PSKs
+     *
+     * This is necessary because:
+     * 1. Early data encryption needs KeySchedule before ServerHello
+     * 2. RFC 8446 requires PSK and cipher suite to be compatible
+     * 3. Server MUST use compatible cipher suite if it accepts the PSK
+     */
+    private function initializeKeyScheduleForPsk(Context $context, PreSharedKey $psk): void
+    {
+        $cipherSuite = $psk->cipherSuite;
+
+        Logger::debug('Initializing KeySchedule for PSK handshake', [
+            'cipher_suite' => $cipherSuite->name,
+            'psk_identity' => $psk->identity,
+            'is_external' => $psk->isExternal(),
+        ]);
+
+        // Set negotiated cipher suite (creates KeySchedule)
+        // If server rejects PSK or selects different compatible suite,
+        // ServerHelloProcessor will verify compatibility
+        $context->setNegotiatedCipherSuite($cipherSuite);
     }
 
     /**
