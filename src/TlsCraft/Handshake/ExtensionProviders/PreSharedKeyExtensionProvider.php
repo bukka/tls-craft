@@ -7,6 +7,7 @@ use Php\TlsCraft\Exceptions\CraftException;
 use Php\TlsCraft\Handshake\Extensions\PreSharedKeyExtension;
 use Php\TlsCraft\Handshake\ExtensionType;
 use Php\TlsCraft\Logger;
+use Php\TlsCraft\Protocol\Version;
 use Php\TlsCraft\Session\PreSharedKey;
 use Php\TlsCraft\Session\PskIdentity;
 
@@ -94,6 +95,10 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
         // This is needed for early data encryption which happens before ServerHello
         $this->initializeKeyScheduleForPsk($context, $offeredPsks[0]);
 
+        // Set negotiated version to TLS 1.3 for early data
+        // PSK-based 0-RTT only works with TLS 1.3
+        $context->setNegotiatedVersion(Version::TLS_1_3);
+
         // Build identity array from PSKs
         $identities = [];
         foreach ($offeredPsks as $psk) {
@@ -142,6 +147,7 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
         // If server rejects PSK or selects different compatible suite,
         // ServerHelloProcessor will verify compatibility
         $context->setNegotiatedCipherSuite($cipherSuite);
+        $context->deriveEarlySecret($psk->secret);
     }
 
     /**
