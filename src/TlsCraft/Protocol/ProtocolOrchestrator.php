@@ -66,7 +66,6 @@ class ProtocolOrchestrator
         $this->stateTracker->startHandshake();
 
         // Load client certificate from config if configured
-        // (will be sent if server requests it via CertificateRequest)
         if ($this->context->getConfig()->hasCertificate()) {
             $this->context->loadCertificateFromConfig();
         }
@@ -75,29 +74,28 @@ class ProtocolOrchestrator
         $clientHello = $this->messageFactory->createClientHello();
         $this->sendHandshakeMessage($clientHello, false);
 
-        // Data Handling
+        // Early Data Handling
         $earlyDataSent = false;
         if ($this->context->isEarlyDataAttempted()) {
             $this->sendClientEarlyData();
+
+            // MUST send EndOfEarlyData immediately after early data
+            // (encrypted with early keys, before receiving server response)
+            $this->sendEndOfEarlyData();
+
+            // Now deactivate early keys before processing server messages
+            $this->recordLayer->deactivateEarlyKeys();
+
             $earlyDataSent = true;
         }
 
         // Process server handshake messages
         $this->processServerHandshakeMessages();
 
-        // Handle Early Data Result
-        if ($earlyDataSent) {
-            if ($this->context->isEarlyDataAccepted()) {
-                // Server accepted - send EndOfEarlyData (encrypted with early keys)
-                $this->sendEndOfEarlyData();
-            }
-            // Always deactivate early keys after processing server response
-            $this->recordLayer->deactivateEarlyKeys();
-
-            if (!$this->context->isEarlyDataAccepted()) {
-                // Server rejected - notify application
-                $this->handleEarlyDataRejection();
-            }
+        // Check if server accepted early data (from EncryptedExtensions)
+        if ($earlyDataSent && !$this->context->isEarlyDataAccepted()) {
+            // Server rejected - notify application
+            $this->handleEarlyDataRejection();
         }
 
         // After receiving server's Finished, send client certificate if requested
