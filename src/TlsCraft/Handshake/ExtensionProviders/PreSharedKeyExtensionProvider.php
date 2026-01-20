@@ -135,7 +135,7 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
         Logger::debug('Initializing KeySchedule for PSK handshake', [
             'cipher_suite' => $cipherSuite->name,
             'psk_identity' => $psk->identity,
-            'is_external' => $psk->isExternal(),
+            'is_resumption' => $psk->isResumption(),
         ]);
 
         // Set negotiated cipher suite (creates KeySchedule)
