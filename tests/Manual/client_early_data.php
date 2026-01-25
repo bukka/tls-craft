@@ -40,6 +40,9 @@ $client = AppFactory::createClient(
     port: $port,
     externalPsks: [$psk],
     earlyData: $earlyData,
+    onEarlyDataRejected: function (?string $earlyData) {
+        echo 'Early Data rejected: '.$earlyData."\n\n";
+    },
     debug: true,
 );
 
