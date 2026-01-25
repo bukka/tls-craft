@@ -5,6 +5,7 @@ namespace Php\TlsCraft;
 use Closure;
 use InvalidArgumentException;
 use Php\TlsCraft\Connection\ConnectionFactory;
+use Php\TlsCraft\Protocol\EarlyDataServerMode;
 use Php\TlsCraft\Session\PreSharedKey;
 use Php\TlsCraft\Session\SessionStorage;
 use Php\TlsCraft\Session\SessionTicketSerializer;
@@ -114,6 +115,10 @@ final class AppFactory
         ?SessionStorage $sessionStorage = null,
         ?SessionTicketSerializer $sessionTicketSerializer = null,
         int $sessionLifetime = 86400,
+        // Add early data parameters
+        int $maxEarlyDataSize = 0,
+        EarlyDataServerMode $earlyDataServerMode = EarlyDataServerMode::REJECT,
+        ?Closure $earlyDataServerModeCallback = null,
         ?Config $config = null,
         ?ConnectionFactory $connectionFactory = null,
         bool $debug = false,
@@ -146,6 +151,16 @@ final class AppFactory
             }
 
             $config = $config->withSessionTicketSerializer($sessionTicketSerializer);
+        }
+
+        // Configure early data
+        if ($maxEarlyDataSize > 0) {
+            $config = $config->setMaxEarlyDataSize($maxEarlyDataSize)
+                ->setEarlyDataServerMode($earlyDataServerMode);
+
+            if ($earlyDataServerModeCallback !== null) {
+                $config = $config->setEarlyDataServerModeCallback($earlyDataServerModeCallback);
+            }
         }
 
         return new Server($config, $connectionFactory, debug: $debug);

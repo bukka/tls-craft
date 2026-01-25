@@ -486,6 +486,45 @@ test-client-external-psk-verbose: ## Connect with OpenSSL s_client using externa
 		-tls1_3 -debug -state -msg
 
 # ==============================================================================
+# OpenSSL Test Clients - Early Data (0-RTT)
+# ==============================================================================
+
+test-client-openssl-psk-early-data: ## Test with OpenSSL s_client using PSK and early data against PHP server
+	@$(ECHO) "$(GREEN)Testing with OpenSSL s_client (PSK + Early Data)...$(NC)"
+	@$(ECHO) "$(YELLOW)Make sure PHP server is running: php tests/Manual/server_early_data.php$(NC)"
+	@$(ECHO) "$(YELLOW)PSK Identity: $(PSK_IDENTITY)$(NC)"
+	@$(ECHO) "$(YELLOW)PSK Key: $(PSK_KEY)$(NC)"
+	@$(ECHO) "$(YELLOW)Early Data: GET / HTTP/1.1$(NC)"
+	@$(ECHO) "$(YELLOW)Command:$(NC) echo 'follow-up message' | $(OPENSSL) s_client -connect localhost:$(PORT) -psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) -tls1_3 -early_data early_data.txt -keylogfile $(CERT_DIR)/client.keylog -debug -tlsextdebug -state -msg"
+	@echo "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" > early_data.txt
+	@echo "follow-up message" | $(OPENSSL) s_client -connect localhost:$(PORT) \
+		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
+		-tls1_3 -early_data early_data.txt \
+		-keylogfile $(CERT_DIR)/client.keylog \
+		-debug -tlsextdebug -state -msg
+	@rm -f early_data.txt
+
+test-client-openssl-session-early-data: ## Test OpenSSL s_client with session resumption and early data
+	@$(ECHO) "$(GREEN)Testing with OpenSSL s_client (Session Resumption + Early Data)...$(NC)"
+	@$(ECHO) "$(YELLOW)Make sure PHP server is running: php tests/Manual/server_early_data.php$(NC)"
+	@$(ECHO) ""
+	@$(ECHO) "$(CYAN)Step 1: Initial connection to get session ticket...$(NC)"
+	@echo "first connection" | $(OPENSSL) s_client -connect localhost:$(PORT) \
+		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
+		-tls1_3 -sess_out session.pem \
+		-keylogfile $(CERT_DIR)/client.keylog \
+		-ign_eof
+	@$(ECHO) ""
+	@$(ECHO) "$(CYAN)Step 2: Resumption with 0-RTT early data...$(NC)"
+	@echo "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" > early_data.txt
+	@echo "follow-up message" | $(OPENSSL) s_client -connect localhost:$(PORT) \
+		-psk $(PSK_KEY) -psk_identity $(PSK_IDENTITY) \
+		-tls1_3 -sess_in session.pem \
+		-early_data early_data.txt \
+		-keylogfile $(CERT_DIR)/client.keylog
+	@rm -f early_data.txt session.pem
+
+# ==============================================================================
 # PHP Test Scripts
 # ==============================================================================
 
