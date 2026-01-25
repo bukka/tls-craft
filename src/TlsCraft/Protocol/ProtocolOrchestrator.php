@@ -27,6 +27,8 @@ class ProtocolOrchestrator
     private CertificateSigner $certificateSigner;
     private string $handshakeBuffer = '';
 
+    private ?string $endOfEarlyDataMessage = null;
+
     public function __construct(
         private readonly StateTracker $stateTracker,
         private readonly ProtocolValidator $validator,
@@ -94,6 +96,9 @@ class ProtocolOrchestrator
 
         // Check if server accepted early data (from EncryptedExtensions)
         if ($earlyDataSent && !$this->context->isEarlyDataAccepted()) {
+            if ($this->endOfEarlyDataMessage !== null) {
+                $this->context->addHandshakeMessage($this->endOfEarlyDataMessage);
+            }
             // Server rejected - notify application
             $this->handleEarlyDataRejection();
         }
@@ -155,18 +160,19 @@ class ProtocolOrchestrator
     {
         Logger::debug('Sending EndOfEarlyData');
 
-        // Create and send EndOfEarlyData (encrypted with early keys)
+        // Create and serialize EndOfEarlyData
         $endOfEarlyData = $this->messageFactory->createEndOfEarlyData();
         $serialized = $this->messageSerializer->serialize($endOfEarlyData);
 
-        // Add to transcript
-        $this->context->addHandshakeMessage($serialized);
+        // DO NOT add to transcript here - will be added after ServerHello processing
+        // Store it for later
+        $this->endOfEarlyDataMessage = $serialized;
 
         // Send encrypted with early keys (still active)
         $record = $this->recordFactory->createHandshake($serialized);
         $this->recordLayer->sendRecord($record);
 
-        Logger::debug('EndOfEarlyData sent');
+        Logger::debug('EndOfEarlyData sent (not yet in transcript)');
     }
 
     /**
