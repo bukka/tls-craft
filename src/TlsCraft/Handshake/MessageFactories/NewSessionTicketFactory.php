@@ -3,6 +3,7 @@
 namespace Php\TlsCraft\Handshake\MessageFactories;
 
 use Php\TlsCraft\Exceptions\CraftException;
+use Php\TlsCraft\Handshake\Extensions\EarlyDataExtension;
 use Php\TlsCraft\Handshake\Messages\NewSessionTicketMessage;
 use Php\TlsCraft\Logger;
 use Php\TlsCraft\Session\SessionTicketData;
@@ -23,6 +24,9 @@ class NewSessionTicketFactory extends AbstractMessageFactory
         // Derive resumption secret
         $resumptionSecret = $this->context->deriveResumptionSecret($ticketNonce);
 
+        // Get max early data size from config
+        $maxEarlyDataSize = $config->getMaxEarlyDataSize();
+
         // Create ticket data
         $ticketData = new SessionTicketData(
             resumptionSecret: $resumptionSecret,
@@ -30,7 +34,7 @@ class NewSessionTicketFactory extends AbstractMessageFactory
             timestamp: time(),
             nonce: $ticketNonce,
             serverName: $this->context->getRequestedServerName() ?? 'unknown',
-            maxEarlyDataSize: 0, // No early data support yet
+            maxEarlyDataSize: $maxEarlyDataSize,
         );
 
         // Serialize ticket using configured serializer
@@ -40,6 +44,12 @@ class NewSessionTicketFactory extends AbstractMessageFactory
         }
 
         $ticket = $serializer->serialize($ticketData);
+
+        // Build extensions
+        $extensions = [];
+        if ($maxEarlyDataSize > 0) {
+            $extensions[] = new EarlyDataExtension($maxEarlyDataSize);
+        }
 
         Logger::debug('Created NewSessionTicket', [
             'ticket_length' => strlen($ticket),
@@ -51,7 +61,7 @@ class NewSessionTicketFactory extends AbstractMessageFactory
             ticketAgeAdd: random_int(0, 0xFFFFFFFF),
             ticketNonce: $ticketNonce,
             ticket: $ticket,
-            extensions: [],
+            extensions: $extensions,
         );
     }
 }
