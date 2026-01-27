@@ -126,7 +126,10 @@ final class AppFactory
         RuntimeEnvironment::assertOpenSsl3();
 
         if ($config === null) {
-            $config = new Config();
+            $config = new Config(
+                maxEarlyDataSize: $maxEarlyDataSize,
+                earlyDataServerMode: $earlyDataServerMode,
+            );
         }
 
         $config = $config->withCertificate($certificatePath, $privateKeyPath);
@@ -154,13 +157,8 @@ final class AppFactory
         }
 
         // Configure early data
-        if ($maxEarlyDataSize > 0) {
-            $config = $config->setMaxEarlyDataSize($maxEarlyDataSize)
-                ->setEarlyDataServerMode($earlyDataServerMode);
-
-            if ($earlyDataServerModeCallback !== null) {
-                $config = $config->setEarlyDataServerModeCallback($earlyDataServerModeCallback);
-            }
+        if ($maxEarlyDataSize > 0 && $earlyDataServerModeCallback !== null) {
+            $config = $config->setEarlyDataServerModeCallback($earlyDataServerModeCallback);
         }
 
         return new Server($config, $connectionFactory, debug: $debug);

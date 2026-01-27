@@ -15,22 +15,23 @@ $port = 4433;
 $pskIdentity = 'my-test-psk';
 $pskKey = hex2bin('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
 $cipherSuite = CipherSuite::TLS_AES_128_GCM_SHA256;
+$maxEarlyDataSize = 16384;
 
 echo "=== 0-RTT Server with External PSK ===\n\n";
 echo "PSK Identity: $pskIdentity\n";
 echo 'PSK Key: '.bin2hex($pskKey)."\n";
 echo "Cipher Suite: {$cipherSuite->name}\n";
-echo "Max Early Data: 16384 bytes\n";
+echo "Max Early Data: $maxEarlyDataSize bytes\n";
 echo "Early Data Mode: ACCEPT\n\n";
 
 // Create PSK object
-$psk = PreSharedKey::external($pskIdentity, $pskKey, $cipherSuite);
+$psk = PreSharedKey::external($pskIdentity, $pskKey, $cipherSuite, $maxEarlyDataSize);
 
 $server = AppFactory::createServer(
     certificatePath: $certFile,
     privateKeyPath: $keyFile,
     externalPsks: [$psk],
-    maxEarlyDataSize: 16384,
+    maxEarlyDataSize: $maxEarlyDataSize,
     earlyDataServerMode: EarlyDataServerMode::ACCEPT,
     debug: true,
 );

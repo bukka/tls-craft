@@ -47,8 +47,9 @@ class PreSharedKey
         string $identity,
         string $secret,
         CipherSuite $cipherSuite,
+        $maxEarlyDataSize = 0,
     ): self {
-        return new self($identity, $secret, $cipherSuite);
+        return new self($identity, $secret, $cipherSuite, $maxEarlyDataSize);
     }
 
     /**

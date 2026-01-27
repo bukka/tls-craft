@@ -111,9 +111,12 @@ class Config
         ?array $signatureAlgorithms = null,
         ?string $serverName = null,
         ?array $supportedProtocols = null,
-        // Add early data parameters
+        // Client early data parameters
         bool $enableEarlyData = false,
         ?string $earlyData = null,
+        // Server early data parameters
+        int $maxEarlyDataSize = 0,
+        EarlyDataServerMode $earlyDataServerMode = EarlyDataServerMode::REJECT,
     ) {
         // Set immutable protocol parameters
         $this->supportedVersions = $supportedVersions ?? ['TLS 1.3'];
@@ -144,6 +147,8 @@ class Config
         // Set early data configuration BEFORE initializing extensions
         $this->enableEarlyData = $enableEarlyData;
         $this->earlyData = $earlyData;
+        $this->maxEarlyDataSize = $maxEarlyDataSize;
+        $this->earlyDataServerMode = $earlyDataServerMode;
 
         // Initialize extension providers
         $this->clientHelloExtensions = new ClientHelloExtensionProviders();
@@ -1074,7 +1079,7 @@ class Config
         // Add EarlyData extension provider (will include extension only if server accepted early data)
         // The provider checks context.isEarlyDataAccepted() to decide whether to include the extension
         if ($this->enableSessionResumption && $this->maxEarlyDataSize > 0) {
-            $this->encryptedExtensions->add(new EarlyDataExtensionProvider());
+            $this->encryptedExtensions->add(new EarlyDataExtensionProvider($this->maxEarlyDataSize));
         }
     }
 }
