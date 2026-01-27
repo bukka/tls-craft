@@ -18,7 +18,8 @@ class RecordCrypto
     private ?Aead $earlyReadCipher = null;
     private int $earlyWriteSequence = 0;
     private int $earlyReadSequence = 0;
-    private bool $earlyKeysActive = false;
+    private bool $earlyWriteKeysActive = false;
+    private bool $earlyReadKeysActive = false;
 
     // Handshake phase ciphers
     private ?Aead $handshakeReadCipher = null;
@@ -40,39 +41,95 @@ class RecordCrypto
     // === Early Data Key Management ===
 
     /**
-     * Activate early traffic keys for 0-RTT data
-     * Called after deriving client_early_traffic_secret
+     * Activate early traffic keys for WRITING 0-RTT data (client only)
      */
-    public function activateEarlyKeys(): void
+    public function activateEarlyWriteKeys(): void
     {
-        $this->earlyWriteCipher = null;  // Will be initialized on first use
-        $this->earlyReadCipher = null;
+        $this->earlyWriteCipher = null;
         $this->earlyWriteSequence = 0;
-        $this->earlyReadSequence = 0;
-        $this->earlyKeysActive = true;
+        $this->earlyWriteKeysActive = true;
 
-        Logger::debug('Early traffic keys activated');
+        Logger::debug('Early WRITE traffic keys activated');
     }
 
     /**
-     * Deactivate early keys and switch to handshake keys
-     * Called after sending/receiving EndOfEarlyData
+     * Activate early traffic keys for READING 0-RTT data (server only)
+     */
+    public function activateEarlyReadKeys(): void
+    {
+        $this->earlyReadCipher = null;
+        $this->earlyReadSequence = 0;
+        $this->earlyReadKeysActive = true;
+
+        Logger::debug('Early READ traffic keys activated');
+    }
+
+    /**
+     * Activate early traffic keys for both read and write (backward compat / client use)
+     */
+    public function activateEarlyKeys(): void
+    {
+        $this->activateEarlyWriteKeys();
+        $this->activateEarlyReadKeys();
+
+        Logger::debug('Early traffic keys activated (both directions)');
+    }
+
+    /**
+     * Deactivate early WRITE keys
+     */
+    public function deactivateEarlyWriteKeys(): void
+    {
+        $this->earlyWriteKeysActive = false;
+        $this->earlyWriteCipher = null;
+
+        Logger::debug('Early WRITE traffic keys deactivated');
+    }
+
+    /**
+     * Deactivate early READ keys
+     */
+    public function deactivateEarlyReadKeys(): void
+    {
+        $this->earlyReadKeysActive = false;
+        $this->earlyReadCipher = null;
+
+        Logger::debug('Early READ traffic keys deactivated');
+    }
+
+    /**
+     * Deactivate early keys and switch to handshake keys (both directions)
      */
     public function deactivateEarlyKeys(): void
     {
-        $this->earlyKeysActive = false;
-        $this->earlyWriteCipher = null;
-        $this->earlyReadCipher = null;
+        $this->deactivateEarlyWriteKeys();
+        $this->deactivateEarlyReadKeys();
 
         Logger::debug('Early traffic keys deactivated, switching to handshake keys');
     }
 
     /**
-     * Check if early keys are currently active
+     * Check if early WRITE keys are currently active
+     */
+    public function hasEarlyWriteKeysActive(): bool
+    {
+        return $this->earlyWriteKeysActive;
+    }
+
+    /**
+     * Check if early READ keys are currently active
+     */
+    public function hasEarlyReadKeysActive(): bool
+    {
+        return $this->earlyReadKeysActive;
+    }
+
+    /**
+     * Check if any early keys are currently active (backward compat)
      */
     public function hasEarlyKeysActive(): bool
     {
-        return $this->earlyKeysActive;
+        return $this->earlyWriteKeysActive || $this->earlyReadKeysActive;
     }
 
     /**
@@ -89,8 +146,8 @@ class RecordCrypto
             throw new CraftException('Cannot encrypt record: key schedule not initialized');
         }
 
-        // Use early keys if active (for 0-RTT data and EndOfEarlyData)
-        if ($this->earlyKeysActive) {
+        // Use early WRITE keys if active (client sending 0-RTT data)
+        if ($this->earlyWriteKeysActive) {
             return $this->encryptWithEarlyKeys($record);
         }
 
@@ -112,23 +169,25 @@ class RecordCrypto
             return $record;
         }
 
-        // Any outer Alert (0x15) is plaintext in TLS 1.3. Encrypted alerts would have outer type APPLICATION_DATA.
+        // Any outer Alert (0x15) is plaintext in TLS 1.3
         if ($record->contentType === ContentType::ALERT) {
             return $record;
         }
 
         // Don't decrypt plaintext handshake records (before encryption starts)
-        if ($record->contentType === ContentType::HANDSHAKE && !$this->hasHandshakeKeys() && !$this->earlyKeysActive) {
+        if ($record->contentType === ContentType::HANDSHAKE
+            && !$this->hasHandshakeKeys()
+            && !$this->earlyReadKeysActive) {
             return $record;
         }
 
         $keySchedule = $this->context->getKeySchedule();
         if (!$keySchedule) {
-            return $record; // Return as-is during early handshake
+            return $record;
         }
 
-        // Server receiving early data uses early keys
-        if ($this->earlyKeysActive && !$this->context->isClient()) {
+        // Server receiving early data uses early READ keys
+        if ($this->earlyReadKeysActive && !$this->context->isClient()) {
             return $this->decryptWithEarlyKeys($record);
         }
 

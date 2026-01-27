@@ -42,27 +42,35 @@ class EncryptedLayer
     // === Early Data Key Management ===
 
     /**
-     * Activate early traffic keys for 0-RTT data
+     * Activate early WRITE keys (client sending 0-RTT)
      */
-    public function activateEarlyKeys(): void
+    public function activateEarlyWriteKeys(): void
     {
-        $this->crypto->activateEarlyKeys();
+        $this->crypto->activateEarlyWriteKeys();
     }
 
     /**
-     * Deactivate early keys and switch to handshake keys
+     * Activate early READ keys (server receiving 0-RTT)
      */
-    public function deactivateEarlyKeys(): void
+    public function activateEarlyReadKeys(): void
     {
-        $this->crypto->deactivateEarlyKeys();
+        $this->crypto->activateEarlyReadKeys();
     }
 
     /**
-     * Check if early keys are currently active
+     * Deactivate early WRITE keys
      */
-    public function hasEarlyKeysActive(): bool
+    public function deactivateEarlyWriteKeys(): void
     {
-        return $this->crypto->hasEarlyKeysActive();
+        $this->crypto->deactivateEarlyWriteKeys();
+    }
+
+    /**
+     * Deactivate early READ keys
+     */
+    public function deactivateEarlyReadKeys(): void
+    {
+        $this->crypto->deactivateEarlyReadKeys();
     }
 
     // === Application Key Management ===

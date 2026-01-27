@@ -85,8 +85,8 @@ class ProtocolOrchestrator
             // (encrypted with early keys, before receiving server response)
             $this->sendEndOfEarlyData();
 
-            // Now deactivate early keys before processing server messages
-            $this->recordLayer->deactivateEarlyKeys();
+            // Now deactivate early write keys before processing server messages
+            $this->recordLayer->deactivateEarlyWriteKeys();
 
             $earlyDataSent = true;
         }
@@ -141,8 +141,8 @@ class ProtocolOrchestrator
         // Derive early traffic secret
         $this->context->deriveClientEarlyTrafficSecret($clientHelloData);
 
-        // Activate early keys in record layer
-        $this->recordLayer->activateEarlyKeys();
+        // Activate early write keys in record layer
+        $this->recordLayer->activateEarlyWriteKeys();
 
         // Send early data as application data record (encrypted with early keys)
         $record = $this->recordFactory->createApplicationData($earlyData);
@@ -310,18 +310,14 @@ class ProtocolOrchestrator
      */
     private function prepareToReceiveEarlyData(): void
     {
-        // Get ClientHello from transcript for key derivation
+        // Derive early traffic secret
         $clientHelloData = $this->context->getHandshakeTranscript()->getAll();
-
-        // Derive early traffic secret (using selected PSK)
         $this->context->deriveClientEarlyTrafficSecret($clientHelloData);
 
-        // Mark that we're accepting early data
+        // Mark that we're accepting early data (for EncryptedExtensions provider)
         $this->context->setEarlyDataAccepted(true);
 
-        // Activate early keys for decryption
-        $this->recordLayer->activateEarlyKeys();
-
+        // DON'T activate early keys here - will be done after sending server flight
         Logger::debug('Server prepared to receive early data');
     }
 
@@ -331,6 +327,9 @@ class ProtocolOrchestrator
     private function receiveClientEarlyData(): void
     {
         Logger::debug('Server waiting for early data');
+
+        // NOW activate early READ keys (after server flight was sent with handshake keys)
+        $this->recordLayer->activateEarlyReadKeys();
 
         $maxSize = $this->context->getConfig()->getMaxEarlyDataSize();
         $receivedSize = 0;
@@ -351,8 +350,8 @@ class ProtocolOrchestrator
                     // Add to transcript
                     $this->context->addHandshakeMessage($record->payload);
 
-                    // Deactivate early keys, switch to handshake keys for subsequent messages
-                    $this->recordLayer->deactivateEarlyKeys();
+                    // Deactivate early read keys, switch to handshake keys for subsequent messages
+                    $this->recordLayer->deactivateEarlyReadKeys();
 
                     break;
                 }
@@ -816,7 +815,7 @@ class ProtocolOrchestrator
                 $this->processorManager->processEndOfEarlyData($endOfEarlyData);
                 // Deactivate early keys on server side
                 if (!$this->context->isClient()) {
-                    $this->recordLayer->deactivateEarlyKeys();
+                    $this->recordLayer->deactivateEarlyReadKeys();
                 }
                 break;
 
