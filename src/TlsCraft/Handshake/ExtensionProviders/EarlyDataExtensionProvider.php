@@ -44,20 +44,27 @@ class EarlyDataExtensionProvider implements ExtensionProvider
 
     public function create(Context $context): ?EarlyDataExtension
     {
-        $config = $context->getConfig();
-
-        // For NewSessionTicket context (server creating ticket)
-        if ($this->maxEarlyDataSize !== null) {
-            return EarlyDataExtension::forNewSessionTicket($this->maxEarlyDataSize);
-        }
-
         // For ClientHello context
         if ($context->isClient()) {
             return $this->createForClientHello($context);
         }
 
-        // For EncryptedExtensions context (server accepting early data)
-        return $this->createForEncryptedExtensions($context);
+        // Server-side contexts: EncryptedExtensions or NewSessionTicket
+        // We need to distinguish between them
+
+        // For EncryptedExtensions: check if server accepted early data
+        // This is called during handshake when isHandshakeComplete() is false
+        if (!$context->isHandshakeComplete()) {
+            return $this->createForEncryptedExtensions($context);
+        }
+
+        // For NewSessionTicket context (post-handshake)
+        // Only include if maxEarlyDataSize is configured
+        if ($this->maxEarlyDataSize !== null && $this->maxEarlyDataSize > 0) {
+            return EarlyDataExtension::forNewSessionTicket($this->maxEarlyDataSize);
+        }
+
+        return null;
     }
 
     private function createForClientHello(Context $context): ?EarlyDataExtension
