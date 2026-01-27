@@ -78,6 +78,8 @@ class ClientHelloProcessor extends MessageProcessor
 
         $this->parseAlpn($message);
 
+        $this->parseEarlyData($message);
+
         Logger::debug('ClientHelloProcessor: Processing complete', [
             'is_resuming' => $this->context->isResuming(),
             'cipher_suite' => $this->context->getNegotiatedCipherSuite()?->name,
@@ -436,5 +438,27 @@ class ClientHelloProcessor extends MessageProcessor
         ]);
 
         return null;
+    }
+
+    /**
+     * Parse early_data extension from ClientHello
+     *
+     * RFC 8446 Section 4.2.10: The "early_data" extension in ClientHello
+     * indicates the client's intention to send early data.
+     */
+    private function parseEarlyData(ClientHelloMessage $message): void
+    {
+        $ext = $message->getExtension(ExtensionType::EARLY_DATA);
+
+        if ($ext) {
+            // Client is attempting to send early data
+            $this->context->setEarlyDataAttempted(true);
+
+            Logger::debug('ClientHelloProcessor: Early data extension present', [
+                'client_attempting_early_data' => true,
+            ]);
+        } else {
+            Logger::debug('ClientHelloProcessor: No early_data extension in ClientHello');
+        }
     }
 }
