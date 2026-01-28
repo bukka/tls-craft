@@ -67,7 +67,6 @@ class ProtocolOrchestrator
     {
         $this->stateTracker->startHandshake();
 
-        // Load client certificate from config if configured
         if ($this->context->getConfig()->hasCertificate()) {
             $this->context->loadCertificateFromConfig();
         }
@@ -76,31 +75,31 @@ class ProtocolOrchestrator
         $clientHello = $this->messageFactory->createClientHello();
         $this->sendHandshakeMessage($clientHello, false);
 
-        // Early Data Handling
+        // Early Data Handling - send early data but NOT EndOfEarlyData yet
         $earlyDataSent = false;
         if ($this->context->isEarlyDataAttempted()) {
             $this->sendClientEarlyData();
-
-            // MUST send EndOfEarlyData immediately after early data
-            // (encrypted with early keys, before receiving server response)
-            $this->sendEndOfEarlyData();
-
-            // Now deactivate early write keys before processing server messages
-            $this->recordLayer->deactivateEarlyWriteKeys();
-
             $earlyDataSent = true;
+            // Keep early WRITE keys active - we'll need them for EndOfEarlyData later
+            // DO NOT send EndOfEarlyData here!
         }
 
         // Process server handshake messages
+        // (reads with handshake keys, early WRITE keys don't affect reading)
         $this->processServerHandshakeMessages();
 
-        // Check if server accepted early data (from EncryptedExtensions)
-        if ($earlyDataSent && !$this->context->isEarlyDataAccepted()) {
-            if ($this->endOfEarlyDataMessage !== null) {
-                $this->context->addHandshakeMessage($this->endOfEarlyDataMessage);
+        // NOW check if server accepted early data and send EndOfEarlyData
+        if ($earlyDataSent) {
+            if ($this->context->isEarlyDataAccepted()) {
+                // Server accepted - send EndOfEarlyData (still encrypted with early keys)
+                $this->sendEndOfEarlyData();
+                Logger::debug('Sent EndOfEarlyData after server acceptance confirmed');
+            } else {
+                // Server rejected - notify application
+                $this->handleEarlyDataRejection();
             }
-            // Server rejected - notify application
-            $this->handleEarlyDataRejection();
+            // Deactivate early write keys in either case
+            $this->recordLayer->deactivateEarlyWriteKeys();
         }
 
         // After receiving server's Finished, send client certificate if requested
@@ -108,14 +107,11 @@ class ProtocolOrchestrator
             $this->sendClientCertificateFlight();
         }
 
-        // Send client Finished
+        // Send client Finished (with handshake keys)
         $finished = $this->messageFactory->createFinished(true);
         $this->sendHandshakeMessage($finished);
 
-        // Update state to indicate handshake is complete
         $this->context->setHandshakeComplete(true);
-
-        // Derive application traffic secrets
         $this->context->deriveApplicationSecrets();
     }
 
@@ -160,19 +156,17 @@ class ProtocolOrchestrator
     {
         Logger::debug('Sending EndOfEarlyData');
 
-        // Create and serialize EndOfEarlyData
         $endOfEarlyData = $this->messageFactory->createEndOfEarlyData();
         $serialized = $this->messageSerializer->serialize($endOfEarlyData);
 
-        // DO NOT add to transcript here - will be added after ServerHello processing
-        // Store it for later
-        $this->endOfEarlyDataMessage = $serialized;
+        // Add to transcript (server accepted, so this is part of the handshake)
+        $this->context->addHandshakeMessage($serialized);
 
-        // Send encrypted with early keys (still active)
+        // Send encrypted with early keys (still active at this point)
         $record = $this->recordFactory->createHandshake($serialized);
         $this->recordLayer->sendRecord($record);
 
-        Logger::debug('EndOfEarlyData sent (not yet in transcript)');
+        Logger::debug('EndOfEarlyData sent and added to transcript');
     }
 
     /**

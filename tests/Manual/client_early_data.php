@@ -59,6 +59,12 @@ try {
     echo "Sending follow-up: $message\n";
     $session->send($message);
 
+    // Wait for server response before closing
+    $response = $session->receive(1024);
+    if ($response !== null) {
+        echo "Received response: $response\n";
+    }
+
     $session->close();
     echo "Connection closed\n";
 
