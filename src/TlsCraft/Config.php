@@ -96,12 +96,12 @@ class Config
     private ?Closure $onPskSelection = null;
 
     // Early data (0-RTT) client configuration
-    private bool $enableEarlyData = false;
-    private ?string $earlyData = null;
+    private bool $enableEarlyData;
+    private ?string $earlyData;
     private ?Closure $onEarlyDataRejected = null;
 
     // Early data (0-RTT) server configuration
-    private EarlyDataServerMode $earlyDataServerMode = EarlyDataServerMode::REJECT;
+    private EarlyDataServerMode $earlyDataServerMode;
     private ?Closure $earlyDataServerModeCallback = null;
 
     public function __construct(
@@ -307,7 +307,7 @@ class Config
     }
 
     /**
-     * Set private key file path
+     * Set a private key file path
      * - When server: this is the server's private key
      * - When client: this is the client's private key (for client authentication)
      */
@@ -469,16 +469,6 @@ class Config
 
     // === PSK / Session Resumption Configuration ===
 
-    /**
-     * Enable or disable session resumption
-     */
-    public function setEnableSessionResumption(bool $enable): self
-    {
-        $this->enableSessionResumption = $enable;
-
-        return $this;
-    }
-
     public function isSessionResumptionEnabled(): bool
     {
         return $this->enableSessionResumption;
@@ -501,21 +491,6 @@ class Config
     public function getSessionLifetime(): int
     {
         return $this->sessionLifetimeSeconds;
-    }
-
-    /**
-     * Set maximum early data size (0 = disabled)
-     * For future 0-RTT support
-     */
-    public function setMaxEarlyDataSize(int $size): self
-    {
-        if ($size < 0) {
-            throw new InvalidArgumentException('Max early data size must be non-negative');
-        }
-
-        $this->maxEarlyDataSize = $size;
-
-        return $this;
     }
 
     public function getMaxEarlyDataSize(): int
@@ -642,34 +617,11 @@ class Config
     // === Early Data (0-RTT) Client Configuration ===
 
     /**
-     * Enable or disable early data (0-RTT)
-     */
-    public function setEnableEarlyData(bool $enable): self
-    {
-        $this->enableEarlyData = $enable;
-
-        return $this;
-    }
-
-    /**
      * Check if early data is enabled
      */
     public function isEarlyDataEnabled(): bool
     {
         return $this->enableEarlyData;
-    }
-
-    /**
-     * Set the early data to send (application data for 0-RTT)
-     *
-     * WARNING: Early data is NOT replay-protected. Only use for
-     * idempotent requests (e.g., GET requests, safe operations).
-     */
-    public function setEarlyData(?string $data): self
-    {
-        $this->earlyData = $data;
-
-        return $this;
     }
 
     /**
@@ -709,29 +661,6 @@ class Config
     public function getOnEarlyDataRejected(): ?Closure
     {
         return $this->onEarlyDataRejected;
-    }
-
-    /**
-     * Configure early data with convenience method
-     *
-     * @param string       $data       The data to send as 0-RTT
-     * @param Closure|null $onRejected Callback if server rejects early data
-     */
-    public function withEarlyData(string $data, ?Closure $onRejected = null): self
-    {
-        return $this->setEnableEarlyData(true)
-            ->setEarlyData($data)
-            ->setOnEarlyDataRejected($onRejected);
-    }
-
-    /**
-     * Disable early data
-     */
-    public function withoutEarlyData(): self
-    {
-        return $this->setEnableEarlyData(false)
-            ->setEarlyData(null)
-            ->setOnEarlyDataRejected(null);
     }
 
     // === Early Data (0-RTT) Server Configuration ===
@@ -810,33 +739,6 @@ class Config
         return $this->earlyDataServerMode;
     }
 
-    /**
-     * Configure server to accept early data
-     *
-     * WARNING: Early data is vulnerable to replay attacks!
-     * Only use if your application can handle replayed requests safely.
-     */
-    public function withEarlyDataAcceptance(): self
-    {
-        return $this->setEarlyDataServerMode(EarlyDataServerMode::ACCEPT);
-    }
-
-    /**
-     * Configure server to reject early data (default, safest)
-     */
-    public function withEarlyDataRejection(): self
-    {
-        return $this->setEarlyDataServerMode(EarlyDataServerMode::REJECT);
-    }
-
-    /**
-     * Configure server to reject early data with HelloRetryRequest
-     */
-    public function withEarlyDataHelloRetryRequest(): self
-    {
-        return $this->setEarlyDataServerMode(EarlyDataServerMode::HELLO_RETRY_REQUEST);
-    }
-
     // === Convenience Methods for Common Configurations ===
 
     /**
@@ -881,95 +783,16 @@ class Config
     }
 
     /**
-     * Configure to skip all certificate validation (use with caution!)
-     */
-    public function withoutCertificateValidation(): self
-    {
-        return $this->setRequireTrustedCertificates(false)
-            ->setAllowSelfSignedCertificates(true)
-            ->setValidateCertificateExpiry(false)
-            ->setValidateCertificatePurpose(false)
-            ->setValidateHostname(false);
-    }
-
-    /**
-     * Configure to validate certificates but allow self-signed
-     * (useful for internal networks with self-signed certs)
-     */
-    public function withSelfSignedValidation(): self
-    {
-        return $this->setAllowSelfSignedCertificates(true)
-            ->setRequireTrustedCertificates(false)
-            ->setValidateCertificateExpiry(true)
-            ->setValidateCertificatePurpose(true)
-            ->setValidateHostname(true);
-    }
-
-    /**
-     * Configure mutual TLS (server requests client certificate)
-     * Automatically enables client certificate request when custom CA is provided
-     */
-    public function withMutualTLS(?string $caPath = null, ?string $caFile = null): self
-    {
-        $this->withCustomCa($caPath, $caFile);
-
-        // Auto-enable client certificate request when CA is configured
-        if ($caPath !== null || $caFile !== null) {
-            $this->setRequestClientCertificate(true);
-        }
-
-        return $this;
-    }
-
-    /**
-     * Configure session resumption with storage backend
-     */
-    public function withSessionResumption(SessionStorage $storage, int $lifetimeSeconds = 86400): self
-    {
-        return $this->setEnableSessionResumption(true)
-            ->setSessionStorage($storage)
-            ->setSessionLifetime($lifetimeSeconds);
-    }
-
-    /**
-     * Disable session resumption
-     */
-    public function withoutSessionResumption(): self
-    {
-        return $this->setEnableSessionResumption(false)
-            ->setSessionStorage(null);
-    }
-
-    /**
-     * Configure to support PSK-only mode (no (EC)DHE)
-     */
-    public function withPskOnlyMode(): self
-    {
-        return $this->setPskKeyExchangeModes([PskKeyExchangeModesExtension::PSK_KE]);
-    }
-
-    /**
-     * Configure to support both PSK modes (with and without DHE)
-     */
-    public function withBothPskModes(): self
-    {
-        return $this->setPskKeyExchangeModes([
-            PskKeyExchangeModesExtension::PSK_KE,
-            PskKeyExchangeModesExtension::PSK_DHE_KE,
-        ]);
-    }
-
-    /**
      * Configure external PSKs
      */
-    public function withExternalPsks(array $externalPsks): self
+    public function setExternalPsks(array $externalPsks): self
     {
         $this->externalPsks = $externalPsks;
 
         return $this;
     }
 
-    public function withSessionTicketSerializer(SessionTicketSerializer $serializer): self
+    public function setSessionTicketSerializer(SessionTicketSerializer $serializer): self
     {
         $this->sessionTicketSerializer = $serializer;
 

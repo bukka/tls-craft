@@ -21,7 +21,7 @@ class EndOfEarlyDataProcessor extends MessageProcessor
 
         // Verify we were expecting early data
         if (!$this->context->isEarlyDataAccepted()) {
-            Logger::warning('Received EndOfEarlyData but early data was not accepted');
+            Logger::warn('Received EndOfEarlyData but early data was not accepted');
             // This could be a protocol violation, but we'll handle it gracefully
         }
 

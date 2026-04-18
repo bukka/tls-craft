@@ -64,17 +64,17 @@ final class AppFactory
 
         // Add external PSKs if provided
         if ($externalPsks !== null) {
-            $config = $config->withExternalPsks($externalPsks);
+            $config = $config->setExternalPsks($externalPsks);
         }
 
         // Configure session resumption if storage provided
         if ($sessionStorage !== null) {
-            $config = $config->withSessionResumption($sessionStorage, $sessionLifetime);
+            $config->setSessionStorage($sessionStorage)->setSessionLifetime($sessionLifetime);
         }
 
         // Configure ticket serializer if provided
         if ($sessionTicketSerializer !== null) {
-            $config = $config->withSessionTicketSerializer($sessionTicketSerializer);
+            $config = $config->setSessionTicketSerializer($sessionTicketSerializer);
         }
 
         // Set early data rejection callback if provided
@@ -141,19 +141,19 @@ final class AppFactory
 
         // Add external PSKs if provided
         if ($externalPsks !== null) {
-            $config = $config->withExternalPsks($externalPsks);
+            $config = $config->setExternalPsks($externalPsks);
         }
 
         // Configure session resumption if storage provided
         if ($sessionStorage !== null) {
-            $config = $config->withSessionResumption($sessionStorage, $sessionLifetime);
-
             // Server MUST have a serializer to encrypt tickets
             if ($sessionTicketSerializer === null) {
                 throw new InvalidArgumentException('Server with session resumption requires a SessionTicketSerializer. Use PlainSessionTicketSerializer for testing or EncryptedSessionTicketSerializer for production.');
             }
 
-            $config = $config->withSessionTicketSerializer($sessionTicketSerializer);
+            $config->setSessionStorage($sessionStorage)
+                ->setSessionLifetime($sessionLifetime)
+                ->setSessionTicketSerializer($sessionTicketSerializer);
         }
 
         // Configure early data

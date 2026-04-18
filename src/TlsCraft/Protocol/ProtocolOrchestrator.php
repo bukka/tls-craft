@@ -75,20 +75,17 @@ class ProtocolOrchestrator
         $clientHello = $this->messageFactory->createClientHello();
         $this->sendHandshakeMessage($clientHello, false);
 
-        // Early Data Handling - send early data but NOT EndOfEarlyData yet
+        // Early Data Handling - send early data but NOT EndOfEarlyData yet to keep early write keys active
         $earlyDataSent = false;
-        if ($this->context->isEarlyDataAttempted()) {
+        if ($this->context->isEarlyDataReady()) {
             $this->sendClientEarlyData();
             $earlyDataSent = true;
-            // Keep early WRITE keys active - we'll need them for EndOfEarlyData later
-            // DO NOT send EndOfEarlyData here!
         }
 
         // Process server handshake messages
-        // (reads with handshake keys, early WRITE keys don't affect reading)
         $this->processServerHandshakeMessages();
 
-        // NOW check if server accepted early data and send EndOfEarlyData
+        // Check if server accepted early data and send EndOfEarlyData
         if ($earlyDataSent) {
             if ($this->context->isEarlyDataAccepted()) {
                 // Server accepted - send EndOfEarlyData (still encrypted with early keys)
@@ -203,7 +200,7 @@ class ProtocolOrchestrator
         if ($earlyDataMode === EarlyDataServerMode::HELLO_RETRY_REQUEST) {
             // TODO: Implement HelloRetryRequest flow
             // For now, fall through to REJECT behavior
-            Logger::debug('HRR not implemented, falling back to reject mode');
+            Logger::warn('HRR not implemented, falling back to reject mode');
             $earlyDataMode = EarlyDataServerMode::REJECT;
         }
 

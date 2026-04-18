@@ -76,6 +76,7 @@ class Context
 
     // Early data (0-RTT) state
     private bool $earlyDataAttempted = false;
+    private bool $earlyDataReady = false;
     private bool $earlyDataAccepted = false;
     private ?string $clientEarlyTrafficSecret = null;
     private ?string $receivedEarlyData = null;
@@ -623,13 +624,6 @@ class Context
     }
 
     // === PSK / Session Management ===
-    /**
-     * Add a PSK to be offered in ClientHello
-     */
-    public function addOfferedPsk(PreSharedKey $psk): void
-    {
-        $this->offeredPsks[] = $psk;
-    }
 
     /**
      * Set PSKs to be offered in ClientHello
@@ -809,11 +803,27 @@ class Context
     }
 
     /**
-     * Check if early data was attempted
+     * Check if early data was attempted (server)
      */
     public function isEarlyDataAttempted(): bool
     {
         return $this->earlyDataAttempted;
+    }
+
+    /**
+     * Mark that early data is ready for sending (client)
+     */
+    public function setEarlyDataReady(bool $ready): void
+    {
+        $this->earlyDataReady = $ready;
+    }
+
+    /**
+     * Check if early data is ready
+     */
+    public function isEarlyDataReady(): bool
+    {
+        return $this->earlyDataReady;
     }
 
     /**

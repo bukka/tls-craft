@@ -143,7 +143,7 @@ class EarlyDataExtensionProvider implements ExtensionProvider
         ]);
 
         // Mark that we're attempting early data
-        $context->setEarlyDataAttempted(true);
+        $context->setEarlyDataReady(true);
 
         return EarlyDataExtension::forClientHello();
     }

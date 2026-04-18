@@ -55,21 +55,15 @@ class PreSharedKeyExtensionProvider implements ExtensionProvider
      */
     private function createClientExtension(Context $context): ?PreSharedKeyExtension
     {
-        // First, check for PSKs already set in context (e.g., from manual configuration)
-        $offeredPsks = $context->getOfferedPsks();
-
-        // If no PSKs in context, check Config for external PSKs
-        if (empty($offeredPsks)) {
-            $offeredPsks = $context->getConfig()->getExternalPsks();
-
-            if (!empty($offeredPsks)) {
-                Logger::debug('Using external PSKs from Config', [
-                    'count' => count($offeredPsks),
-                ]);
-            }
+        // First, check for external PSKs
+        $offeredPsks = $context->getConfig()->getExternalPsks();
+        if (!empty($offeredPsks)) {
+            Logger::debug('Using external PSKs from Config', [
+                'count' => count($offeredPsks),
+            ]);
         }
 
-        // If still no PSKs, try to load session tickets from storage
+        // If no PSKs, try to load session tickets from storage
         if (empty($offeredPsks)) {
             $offeredPsks = $this->loadSessionTicketsFromStorage($context);
 
